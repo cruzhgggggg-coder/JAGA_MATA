@@ -1,0 +1,35 @@
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+local.properties
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+captures/
+.externalNativeBuild/
+.cxx/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.pyc
+
+# Keystore (jangan commit)
+*.jks
+*.keystore
+
+# Output build lokal
+app/release/
+outputs/
+
+# Artefak kerja agent
+build_log.txt
+ktlint_log.txt
+detekt_log.txt
+lint_log.txt
+prd_extracted.txt
