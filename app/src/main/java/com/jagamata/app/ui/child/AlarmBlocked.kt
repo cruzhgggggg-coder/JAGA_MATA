@@ -26,15 +26,16 @@ import com.jagamata.app.ui.theme.Coral
 @Composable
 fun AlarmBlocked(
     title: String = stringResource(R.string.alarm_title),
-    subtitle: String = stringResource(R.string.alarm_subtitle)
+    subtitle: String = stringResource(R.string.alarm_subtitle),
 ) {
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Coral)
-            .padding(32.dp),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(Coral)
+                .padding(32.dp),
         verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         MascotKiko(modifier = Modifier.size(180.dp))
         Text(
@@ -42,14 +43,14 @@ fun AlarmBlocked(
             style = MaterialTheme.typography.displayMedium,
             color = MaterialTheme.colorScheme.onPrimary,
             textAlign = TextAlign.Center,
-            modifier = Modifier.padding(top = 24.dp)
+            modifier = Modifier.padding(top = 24.dp),
         )
         Text(
             text = subtitle,
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onPrimary,
             textAlign = TextAlign.Center,
-            modifier = Modifier.padding(top = 12.dp)
+            modifier = Modifier.padding(top = 12.dp),
         )
     }
 }
@@ -60,6 +61,6 @@ fun MascotKiko(modifier: Modifier = Modifier) {
     androidx.compose.foundation.Image(
         painter = androidx.compose.ui.res.painterResource(R.drawable.mascot),
         contentDescription = stringResource(R.string.app_name),
-        modifier = modifier.clip(RoundedCornerShape(24.dp))
+        modifier = modifier.clip(RoundedCornerShape(24.dp)),
     )
 }

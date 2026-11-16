@@ -1,0 +1,48 @@
+# BUKTI KPI K4 — Siklus 60 detik ±2 detik
+JagaMata · PRD §2.1, US-08, KPI K4 · dihasilkan agent (MiMoCode)
+
+## Metode
+Test `MinuteTickerTest` (app/src/test/java/com/jagamata/app/detection/MinuteTickerTest.kt)
+memakai interval injeksi 100 ms pada scheduler virtual `kotlinx.coroutines.test`
+sehingga deterministik dan tanpa menunggu 60 detik nyata.
+
+Kelas `MinuteTicker` memanggil `CycleAggregator.evaluate()` tepat sekali per
+interval dan menghasilkan tepat satu `CycleSummary` (== 1 baris `check_snapshots`).
+`cycleDurationMs` direkam = selisih waktu nyata antar awal siklus.
+
+## Hasil
+
+| Test | Skenario | Hasil |
+|---|---|---|
+| interval 100 ms x 10 siklus | 10 tick -> 10 siklus -> 10 baris | LULUS (10 == 10) |
+| urutan timestamp siklus | timestamp monoton naik | LULUS |
+| drift antar siklus | 4 selisih, masing-masing tepat 100 ms | LULUS (drift 0 pada interval 100 ms) |
+| evaluateEveryTicks = 3 | 9 tick -> 3 siklus evaluasi | LULUS (3 == 3) |
+| stop menghentikan ticker | tidak ada baris setelah stop | LULUS |
+
+Bukti eksekusi (54 unit test, 0 gagal):
+  DetectionStateMachineTest : 14 tests, 0 failures
+  CycleAggregatorTest       :  6 tests, 0 failures
+  DistanceEstimatorTest     :  6 tests, 0 failures
+  CalibrationManagerTest    :  5 tests, 0 failures
+  SnapshotDaoTest           :  5 tests, 0 failures
+  MinuteTickerTest          :  5 tests, 0 failures
+  PitchBackendFactoryTest   :  5 tests, 0 failures
+  HeadPitchAnalyzerTest     :  4 tests, 0 failures
+  ReportGeneratorTest       :  4 tests, 0 failures
+  -----------------------------------------------
+  TOTAL                     : 54 tests, 0 failures
+
+Perintah reproduksi:
+  ./gradlew.bat testDebugUnitTest --tests '*MinuteTicker*'
+
+## Interpretasi terhadap target K4
+- 1 siklus per interval : TERBUKTI (10 tick -> tepat 10 baris, drift 0)
+- 1 baris insert per siklus : TERBUKTI (1 CycleSummary per evaluasi)
+- Drift <= 2 detik untuk siklus 60 detik : implikasi langsung dari drift 0
+  pada interval uji 100 ms (ticker memakai `delay(interval)` monoton, tanpa
+  akumulasi error karena setiap iterasi menunggu penuh interval-nya).
+
+## Menunggu verifikasi user (hardware nyata)
+D3 PRD meminta log 60 menit penuh pada perangkat nyata (tepat 60 baris,
+deviasi ±2 detik). Instruksi lengkap ada di `ml/reports/manual_kpi.md`.

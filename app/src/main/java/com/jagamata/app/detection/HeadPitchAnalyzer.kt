@@ -20,7 +20,10 @@ object HeadPitchAnalyzer {
     const val LEFT_EYE_INDEX = 33
     const val RIGHT_EYE_INDEX = 263
 
-    fun pitchDeg(nose: LandmarkPoint, chin: LandmarkPoint): Float {
+    fun pitchDeg(
+        nose: LandmarkPoint,
+        chin: LandmarkPoint,
+    ): Float {
         val dy = chin.y - nose.y
         val dz = chin.z - nose.z
         if (abs(dy) < EPSILON && abs(dz) < EPSILON) return 0f

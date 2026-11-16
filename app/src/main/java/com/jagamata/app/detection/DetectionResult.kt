@@ -11,25 +11,25 @@ data class DetectionResult(
     val pitchDeg: Float? = null,
     val lux: Float? = null,
     val distanceCm: Float? = null,
-    val backend: DetectorBackend = DetectorBackend.NONE
+    val backend: DetectorBackend = DetectorBackend.NONE,
 )
 
 enum class DetectorBackend {
     NONE,
     MEDIAPIPE,
-    MLKIT
+    MLKIT,
 }
 
 /** Level risiko — prioritas BLOCKED > WARNING > OK (PRD §2.6). */
 enum class RiskLevel {
     OK,
     WARNING,
-    BLOCKED
+    BLOCKED,
 }
 
 /** Jenis pelanggaran per siklus (PRD US-09). */
 enum class ViolationType {
     TOO_CLOSE,
     TOO_DARK,
-    BAD_POSTURE
+    BAD_POSTURE,
 }

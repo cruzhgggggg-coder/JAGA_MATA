@@ -6,7 +6,6 @@ package com.jagamata.app.detection
  * jumlah tanpa wajah, dan daftar violations. [clear] dipanggil setelah evaluate.
  */
 class CycleAggregator {
-
     private val samples = mutableListOf<DetectionResult>()
 
     fun add(result: DetectionResult) {
@@ -17,7 +16,7 @@ class CycleAggregator {
 
     fun evaluate(
         startedAtMs: Long = samples.firstOrNull()?.timestampMs ?: 0L,
-        cycleDurationMs: Long = 0L
+        cycleDurationMs: Long = 0L,
     ): CycleSummary {
         val summary = summarize(startedAtMs, cycleDurationMs)
         clear()
@@ -28,16 +27,20 @@ class CycleAggregator {
         samples.clear()
     }
 
-    private fun summarize(startedAtMs: Long, cycleDurationMs: Long): CycleSummary {
+    private fun summarize(
+        startedAtMs: Long,
+        cycleDurationMs: Long,
+    ): CycleSummary {
         val distances = samples.mapNotNull { it.distanceCm }
         val luxValues = samples.mapNotNull { it.lux }
         val pitches = samples.mapNotNull { it.pitchDeg }
 
-        val violations = buildList {
-            if (distances.any { it < CLOSE_CM }) add(ViolationType.TOO_CLOSE)
-            if (luxValues.any { it < DARK_LUX }) add(ViolationType.TOO_DARK)
-            if (pitches.any { it > POSTURE_DEG }) add(ViolationType.BAD_POSTURE)
-        }
+        val violations =
+            buildList {
+                if (distances.any { it < CLOSE_CM }) add(ViolationType.TOO_CLOSE)
+                if (luxValues.any { it < DARK_LUX }) add(ViolationType.TOO_DARK)
+                if (pitches.any { it > POSTURE_DEG }) add(ViolationType.BAD_POSTURE)
+            }
 
         return CycleSummary(
             startedAtMs = startedAtMs,
@@ -49,7 +52,7 @@ class CycleAggregator {
             avgLux = luxValues.takeIf { it.isNotEmpty() }?.average()?.toFloat(),
             maxPitchDeg = pitches.maxOrNull(),
             violations = violations,
-            cycleDurationMs = cycleDurationMs
+            cycleDurationMs = cycleDurationMs,
         )
     }
 
@@ -71,7 +74,7 @@ data class CycleSummary(
     val avgLux: Float?,
     val maxPitchDeg: Float?,
     val violations: List<ViolationType>,
-    val cycleDurationMs: Long = 0L
+    val cycleDurationMs: Long = 0L,
 ) {
     val hasViolation: Boolean get() = violations.isNotEmpty()
 

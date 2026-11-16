@@ -8,9 +8,7 @@ import com.jagamata.app.detection.CycleSummary
 import com.jagamata.app.detection.RiskLevel
 import com.jagamata.app.service.DetectionForegroundService
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 /**
@@ -18,9 +16,8 @@ import kotlinx.coroutines.launch
  * grafik 7 hari dari `daily_stats`.
  */
 class DashboardViewModel(
-    private val database: AppDatabase
+    private val database: AppDatabase,
 ) : ViewModel() {
-
     constructor() : this(DetectionServiceLocator.database())
 
     data class UiState(
@@ -30,7 +27,7 @@ class DashboardViewModel(
         val lastCycle: CycleSummary? = null,
         val riskLevel: RiskLevel = RiskLevel.OK,
         val dailyStats: List<DailyStats> = emptyList(),
-        val isMonitoring: Boolean = false
+        val isMonitoring: Boolean = false,
     )
 
     private val _uiState = MutableStateFlow(UiState())
@@ -60,12 +57,13 @@ class DashboardViewModel(
             val since = System.currentTimeMillis() - WEEK_MS
             val snapshots = database.snapshotDao().getSince(since)
             val daily = database.dailyDao().getSince((since / DAY_MS))
-            _uiState.value = _uiState.value.copy(
-                weeklyCloseViolations = snapshots.count { it.violations.contains("TOO_CLOSE") },
-                weeklyDarkMinutes = snapshots.count { (it.avgLux ?: Float.MAX_VALUE) < 150f },
-                weeklyPostureViolations = snapshots.count { it.violations.contains("BAD_POSTURE") },
-                dailyStats = daily
-            )
+            _uiState.value =
+                _uiState.value.copy(
+                    weeklyCloseViolations = snapshots.count { it.violations.contains("TOO_CLOSE") },
+                    weeklyDarkMinutes = snapshots.count { (it.avgLux ?: Float.MAX_VALUE) < 150f },
+                    weeklyPostureViolations = snapshots.count { it.violations.contains("BAD_POSTURE") },
+                    dailyStats = daily,
+                )
         }
     }
 

@@ -20,28 +20,30 @@ import com.jagamata.app.R
 @Composable
 fun SetupDoneScreen(onFinish: () -> Unit) {
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(32.dp),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .padding(32.dp),
         verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
             text = stringResource(R.string.setup_done_title),
             style = MaterialTheme.typography.displayMedium,
-            textAlign = TextAlign.Center
+            textAlign = TextAlign.Center,
         )
         Text(
             text = stringResource(R.string.setup_done_desc),
             style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center,
-            modifier = Modifier.padding(top = 16.dp)
+            modifier = Modifier.padding(top = 16.dp),
         )
         Button(
             onClick = onFinish,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 32.dp)
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(top = 32.dp),
         ) {
             Text(stringResource(R.string.onboarding_finish))
         }

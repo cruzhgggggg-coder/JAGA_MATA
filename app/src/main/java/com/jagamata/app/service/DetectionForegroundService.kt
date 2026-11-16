@@ -28,19 +28,18 @@ import com.jagamata.app.detection.DetectionStateMachine
 import com.jagamata.app.detection.FaceDetectorManager
 import com.jagamata.app.detection.MinuteTicker
 import com.jagamata.app.detection.RiskLevel
-import java.util.concurrent.Executors
-import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * Service latar depan yang menghost kamera + ticker + agregator
  * (PRD §5.2, DEV-15). `foregroundServiceType="camera"`, `START_STICKY`.
  */
 class DetectionForegroundService : LifecycleService() {
-
     private lateinit var database: AppDatabase
     private lateinit var settings: SettingsRepository
     private lateinit var detector: FaceDetectorManager
@@ -60,7 +59,11 @@ class DetectionForegroundService : LifecycleService() {
         _isRunning.value = true
     }
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+    override fun onStartCommand(
+        intent: Intent?,
+        flags: Int,
+        startId: Int,
+    ): Int {
         super.onStartCommand(intent, flags, startId)
         startForegroundWithNotification()
         detector.initialize()
@@ -75,7 +78,7 @@ class DetectionForegroundService : LifecycleService() {
             startForeground(
                 NotificationHelper.NOTIF_ID_SERVICE,
                 notification,
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA,
             )
         } else {
             startForeground(NotificationHelper.NOTIF_ID_SERVICE, notification)
@@ -89,10 +92,11 @@ class DetectionForegroundService : LifecycleService() {
                 val provider = future.get()
                 cameraProvider = provider
                 val preview = Preview.Builder().build()
-                val analysis = ImageAnalysis.Builder()
-                    .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                    .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_YUV_420_888)
-                    .build()
+                val analysis =
+                    ImageAnalysis.Builder()
+                        .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                        .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_YUV_420_888)
+                        .build()
                 analysis.setAnalyzer(analysisExecutor) { proxy ->
                     val ts = System.currentTimeMillis()
                     detector.detect(proxy, ts)
@@ -102,7 +106,7 @@ class DetectionForegroundService : LifecycleService() {
                     this,
                     CameraSelector.DEFAULT_BACK_CAMERA,
                     preview,
-                    analysis
+                    analysis,
                 )
             } catch (t: Throwable) {
                 Log.e(TAG, "Kamera gagal diikat: ${t.message}")
@@ -113,18 +117,20 @@ class DetectionForegroundService : LifecycleService() {
     private fun startTicker() {
         lifecycleScope.launch {
             val lightMode = settings.lightModeEnabled.first()
-            val interval = if (lightMode) {
-                MinuteTicker.LIGHT_MODE_TICK_INTERVAL_MS
-            } else {
-                MinuteTicker.TICK_INTERVAL_MS
-            }
+            val interval =
+                if (lightMode) {
+                    MinuteTicker.LIGHT_MODE_TICK_INTERVAL_MS
+                } else {
+                    MinuteTicker.TICK_INTERVAL_MS
+                }
             val every = if (lightMode) MinuteTicker.LIGHT_MODE_TICKS_PER_CYCLE else 1
-            val newTicker = MinuteTicker(
-                scope = lifecycleScope,
-                aggregator = aggregator,
-                tickIntervalMs = interval,
-                evaluateEveryTicks = every
-            ) { summary -> persistCycle(summary) }
+            val newTicker =
+                MinuteTicker(
+                    scope = lifecycleScope,
+                    aggregator = aggregator,
+                    tickIntervalMs = interval,
+                    evaluateEveryTicks = every,
+                ) { summary -> persistCycle(summary) }
             ticker = newTicker
             newTicker.start()
         }
@@ -152,8 +158,8 @@ class DetectionForegroundService : LifecycleService() {
                 avgLux = summary.avgLux,
                 maxPitchDeg = summary.maxPitchDeg,
                 violations = summary.violationsCsv(),
-                dayEpoch = dayEpoch
-            )
+                dayEpoch = dayEpoch,
+            ),
         )
         if (summary.hasViolation) {
             summary.violations.forEach { type ->
@@ -163,19 +169,20 @@ class DetectionForegroundService : LifecycleService() {
                         type = type.name,
                         distanceCm = summary.avgDistanceCm,
                         lux = summary.avgLux,
-                        pitchDeg = summary.maxPitchDeg
-                    )
+                        pitchDeg = summary.maxPitchDeg,
+                    ),
                 )
             }
             val title = getString(R.string.notif_title, summary.violationsCsv())
-            val body = when (summary.violations.first()) {
-                com.jagamata.app.detection.ViolationType.TOO_CLOSE ->
-                    getString(R.string.notif_body, summary.minDistanceCm ?: 0f)
-                com.jagamata.app.detection.ViolationType.TOO_DARK ->
-                    getString(R.string.notif_body_dark, summary.avgLux ?: 0f)
-                com.jagamata.app.detection.ViolationType.BAD_POSTURE ->
-                    getString(R.string.notif_body_posture, summary.maxPitchDeg ?: 0f)
-            }
+            val body =
+                when (summary.violations.first()) {
+                    com.jagamata.app.detection.ViolationType.TOO_CLOSE ->
+                        getString(R.string.notif_body, summary.minDistanceCm ?: 0f)
+                    com.jagamata.app.detection.ViolationType.TOO_DARK ->
+                        getString(R.string.notif_body_dark, summary.avgLux ?: 0f)
+                    com.jagamata.app.detection.ViolationType.BAD_POSTURE ->
+                        getString(R.string.notif_body_posture, summary.maxPitchDeg ?: 0f)
+                }
             NotificationHelper.throttledAlert(this, title, body)
         }
         _lastCycle.value = summary
@@ -228,7 +235,7 @@ class DetectionForegroundService : LifecycleService() {
                 context,
                 0,
                 Intent(context, MainActivity::class.java),
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
             )
     }
 }

@@ -6,7 +6,6 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
-import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
@@ -22,7 +21,6 @@ private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(na
  * tanpa restart service. PIN disimpan sebagai SHA-256 + salt.
  */
 class SettingsRepository(private val context: Context) {
-
     val closeThresholdCm: Flow<Float> = read(KEY_CLOSE_CM, DEFAULT_CLOSE_CM)
     val luxThreshold: Flow<Float> = read(KEY_LUX, DEFAULT_LUX)
     val pitchThresholdDeg: Flow<Float> = read(KEY_PITCH, DEFAULT_PITCH)
@@ -33,11 +31,17 @@ class SettingsRepository(private val context: Context) {
     val parentPinHash: Flow<String> = read(KEY_PIN_HASH, "")
 
     suspend fun setCloseThresholdCm(value: Float) = write(KEY_CLOSE_CM, value)
+
     suspend fun setLuxThreshold(value: Float) = write(KEY_LUX, value)
+
     suspend fun setPitchThresholdDeg(value: Float) = write(KEY_PITCH, value)
+
     suspend fun setLightModeEnabled(value: Boolean) = write(KEY_LIGHT_MODE, value)
+
     suspend fun setSafeBannerEnabled(value: Boolean) = write(KEY_SAFE_BANNER, value)
+
     suspend fun setFocalPx(value: Float) = write(KEY_FOCAL_PX, value)
+
     suspend fun setOnboardingDone(value: Boolean) = write(KEY_ONBOARDING_DONE, value)
 
     suspend fun setParentPin(pin: String) {
@@ -57,10 +61,15 @@ class SettingsRepository(private val context: Context) {
         context.dataStore.edit { it.clear() }
     }
 
-    private fun <T> read(key: Preferences.Key<T>, default: T): Flow<T> =
-        context.dataStore.data.map { it[key] ?: default }
+    private fun <T> read(
+        key: Preferences.Key<T>,
+        default: T,
+    ): Flow<T> = context.dataStore.data.map { it[key] ?: default }
 
-    private suspend fun <T> write(key: Preferences.Key<T>, value: T) {
+    private suspend fun <T> write(
+        key: Preferences.Key<T>,
+        value: T,
+    ) {
         context.dataStore.edit { it[key] = value }
     }
 
@@ -88,7 +97,10 @@ class SettingsRepository(private val context: Context) {
         private val KEY_PIN_SALT = stringPreferencesKey("parent_pin_salt")
 
         /** SHA-256(pin + salt) hex (US-11, implementasi minimal). */
-        fun hashPin(pin: String, salt: String): String {
+        fun hashPin(
+            pin: String,
+            salt: String,
+        ): String {
             val digest = MessageDigest.getInstance("SHA-256")
             val bytes = digest.digest((pin + salt).toByteArray(Charsets.UTF_8))
             return bytes.joinToString("") { "%02x".format(it) }

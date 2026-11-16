@@ -9,7 +9,10 @@ import android.graphics.Bitmap
  * Opsional drop-in = [TflitePitchBackend] (aktif hanya bila file model ada).
  */
 interface PitchBackend {
-    fun pitchDeg(landmarks: List<LandmarkPoint>, faceCrop: Bitmap?): Float?
+    fun pitchDeg(
+        landmarks: List<LandmarkPoint>,
+        faceCrop: Bitmap?,
+    ): Float?
 
     /** True bila backend membutuhkan crop wajah sebagai masukan. */
     fun requiresFaceCrop(): Boolean = false
@@ -20,8 +23,10 @@ interface PitchBackend {
  * Tanpa file model tambahan (F9: platform tetap penuh tanpa model).
  */
 class LandmarkPitchBackend : PitchBackend {
-    override fun pitchDeg(landmarks: List<LandmarkPoint>, faceCrop: Bitmap?): Float? =
-        HeadPitchAnalyzer.pitchDegFromLandmarks(landmarks)
+    override fun pitchDeg(
+        landmarks: List<LandmarkPoint>,
+        faceCrop: Bitmap?,
+    ): Float? = HeadPitchAnalyzer.pitchDegFromLandmarks(landmarks)
 }
 
 /**
@@ -33,10 +38,11 @@ object PitchBackendFactory {
         useTfliteFlag: Boolean,
         tfliteModelAvailable: Boolean,
         tflite: PitchBackend? = null,
-        landmark: PitchBackend = LandmarkPitchBackend()
-    ): PitchBackend = if (useTfliteFlag && tfliteModelAvailable && tflite != null) {
-        tflite
-    } else {
-        landmark
-    }
+        landmark: PitchBackend = LandmarkPitchBackend(),
+    ): PitchBackend =
+        if (useTfliteFlag && tfliteModelAvailable && tflite != null) {
+            tflite
+        } else {
+            landmark
+        }
 }

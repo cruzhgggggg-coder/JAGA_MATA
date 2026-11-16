@@ -4,16 +4,15 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.PixelFormat
 import android.os.Build
-import android.provider.Settings
-import android.view.Gravity
-import android.view.View
-import android.view.WindowManager
-import android.widget.FrameLayout
-import android.widget.TextView
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import android.provider.Settings
 import android.util.Log
+import android.view.Gravity
+import android.view.View
+import android.view.WindowManager
+import android.widget.TextView
 import com.jagamata.app.R
 import com.jagamata.app.detection.RiskLevel
 import java.util.concurrent.atomic.AtomicReference
@@ -29,7 +28,6 @@ import java.util.concurrent.atomic.AtomicReference
  * fallback notifikasi (layar recovery [com.jagamata.app.ui.common.OverlayDenied]).
  */
 class OverlayService : android.app.Service() {
-
     private var windowManager: WindowManager? = null
     private var overlayView: View? = null
     private var currentLevel: RiskLevel = RiskLevel.OK
@@ -41,10 +39,15 @@ class OverlayService : android.app.Service() {
         windowManager = getSystemService(WINDOW_SERVICE) as? WindowManager
     }
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val level = runCatching {
-            RiskLevel.valueOf(intent?.getStringExtra(EXTRA_LEVEL) ?: RiskLevel.OK.name)
-        }.getOrDefault(RiskLevel.OK)
+    override fun onStartCommand(
+        intent: Intent?,
+        flags: Int,
+        startId: Int,
+    ): Int {
+        val level =
+            runCatching {
+                RiskLevel.valueOf(intent?.getStringExtra(EXTRA_LEVEL) ?: RiskLevel.OK.name)
+            }.getOrDefault(RiskLevel.OK)
         applyLevel(level)
         return START_NOT_STICKY
     }
@@ -60,15 +63,14 @@ class OverlayService : android.app.Service() {
             NotificationHelper.throttledAlert(
                 this,
                 getString(R.string.notif_title, level.name),
-                getString(R.string.overlay_denied_fallback)
+                getString(R.string.overlay_denied_fallback),
             )
             return
         }
         showOverlay(level)
     }
 
-    private fun canDrawOverlays(): Boolean =
-        Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(this)
+    private fun canDrawOverlays(): Boolean = Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(this)
 
     private fun showOverlay(level: RiskLevel) {
         removeOverlay()
@@ -88,20 +90,22 @@ class OverlayService : android.app.Service() {
             }
             RiskLevel.OK -> Unit
         }
-        val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-        } else {
-            @Suppress("DEPRECATION")
-            WindowManager.LayoutParams.TYPE_PHONE
-        }
-        val params = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.MATCH_PARENT,
-            WindowManager.LayoutParams.MATCH_PARENT,
-            type,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
-            PixelFormat.TRANSLUCENT
-        ).apply { gravity = Gravity.TOP }
+        val type =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+            } else {
+                @Suppress("DEPRECATION")
+                WindowManager.LayoutParams.TYPE_PHONE
+            }
+        val params =
+            WindowManager.LayoutParams(
+                WindowManager.LayoutParams.MATCH_PARENT,
+                WindowManager.LayoutParams.MATCH_PARENT,
+                type,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+                PixelFormat.TRANSLUCENT,
+            ).apply { gravity = Gravity.TOP }
         runCatching {
             windowManager?.addView(view, params)
             overlayView = view
@@ -116,15 +120,16 @@ class OverlayService : android.app.Service() {
 
     private fun haptic(durationMs: Long) {
         runCatching {
-            val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                val manager = getSystemService(VIBRATOR_MANAGER_SERVICE) as? VibratorManager
-                manager?.defaultVibrator
-            } else {
-                @Suppress("DEPRECATION")
-                getSystemService(VIBRATOR_SERVICE) as? Vibrator
-            }
+            val vibrator =
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    val manager = getSystemService(VIBRATOR_MANAGER_SERVICE) as? VibratorManager
+                    manager?.defaultVibrator
+                } else {
+                    @Suppress("DEPRECATION")
+                    getSystemService(VIBRATOR_SERVICE) as? Vibrator
+                }
             vibrator?.vibrate(
-                VibrationEffect.createOneShot(durationMs, VibrationEffect.DEFAULT_AMPLITUDE)
+                VibrationEffect.createOneShot(durationMs, VibrationEffect.DEFAULT_AMPLITUDE),
             )
         }
     }
@@ -141,11 +146,15 @@ class OverlayService : android.app.Service() {
         private val lastLevel = AtomicReference(RiskLevel.OK)
 
         /** Dipanggil DetectionForegroundService setiap perubahan state. */
-        fun requestLevel(context: Context, level: RiskLevel) {
+        fun requestLevel(
+            context: Context,
+            level: RiskLevel,
+        ) {
             lastLevel.set(level)
-            val intent = Intent(context, OverlayService::class.java).apply {
-                putExtra(EXTRA_LEVEL, level.name)
-            }
+            val intent =
+                Intent(context, OverlayService::class.java).apply {
+                    putExtra(EXTRA_LEVEL, level.name)
+                }
             runCatching { context.startService(intent) }
                 .onFailure { Log.w(TAG, "OverlayService tidak bisa dijalankan: ${it.message}") }
         }

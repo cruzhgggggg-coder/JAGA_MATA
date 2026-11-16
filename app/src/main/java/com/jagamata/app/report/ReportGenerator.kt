@@ -1,6 +1,5 @@
 package com.jagamata.app.report
 
-import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
@@ -14,20 +13,22 @@ import com.jagamata.app.data.entity.DailyStats
  * [summarize] murni (diuji unit test); [renderPng] bergantung Android.
  */
 object ReportGenerator {
-
     data class ReportSummary(
         val periodLabel: String,
         val totalCloseViolations: Int,
         val totalDarkMinutes: Int,
         val totalPostureViolations: Int,
         val totalCycles: Int,
-        val perDay: List<DailyStats>
+        val perDay: List<DailyStats>,
     ) {
         val isEmpty: Boolean get() = totalCycles == 0 && perDay.isEmpty()
     }
 
     /** Merangkum data harian (urut naik) menjadi ringkasan laporan. */
-    fun summarize(perDay: List<DailyStats>, periodLabel: String = ""): ReportSummary {
+    fun summarize(
+        perDay: List<DailyStats>,
+        periodLabel: String = "",
+    ): ReportSummary {
         val sorted = perDay.sortedBy { it.dayEpoch }
         return ReportSummary(
             periodLabel = periodLabel,
@@ -35,38 +36,41 @@ object ReportGenerator {
             totalDarkMinutes = sorted.sumOf { it.darkMinutes },
             totalPostureViolations = sorted.sumOf { it.postureViolations },
             totalCycles = sorted.sumOf { it.totalCycles },
-            perDay = sorted
+            perDay = sorted,
         )
     }
 
     /** Teks ringkasan (dipakai body share + unit test). */
-    fun summaryText(summary: ReportSummary): String = buildString {
-        appendLine("Laporan Mingguan JagaMata")
-        if (summary.periodLabel.isNotEmpty()) appendLine("Periode: ${summary.periodLabel}")
-        appendLine("Pelanggaran jarak: ${summary.totalCloseViolations} kali")
-        appendLine("Menit gelap: ${summary.totalDarkMinutes} menit")
-        appendLine("Pelanggaran postur: ${summary.totalPostureViolations} kali")
-        appendLine("Total siklus pemantauan: ${summary.totalCycles}")
-    }
+    fun summaryText(summary: ReportSummary): String =
+        buildString {
+            appendLine("Laporan Mingguan JagaMata")
+            if (summary.periodLabel.isNotEmpty()) appendLine("Periode: ${summary.periodLabel}")
+            appendLine("Pelanggaran jarak: ${summary.totalCloseViolations} kali")
+            appendLine("Menit gelap: ${summary.totalDarkMinutes} menit")
+            appendLine("Pelanggaran postur: ${summary.totalPostureViolations} kali")
+            appendLine("Total siklus pemantauan: ${summary.totalCycles}")
+        }
 
     const val PNG_WIDTH = 1080
     const val PNG_HEIGHT = 1920
 
     /** Render PNG 1080x1920: ringkasan + grafik batang sederhana. */
-    fun renderPng(context: Context, summary: ReportSummary): Bitmap {
+    fun renderPng(summary: ReportSummary): Bitmap {
         val bitmap = Bitmap.createBitmap(PNG_WIDTH, PNG_HEIGHT, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
         canvas.drawColor(Color.parseColor("#F2F7FF"))
 
-        val inkPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.parseColor("#12263A")
-            textSize = 56f
-            isFakeBoldText = true
-        }
-        val bodyPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.parseColor("#12263A")
-            textSize = 42f
-        }
+        val inkPaint =
+            Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.parseColor("#12263A")
+                textSize = 56f
+                isFakeBoldText = true
+            }
+        val bodyPaint =
+            Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.parseColor("#12263A")
+                textSize = 42f
+            }
 
         var y = 160f
         canvas.drawText("Laporan Mingguan JagaMata", 60f, y, inkPaint)
@@ -98,7 +102,7 @@ object ReportGenerator {
                 y + 600f - postureHeight,
                 left + barWidth * 0.85f,
                 y + 600f,
-                posturePaint
+                posturePaint,
             )
         }
         return bitmap

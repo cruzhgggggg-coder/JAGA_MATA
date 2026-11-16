@@ -21,17 +21,18 @@ import com.jagamata.app.ui.theme.Sunny
 @Composable
 fun WarningBanner(message: String = stringResource(R.string.status_warning)) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(48.dp)
-            .background(Sunny)
-            .padding(horizontal = 16.dp),
-        verticalAlignment = Alignment.CenterVertically
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .height(48.dp)
+                .background(Sunny)
+                .padding(horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             text = stringResource(R.string.banner_warning, message),
             style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onTertiary
+            color = MaterialTheme.colorScheme.onTertiary,
         )
     }
 }

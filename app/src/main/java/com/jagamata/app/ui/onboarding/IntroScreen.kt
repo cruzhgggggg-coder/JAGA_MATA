@@ -24,43 +24,45 @@ import com.jagamata.app.R
 @Composable
 fun IntroScreen(
     onNext: () -> Unit,
-    onSkip: () -> Unit
+    onSkip: () -> Unit,
 ) {
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(32.dp),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .padding(32.dp),
         verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
             text = stringResource(R.string.intro_title_1),
             style = MaterialTheme.typography.headlineMedium,
-            textAlign = TextAlign.Center
+            textAlign = TextAlign.Center,
         )
         Text(
             text = stringResource(R.string.intro_desc_1),
             style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center,
-            modifier = Modifier.padding(top = 16.dp)
+            modifier = Modifier.padding(top = 16.dp),
         )
         Text(
             text = stringResource(R.string.intro_title_2),
             style = MaterialTheme.typography.headlineMedium,
             textAlign = TextAlign.Center,
-            modifier = Modifier.padding(top = 32.dp)
+            modifier = Modifier.padding(top = 32.dp),
         )
         Text(
             text = stringResource(R.string.intro_desc_2),
             style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center,
-            modifier = Modifier.padding(top = 16.dp)
+            modifier = Modifier.padding(top = 16.dp),
         )
         Button(
             onClick = onNext,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 32.dp)
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(top = 32.dp),
         ) {
             Text(stringResource(R.string.onboarding_next))
         }

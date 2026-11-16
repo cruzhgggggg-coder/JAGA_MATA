@@ -16,14 +16,14 @@ FASE P0 — SCAFFOLD
 - [x] DEV-04 Scaffold semua file §5.3 — compileDebugKotlin lulus (detection/, service/, data/, report/, ui/ lengkap)
 
 FASE P1 — CORE DETECTION
-- [ ] DEV-05 DistanceEstimator + CalibrationManager + test
-- [ ] DEV-06 HeadPitchAnalyzer + PitchBackend + fixture test
-- [ ] DEV-07 LightMonitor
-- [ ] DEV-08 DetectionResult + DetectionStateMachine + 12 skenario
-- [ ] DEV-09 CycleAggregator + test
-- [ ] DEV-10 MinuteTicker + test
-- [ ] DEV-11 Room 4 entity + DAO + test
-- [ ] DEV-12 SettingsRepository DataStore
+- [x] DEV-05 DistanceEstimator + CalibrationManager + test (6 + 5 test lulus)
+- [x] DEV-06 HeadPitchAnalyzer + PitchBackend + fixture test (4 test 10°/40°)
+- [x] DEV-07 LightMonitor (Sensor.TYPE_LIGHT, handle null sensor)
+- [x] DEV-08 DetectionResult + DetectionStateMachine + 14 skenario test
+- [x] DEV-09 CycleAggregator + 6 test multi-sample & violations
+- [x] DEV-10 MinuteTicker + 5 test interval 100 ms (K4 → ml/reports/k4.txt)
+- [x] DEV-11 Room 4 entity + 3 DAO + SnapshotDaoTest (insert/query/prune 30 hari)
+- [x] DEV-12 SettingsRepository (DataStore) + SHA-256 PIN + PitchBackendFactoryTest
 
 (FASE P2–P6 — lihat PRD BAB 7; belum dimulai)
 
@@ -44,6 +44,8 @@ FASE P1 — CORE DETECTION
 - `.\gradlew.bat ktlintCheck` → exit 0 (DEV-02)
 - `.\gradlew.bat detekt` → exit 0 (DEV-02)
 - `.\gradlew.bat compileDebugKotlin` → BUILD SUCCESSFUL (DEV-04)
+- `.\gradlew.bat testDebugUnitTest` → **54 test lulus, 0 gagal** (DEV-05..12)
+- `ml/reports/k4.txt` → bukti K4 (10 siklus × 100 ms = tepat 10 baris, drift 0)
 
 ## Log error / fallback
 

@@ -14,9 +14,8 @@ import android.util.Log
  */
 class LightMonitor(
     context: Context,
-    private val onLuxChanged: (Float) -> Unit = {}
+    private val onLuxChanged: (Float) -> Unit = {},
 ) : SensorEventListener {
-
     private val sensorManager =
         context.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
     private val lightSensor: Sensor? =
@@ -33,11 +32,12 @@ class LightMonitor(
             Log.w(TAG, "Sensor cahaya tidak tersedia — deteksi gelap dinonaktifkan")
             return false
         }
-        val registered = sensorManager?.registerListener(
-            this,
-            sensor,
-            SensorManager.SENSOR_DELAY_NORMAL
-        ) ?: false
+        val registered =
+            sensorManager?.registerListener(
+                this,
+                sensor,
+                SensorManager.SENSOR_DELAY_NORMAL,
+            ) ?: false
         if (!registered) {
             Log.w(TAG, "Gagal mendaftarkan listener sensor cahaya")
         }
@@ -58,7 +58,10 @@ class LightMonitor(
         onLuxChanged(lux)
     }
 
-    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
+    override fun onAccuracyChanged(
+        sensor: Sensor?,
+        accuracy: Int,
+    ) = Unit
 
     companion object {
         private const val TAG = "LightMonitor"

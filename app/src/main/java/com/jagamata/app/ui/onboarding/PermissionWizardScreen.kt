@@ -33,90 +33,73 @@ import com.jagamata.app.R
  * Pengaturan, dengan recovery [com.jagamata.app.ui.common.OverlayDenied].
  */
 @Composable
-fun PermissionWizardScreen(
-    onNext: () -> Unit
-) {
+fun PermissionWizardScreen(onNext: () -> Unit) {
     val context = LocalContext.current
     var cameraGranted by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
-                PackageManager.PERMISSION_GRANTED
+                PackageManager.PERMISSION_GRANTED,
         )
     }
     var notifGranted by remember {
         mutableStateOf(
             Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
                 ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
-                PackageManager.PERMISSION_GRANTED
+                PackageManager.PERMISSION_GRANTED,
         )
     }
     var overlayGranted by remember {
         mutableStateOf(canDrawOverlays(context))
     }
 
-    val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) { results ->
-        cameraGranted = results[Manifest.permission.CAMERA] ?: cameraGranted
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            notifGranted = results[Manifest.permission.POST_NOTIFICATIONS] ?: notifGranted
+    val permissionLauncher =
+        rememberLauncherForActivityResult(
+            ActivityResultContracts.RequestMultiplePermissions(),
+        ) { results ->
+            cameraGranted = results[Manifest.permission.CAMERA] ?: cameraGranted
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                notifGranted = results[Manifest.permission.POST_NOTIFICATIONS] ?: notifGranted
+            }
         }
-    }
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(32.dp),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .padding(32.dp),
         verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
             text = stringResource(R.string.perm_title),
-            style = MaterialTheme.typography.headlineMedium
+            style = MaterialTheme.typography.headlineMedium,
         )
         Text(
             text = stringResource(R.string.perm_desc),
             style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.padding(top = 12.dp)
+            modifier = Modifier.padding(top = 12.dp),
         )
-        PermissionRow(
-            title = stringResource(R.string.perm_camera),
-            desc = stringResource(R.string.perm_camera_desc),
-            granted = cameraGranted,
-            onGrant = {
-                permissionLauncher.launch(arrayOf(Manifest.permission.CAMERA))
-            }
-        )
-        PermissionRow(
-            title = stringResource(R.string.perm_overlay),
-            desc = stringResource(R.string.perm_overlay_desc),
-            granted = overlayGranted,
-            onGrant = {
+        PermissionRows(
+            cameraGranted = cameraGranted,
+            overlayGranted = overlayGranted,
+            notifGranted = notifGranted,
+            onRequestCamera = { permissionLauncher.launch(arrayOf(Manifest.permission.CAMERA)) },
+            onRequestOverlay = {
                 overlayGranted = canDrawOverlays(context)
-                if (!overlayGranted) {
-                    val intent = android.content.Intent(
-                        android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                        android.net.Uri.parse("package:${context.packageName}")
-                    )
-                    runCatching { context.startActivity(intent) }
-                }
-            }
-        )
-        PermissionRow(
-            title = stringResource(R.string.perm_notification),
-            desc = stringResource(R.string.perm_notification_desc),
-            granted = notifGranted,
-            onGrant = {
+                if (!overlayGranted) openOverlaySettings(context)
+            },
+            onRequestNotif = {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     permissionLauncher.launch(arrayOf(Manifest.permission.POST_NOTIFICATIONS))
                 }
-            }
+            },
         )
         Button(
             onClick = onNext,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 24.dp)
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(top = 24.dp),
         ) {
             Text(stringResource(R.string.onboarding_next))
         }
@@ -124,18 +107,57 @@ fun PermissionWizardScreen(
 }
 
 @Composable
+private fun PermissionRows(
+    cameraGranted: Boolean,
+    overlayGranted: Boolean,
+    notifGranted: Boolean,
+    onRequestCamera: () -> Unit,
+    onRequestOverlay: () -> Unit,
+    onRequestNotif: () -> Unit,
+) {
+    PermissionRow(
+        title = stringResource(R.string.perm_camera),
+        desc = stringResource(R.string.perm_camera_desc),
+        granted = cameraGranted,
+        onGrant = onRequestCamera,
+    )
+    PermissionRow(
+        title = stringResource(R.string.perm_overlay),
+        desc = stringResource(R.string.perm_overlay_desc),
+        granted = overlayGranted,
+        onGrant = onRequestOverlay,
+    )
+    PermissionRow(
+        title = stringResource(R.string.perm_notification),
+        desc = stringResource(R.string.perm_notification_desc),
+        granted = notifGranted,
+        onGrant = onRequestNotif,
+    )
+}
+
+private fun openOverlaySettings(context: android.content.Context) {
+    val intent =
+        android.content.Intent(
+            android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+            android.net.Uri.parse("package:${context.packageName}"),
+        )
+    runCatching { context.startActivity(intent) }
+}
+
+@Composable
 private fun PermissionRow(
     title: String,
     desc: String,
     granted: Boolean,
-    onGrant: () -> Unit
+    onGrant: () -> Unit,
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 16.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(top = 16.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(title, style = MaterialTheme.typography.titleMedium)
@@ -143,8 +165,11 @@ private fun PermissionRow(
         }
         Button(onClick = onGrant, enabled = !granted) {
             Text(
-                if (granted) stringResource(R.string.perm_granted)
-                else stringResource(R.string.perm_grant)
+                if (granted) {
+                    stringResource(R.string.perm_granted)
+                } else {
+                    stringResource(R.string.perm_grant)
+                },
             )
         }
     }

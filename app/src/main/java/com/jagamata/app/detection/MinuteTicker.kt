@@ -24,7 +24,7 @@ class MinuteTicker(
     private val tickIntervalMs: Long = TICK_INTERVAL_MS,
     private val evaluateEveryTicks: Int = 1,
     private val now: () -> Long = System::currentTimeMillis,
-    private val onCycle: suspend (CycleSummary) -> Unit
+    private val onCycle: suspend (CycleSummary) -> Unit,
 ) {
     private var job: Job? = null
     private var tickCount = 0
@@ -39,25 +39,27 @@ class MinuteTicker(
     fun start() {
         if (job?.isActive == true) return
         tickCount = 0
-        job = scope.launch {
-            while (isActive) {
-                delay(tickIntervalMs)
-                tickCount++
-                if (tickCount % evaluateEveryTicks != 0) continue
+        job =
+            scope.launch {
+                while (isActive) {
+                    delay(tickIntervalMs)
+                    tickCount++
+                    if (tickCount % evaluateEveryTicks != 0) continue
 
-                val cycleStart = now()
-                val previousStart = lastCycleStartMs
-                lastCycleStartMs = cycleStart
-                val durationMs = previousStart?.let { cycleStart - it } ?: 0L
+                    val cycleStart = now()
+                    val previousStart = lastCycleStartMs
+                    lastCycleStartMs = cycleStart
+                    val durationMs = previousStart?.let { cycleStart - it } ?: 0L
 
-                val summary = aggregator.evaluate(
-                    startedAtMs = cycleStart,
-                    cycleDurationMs = durationMs
-                )
-                cycleTimestampsMs.add(cycleStart)
-                onCycle(summary)
+                    val summary =
+                        aggregator.evaluate(
+                            startedAtMs = cycleStart,
+                            cycleDurationMs = durationMs,
+                        )
+                    cycleTimestampsMs.add(cycleStart)
+                    onCycle(summary)
+                }
             }
-        }
     }
 
     fun stop() {
@@ -68,8 +70,7 @@ class MinuteTicker(
     fun isRunning(): Boolean = job?.isActive == true
 
     /** Selisih antar awal siklus berurutan (ms). Target K4: ±2.000 ms untuk siklus 60 detik. */
-    fun driftBetweenCyclesMs(): List<Long> =
-        cycleTimestampsMs.zipWithNext { a, b -> b - a }
+    fun driftBetweenCyclesMs(): List<Long> = cycleTimestampsMs.zipWithNext { a, b -> b - a }
 
     companion object {
         const val TICK_INTERVAL_MS = 60_000L

@@ -11,5 +11,5 @@ data class DailyStats(
     val closeViolations: Int = 0,
     val darkMinutes: Int = 0,
     val postureViolations: Int = 0,
-    val totalCycles: Int = 0
+    val totalCycles: Int = 0,
 )

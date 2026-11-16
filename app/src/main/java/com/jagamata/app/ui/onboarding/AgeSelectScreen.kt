@@ -25,29 +25,39 @@ import com.jagamata.app.R
 fun AgeSelectScreen(
     onSelect: (String) -> Unit,
     onNext: () -> Unit,
-    onSkip: () -> Unit
+    onSkip: () -> Unit,
 ) {
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(32.dp),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .padding(32.dp),
         verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
             text = stringResource(R.string.age_title),
             style = MaterialTheme.typography.headlineMedium,
-            textAlign = TextAlign.Center
+            textAlign = TextAlign.Center,
         )
         Text(
             text = stringResource(R.string.age_desc),
             style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center,
-            modifier = Modifier.padding(top = 12.dp)
+            modifier = Modifier.padding(top = 12.dp),
         )
-        AgeOption(stringResource(R.string.age_5_7), onClick = { onSelect("5-7"); onNext() })
-        AgeOption(stringResource(R.string.age_8_12), onClick = { onSelect("8-12"); onNext() })
-        AgeOption(stringResource(R.string.age_13_plus), onClick = { onSelect("13+"); onNext() })
+        AgeOption(stringResource(R.string.age_5_7), onClick = {
+            onSelect("5-7")
+            onNext()
+        })
+        AgeOption(stringResource(R.string.age_8_12), onClick = {
+            onSelect("8-12")
+            onNext()
+        })
+        AgeOption(stringResource(R.string.age_13_plus), onClick = {
+            onSelect("13+")
+            onNext()
+        })
         TextButton(onClick = onSkip, modifier = Modifier.padding(top = 16.dp)) {
             Text(stringResource(R.string.onboarding_skip))
         }
@@ -55,13 +65,17 @@ fun AgeSelectScreen(
 }
 
 @Composable
-private fun AgeOption(label: String, onClick: () -> Unit) {
+private fun AgeOption(
+    label: String,
+    onClick: () -> Unit,
+) {
     Button(
         onClick = onClick,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 12.dp),
-        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(top = 12.dp),
+        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
     ) {
         Text(label, style = MaterialTheme.typography.titleMedium)
     }

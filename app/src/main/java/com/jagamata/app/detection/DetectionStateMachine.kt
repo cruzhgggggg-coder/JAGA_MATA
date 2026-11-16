@@ -17,9 +17,7 @@ package com.jagamata.app.detection
  */
 class DetectionStateMachine(
     private val config: Config = Config(),
-    private val clock: () -> Long = System::currentTimeMillis
 ) {
-
     data class Config(
         val closeEnterCm: Float = 30f,
         val closeExitCm: Float = 35f,
@@ -29,7 +27,7 @@ class DetectionStateMachine(
         val closeDebounceMs: Long = 500L,
         val poseDebounceMs: Long = 3_000L,
         val darkDebounceMs: Long = 10_000L,
-        val okDebounceMs: Long = 2_000L
+        val okDebounceMs: Long = 2_000L,
     )
 
     private var state: RiskLevel = RiskLevel.OK
@@ -46,40 +44,75 @@ class DetectionStateMachine(
     /** Evaluasi satu sampel dan kembalikan state baru. */
     fun onResult(result: DetectionResult): RiskLevel {
         val now = result.timestampMs
+        updateTimers(result, now)
+        state = resolveState(now)
+        return state
+    }
+
+    private fun updateTimers(
+        result: DetectionResult,
+        now: Long,
+    ) {
         val distance = result.distanceCm
         val pitch = result.pitchDeg
         val lux = result.lux
+        lastDistanceCm = distance
 
         closeSinceMs = tick(closeSinceMs, distance != null && distance < config.closeEnterCm, now)
         exitSinceMs = tick(exitSinceMs, distance != null && distance > config.closeExitCm, now)
         faceLostSinceMs = tick(faceLostSinceMs, distance == null, now)
         poseSinceMs = tick(poseSinceMs, pitch != null && pitch > config.pitchThresholdDeg, now)
         darkSinceMs = tick(darkSinceMs, lux != null && lux < config.luxThreshold, now)
-        safeSinceMs = tick(
-            safeSinceMs,
-            distance != null && distance >= config.safeZoneCm && pitch != null && pitch <= config.pitchThresholdDeg,
-            now
+        val pitchSafe = pitch == null || pitch <= config.pitchThresholdDeg
+        safeSinceMs =
+            tick(
+                safeSinceMs,
+                distance != null && distance >= config.safeZoneCm && pitchSafe,
+                now,
+            )
+    }
+
+    private data class Flags(
+        val closeSustained: Boolean,
+        val exitedClose: Boolean,
+        val poseSustained: Boolean,
+        val darkSustained: Boolean,
+        val safeSustained: Boolean,
+        val inWarnZone: Boolean,
+    )
+
+    private fun evaluateFlags(now: Long): Flags {
+        val distance = lastDistanceCm
+        val inWarnZone =
+            distance != null &&
+                distance >= config.closeEnterCm &&
+                distance < config.safeZoneCm
+        return Flags(
+            closeSustained = sustained(closeSinceMs, config.closeDebounceMs, now),
+            exitedClose =
+                sustained(exitSinceMs, config.okDebounceMs, now) ||
+                    sustained(faceLostSinceMs, config.okDebounceMs, now),
+            poseSustained = sustained(poseSinceMs, config.poseDebounceMs, now),
+            darkSustained = sustained(darkSinceMs, config.darkDebounceMs, now),
+            safeSustained = sustained(safeSinceMs, config.okDebounceMs, now),
+            inWarnZone = inWarnZone,
         )
+    }
 
-        val closeSustained = sustained(closeSinceMs, config.closeDebounceMs, now)
-        val exitedClose = sustained(exitSinceMs, config.okDebounceMs, now) ||
-            sustained(faceLostSinceMs, config.okDebounceMs, now)
-        val poseSustained = sustained(poseSinceMs, config.poseDebounceMs, now)
-        val darkSustained = sustained(darkSinceMs, config.darkDebounceMs, now)
-        val safeSustained = sustained(safeSinceMs, config.okDebounceMs, now)
-        val inWarnZone = distance != null && distance >= config.closeEnterCm && distance < config.safeZoneCm
-
-        state = when {
-            closeSustained -> RiskLevel.BLOCKED
-            state == RiskLevel.BLOCKED && !exitedClose -> RiskLevel.BLOCKED
-            poseSustained || darkSustained -> RiskLevel.WARNING
-            inWarnZone -> RiskLevel.WARNING
-            state == RiskLevel.BLOCKED && !safeSustained -> RiskLevel.WARNING
-            safeSustained && !poseSustained && !darkSustained -> RiskLevel.OK
+    private fun resolveState(now: Long): RiskLevel {
+        val f = evaluateFlags(now)
+        return when {
+            f.closeSustained -> RiskLevel.BLOCKED
+            state == RiskLevel.BLOCKED && !f.exitedClose -> RiskLevel.BLOCKED
+            f.poseSustained || f.darkSustained -> RiskLevel.WARNING
+            f.inWarnZone -> RiskLevel.WARNING
+            state == RiskLevel.BLOCKED && !f.safeSustained -> RiskLevel.WARNING
+            f.safeSustained && !f.poseSustained && !f.darkSustained -> RiskLevel.OK
             else -> state
         }
-        return state
     }
+
+    private var lastDistanceCm: Float? = null
 
     fun reset() {
         state = RiskLevel.OK
@@ -91,13 +124,21 @@ class DetectionStateMachine(
         safeSinceMs = null
     }
 
-    private fun tick(since: Long?, active: Boolean, now: Long): Long? = when {
-        active -> since ?: now
-        else -> null
-    }
+    private fun tick(
+        since: Long?,
+        active: Boolean,
+        now: Long,
+    ): Long? =
+        when {
+            active -> since ?: now
+            else -> null
+        }
 
-    private fun sustained(since: Long?, windowMs: Long, now: Long): Boolean =
-        since != null && now - since >= windowMs
+    private fun sustained(
+        since: Long?,
+        windowMs: Long,
+        now: Long,
+    ): Boolean = since != null && now - since >= windowMs
 
     companion object {
         /** Latensi maksimum alarm dari masuk kondisi ke status BLOCKED (KPI K5). */

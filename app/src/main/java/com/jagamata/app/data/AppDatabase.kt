@@ -18,15 +18,17 @@ import com.jagamata.app.data.entity.ViolationLog
         CheckSnapshot::class,
         ViolationLog::class,
         DailyStats::class,
-        AppSettings::class
+        AppSettings::class,
     ],
     version = 1,
-    exportSchema = false
+    exportSchema = false,
 )
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun snapshotDao(): SnapshotDao
+
     abstract fun violationDao(): ViolationDao
+
     abstract fun dailyDao(): DailyDao
 
     companion object {

@@ -9,10 +9,8 @@ import kotlin.math.abs
  * Target 30 cm dengan tinggi wajah acuan 15 cm. Wajib 1× saat onboarding.
  */
 class CalibrationManager(
-    private val targetDistanceCm: Float = TARGET_DISTANCE_CM,
-    private val referenceFaceHeightCm: Float = REFERENCE_FACE_HEIGHT_CM,
     private val stabilityMs: Long = STABILITY_MS,
-    private val stabilityTolerancePx: Float = DEFAULT_TOLERANCE_PX
+    private val stabilityTolerancePx: Float = DEFAULT_TOLERANCE_PX,
 ) {
     private val recentSamples = ArrayDeque<Pair<Long, Float>>()
 
@@ -20,7 +18,10 @@ class CalibrationManager(
      * Tambahkan sampel tinggi wajah (px) pada [timestampMs].
      * @return f_px jika seri sudah stabil ≥ [stabilityMs], selain itu null.
      */
-    fun addSample(faceHeightPx: Float, timestampMs: Long): Float? {
+    fun addSample(
+        faceHeightPx: Float,
+        timestampMs: Long,
+    ): Float? {
         if (faceHeightPx <= 0f) return null
         recentSamples.addLast(timestampMs to faceHeightPx)
         while (recentSamples.isNotEmpty() && timestampMs - recentSamples.first().first > stabilityMs) {
@@ -37,7 +38,7 @@ class CalibrationManager(
         if (end - start < stabilityMs) return false
         return DistanceEstimator.isStableSeries(
             recentSamples.map { it.second },
-            tolerance = stabilityTolerancePx
+            tolerance = stabilityTolerancePx,
         )
     }
 
@@ -52,15 +53,21 @@ class CalibrationManager(
         const val DEFAULT_TOLERANCE_PX = 8f
 
         /** Rumus PRD: f_px = h_px_kalib × 30 / 15. */
-        fun focalPxFromCalibration(calibrationFaceHeightPx: Float): Float =
-            calibrationFaceHeightPx * targetRatio()
+        fun focalPxFromCalibration(calibrationFaceHeightPx: Float): Float = calibrationFaceHeightPx * targetRatio()
 
         fun targetRatio(): Float = 30f / 15f
 
         /** Balik rumus — dipakai test: h_px = (H × f_px) / d. */
-        fun faceHeightPxFor(distanceCm: Float, focalPx: Float, faceHeightCm: Float = 15f): Float =
-            (faceHeightCm * focalPx) / distanceCm
+        fun faceHeightPxFor(
+            distanceCm: Float,
+            focalPx: Float,
+            faceHeightCm: Float = 15f,
+        ): Float = (faceHeightCm * focalPx) / distanceCm
 
-        fun isApproxEqual(a: Float, b: Float, epsilon: Float = 0.01f): Boolean = abs(a - b) <= epsilon
+        fun isApproxEqual(
+            a: Float,
+            b: Float,
+            epsilon: Float = 0.01f,
+        ): Boolean = abs(a - b) <= epsilon
     }
 }

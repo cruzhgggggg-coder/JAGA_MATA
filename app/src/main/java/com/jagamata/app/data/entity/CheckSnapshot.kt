@@ -21,5 +21,5 @@ data class CheckSnapshot(
     val maxPitchDeg: Float?,
     /** Dipisah dengan `|`: TOO_CLOSE|TOO_DARK|BAD_POSTURE */
     val violations: String,
-    val dayEpoch: Long
+    val dayEpoch: Long,
 )

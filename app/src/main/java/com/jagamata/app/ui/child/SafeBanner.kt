@@ -21,17 +21,18 @@ import com.jagamata.app.ui.theme.Mint
 @Composable
 fun SafeBanner() {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(28.dp)
-            .background(Mint)
-            .padding(horizontal = 16.dp),
-        verticalAlignment = Alignment.CenterVertically
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .height(28.dp)
+                .background(Mint)
+                .padding(horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             text = stringResource(R.string.banner_safe),
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSecondary
+            color = MaterialTheme.colorScheme.onSecondary,
         )
     }
 }

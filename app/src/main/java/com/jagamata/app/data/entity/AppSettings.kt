@@ -17,7 +17,7 @@ data class AppSettings(
     val lightModeEnabled: Boolean = false,
     val safeBannerEnabled: Boolean = true,
     val focalPx: Float = 0f,
-    val updatedAtMs: Long = 0L
+    val updatedAtMs: Long = 0L,
 ) {
     companion object {
         const val SINGLETON_ID = 1

@@ -26,45 +26,46 @@ import com.jagamata.app.R
  * Menawarkan tombol ke Pengaturan + fallback notifikasi.
  */
 @Composable
-fun OverlayDenied(
-    onFallbackNotification: () -> Unit = {}
-) {
+fun OverlayDenied(onFallbackNotification: () -> Unit = {}) {
     val context = LocalContext.current
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(32.dp),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .padding(32.dp),
         verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
             text = stringResource(R.string.overlay_denied_title),
             style = MaterialTheme.typography.headlineMedium,
-            textAlign = TextAlign.Center
+            textAlign = TextAlign.Center,
         )
         Text(
             text = stringResource(R.string.overlay_denied_desc),
             style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center,
-            modifier = Modifier.padding(top = 16.dp)
+            modifier = Modifier.padding(top = 16.dp),
         )
         Button(
             onClick = {
-                val intent = Intent(
-                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                    Uri.parse("package:${context.packageName}")
-                )
+                val intent =
+                    Intent(
+                        Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                        Uri.parse("package:${context.packageName}"),
+                    )
                 runCatching { context.startActivity(intent) }
             },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 32.dp)
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(top = 32.dp),
         ) {
             Text(stringResource(R.string.overlay_denied_settings))
         }
         TextButton(
             onClick = onFallbackNotification,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
         ) {
             Text(stringResource(R.string.overlay_denied_fallback))
         }

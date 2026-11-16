@@ -27,35 +27,36 @@ import com.jagamata.app.R
 @Composable
 fun DeleteDataScreen(
     onDeleteAll: () -> Unit,
-    onDone: () -> Unit
+    onDone: () -> Unit,
 ) {
     var showConfirm by remember { mutableStateOf(false) }
     var deleted by remember { mutableStateOf(false) }
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Text(
             text = stringResource(R.string.privacy_delete_title),
-            style = MaterialTheme.typography.headlineMedium
+            style = MaterialTheme.typography.headlineMedium,
         )
         Text(
             text = stringResource(R.string.privacy_delete_desc),
-            style = MaterialTheme.typography.bodyMedium
+            style = MaterialTheme.typography.bodyMedium,
         )
         if (deleted) {
             Text(
                 text = stringResource(R.string.privacy_delete_done),
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.secondary
+                color = MaterialTheme.colorScheme.secondary,
             )
         }
         Button(
             onClick = { showConfirm = true },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
         ) {
             Text(stringResource(R.string.privacy_delete_confirm))
         }
@@ -75,7 +76,7 @@ fun DeleteDataScreen(
                         showConfirm = false
                         deleted = true
                         onDeleteAll()
-                    }
+                    },
                 ) {
                     Text(stringResource(R.string.privacy_delete_confirm))
                 }
@@ -84,7 +85,7 @@ fun DeleteDataScreen(
                 TextButton(onClick = { showConfirm = false }) {
                     Text(stringResource(R.string.privacy_delete_cancel))
                 }
-            }
+            },
         )
     }
 }

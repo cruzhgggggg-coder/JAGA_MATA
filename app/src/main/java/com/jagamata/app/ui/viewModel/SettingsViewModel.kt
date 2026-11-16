@@ -16,23 +16,27 @@ import kotlinx.coroutines.launch
  * SettingsRepository saat inisialisasi service).
  */
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {
-
     private val settings = SettingsRepository(application)
 
-    val closeThresholdCm: StateFlow<Float> = settings.closeThresholdCm
-        .stateIn(viewModelScope, SharingStarted.Eagerly, SettingsRepository.DEFAULT_CLOSE_CM)
+    val closeThresholdCm: StateFlow<Float> =
+        settings.closeThresholdCm
+            .stateIn(viewModelScope, SharingStarted.Eagerly, SettingsRepository.DEFAULT_CLOSE_CM)
 
-    val luxThreshold: StateFlow<Float> = settings.luxThreshold
-        .stateIn(viewModelScope, SharingStarted.Eagerly, SettingsRepository.DEFAULT_LUX)
+    val luxThreshold: StateFlow<Float> =
+        settings.luxThreshold
+            .stateIn(viewModelScope, SharingStarted.Eagerly, SettingsRepository.DEFAULT_LUX)
 
-    val pitchThresholdDeg: StateFlow<Float> = settings.pitchThresholdDeg
-        .stateIn(viewModelScope, SharingStarted.Eagerly, SettingsRepository.DEFAULT_PITCH)
+    val pitchThresholdDeg: StateFlow<Float> =
+        settings.pitchThresholdDeg
+            .stateIn(viewModelScope, SharingStarted.Eagerly, SettingsRepository.DEFAULT_PITCH)
 
-    val lightModeEnabled: StateFlow<Boolean> = settings.lightModeEnabled
-        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+    val lightModeEnabled: StateFlow<Boolean> =
+        settings.lightModeEnabled
+            .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
-    val safeBannerEnabled: StateFlow<Boolean> = settings.safeBannerEnabled
-        .stateIn(viewModelScope, SharingStarted.Eagerly, true)
+    val safeBannerEnabled: StateFlow<Boolean> =
+        settings.safeBannerEnabled
+            .stateIn(viewModelScope, SharingStarted.Eagerly, true)
 
     fun setCloseThresholdCm(value: Float) {
         viewModelScope.launch { settings.setCloseThresholdCm(value) }
@@ -58,7 +62,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch { settings.setParentPin(pin) }
     }
 
-    fun verifyParentPin(pin: String, onResult: (Boolean) -> Unit) {
+    fun verifyParentPin(
+        pin: String,
+        onResult: (Boolean) -> Unit,
+    ) {
         viewModelScope.launch { onResult(settings.verifyParentPin(pin)) }
     }
 }

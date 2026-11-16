@@ -11,5 +11,5 @@ data class ViolationLog(
     val type: String,
     val distanceCm: Float?,
     val lux: Float?,
-    val pitchDeg: Float?
+    val pitchDeg: Float?,
 )

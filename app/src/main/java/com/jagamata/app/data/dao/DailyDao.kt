@@ -29,9 +29,12 @@ interface DailyDao {
             COALESCE(SUM(CASE WHEN violations LIKE '%BAD_POSTURE%' THEN 1 ELSE 0 END), 0) AS postureViolations
         FROM check_snapshots
         WHERE timestampMs >= :fromMs AND timestampMs < :toMs
-        """
+        """,
     )
-    suspend fun aggregateCycles(fromMs: Long, toMs: Long): CycleAggregate
+    suspend fun aggregateCycles(
+        fromMs: Long,
+        toMs: Long,
+    ): CycleAggregate
 
     @Query("DELETE FROM daily_stats")
     suspend fun deleteAll()
@@ -40,5 +43,5 @@ interface DailyDao {
 data class CycleAggregate(
     val totalCycles: Int,
     val closeViolations: Int,
-    val postureViolations: Int
+    val postureViolations: Int,
 )
