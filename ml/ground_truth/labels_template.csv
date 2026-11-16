@@ -1,0 +1,7 @@
+file,distance_cm,light,lux,device
+contoh_001.jpg,20.0,normal,180,Pixel-6
+contoh_002.jpg,25.0,normal,180,Pixel-6
+contoh_003.jpg,30.0,terang,350,Samsung-A52
+contoh_004.jpg,35.0,terang,350,Samsung-A52
+contoh_005.jpg,40.0,redup,90,Xiaomi-Redmi
+contoh_006.jpg,50.0,terang,400,Pixel-6

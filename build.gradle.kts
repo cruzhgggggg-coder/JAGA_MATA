@@ -8,4 +8,7 @@ plugins {
 
 tasks.register("clean", Delete::class) {
     delete(rootProject.layout.buildDirectory)
+    subprojects.forEach { sub ->
+        delete(sub.layout.buildDirectory)
+    }
 }

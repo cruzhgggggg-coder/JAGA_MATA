@@ -1,0 +1,6 @@
+LAPORAN KPI K1/K2/K3 — JagaMata
+Sampel terpakai : 60
+
+K1 Sensitivitas (<30 cm) : 96.7 %  (29/30)  target >= 90 %  -> LULUS
+K2 FPR (truth >= 35 cm)   : 0.0 %  (0/30)  target <= 10 %  -> LULUS
+K3 MAE jarak                : 1.77 cm  target <= 6 cm  -> LULUS
