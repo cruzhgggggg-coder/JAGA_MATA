@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">JagaMata</string>
+    <string name="app_tagline">Jaga mata si kecil, setiap saat</string>
+
+    <!-- Onboarding -->
+    <string name="splash_loading">Menyiapkan JagaMata…</string>
+    <string name="intro_title_1">Pantau kesehatan mata anak</string>
+    <string name="intro_desc_1">JagaMata mendeteksi jarak layar, cahaya ruangan, dan postur secara real-time.</string>
+    <string name="intro_title_2">Peringatan lewat Kiko</string>
+    <string name="intro_desc_2">Maskot Kiko akan mengingatkan anak untuk mundur, menyalakan lampu, dan duduk tegak.</string>
+    <string name="intro_title_3">Laporan untuk orang tua</string>
+    <string name="intro_desc_3">Lihat ringkasan mingguan dan bagikan ke WhatsApp. Semua data tersimpan di HP, tanpa internet.</string>
+    <string name="onboarding_next">Lanjut</string>
+    <string name="onboarding_skip">Lewati</string>
+    <string name="onboarding_back">Kembali</string>
+    <string name="onboarding_finish">Selesai</string>
+
+    <string name="age_title">Berapa usia anak Anda?</string>
+    <string name="age_desc">Kami menyesuaikan ambang batas yang nyaman untuk usianya.</string>
+    <string name="age_5_7">5–7 tahun</string>
+    <string name="age_8_12">8–12 tahun</string>
+    <string name="age_13_plus">13 tahun ke atas</string>
+
+    <string name="perm_title">Izinkan JagaMata bekerja</string>
+    <string name="perm_desc">Tiga izin ini dibutuhkan agar deteksi berjalan di latar belakang.</string>
+    <string name="perm_camera">Kamera</string>
+    <string name="perm_camera_desc">Untuk mengukur jarak wajah ke layar (tidak ada foto yang disimpan).</string>
+    <string name="perm_overlay">Tampilan di atas aplikasi lain</string>
+    <string name="perm_overlay_desc">Agar peringatan tetap terlihat saat anak membuka aplikasi lain.</string>
+    <string name="perm_notification">Notifikasi</string>
+    <string name="perm_notification_desc">Untuk memberi tahu orang tua saat terjadi pelanggaran.</string>
+    <string name="perm_grant">Izinkan</string>
+    <string name="perm_granted">Sudah diizinkan</string>
+
+    <string name="calib_title">Kalibrasi jarak</string>
+    <string name="calib_desc">Pegang HP sekitar 30 cm dari wajah anak (kira-kira sepanjang penggaris 30 cm). Tahan tetap sampai progres penuh.</string>
+    <string name="calib_progress">Progres kalibrasi</string>
+    <string name="calib_face_height">Tinggi wajah terdeteksi</string>
+    <string name="calib_start">Mulai Kalibrasi</string>
+    <string name="calib_retry">Kalibrasi Ulang</string>
+    <string name="calib_success">Kalibrasi berhasil!</string>
+    <string name="calib_failed">Wajah belum stabil. Coba lagi.</string>
+
+    <string name="setup_threshold_title">Atur ambang batas</string>
+    <string name="setup_threshold_desc">Anda bisa mengubahnya kapan saja di Pengaturan.</string>
+    <string name="setup_done_title">Semua siap!</string>
+    <string name="setup_done_desc">JagaMata akan mulai memantau saat Anda menekan tombol mulai di dasbor.</string>
+
+    <!-- Dashboard -->
+    <string name="dashboard_title">Dasbor</string>
+    <string name="dashboard_week_title">Ringkasan pekan ini</string>
+    <string name="stat_close">Pelanggaran jarak</string>
+    <string name="stat_dark">Menit gelap</string>
+    <string name="stat_posture">Kali postur</string>
+    <string name="stat_unit_times">kali</string>
+    <string name="stat_unit_minutes">menit</string>
+    <string name="dashboard_live_title">Siklus terakhir</string>
+    <string name="dashboard_chart_title">7 hari terakhir</string>
+    <string name="dashboard_no_data">Belum ada data. Mulai pemantauan untuk melihat ringkasan.</string>
+    <string name="nav_dashboard">Dasbor</string>
+    <string name="nav_report">Laporan</string>
+    <string name="nav_settings">Pengaturan</string>
+
+    <!-- Status -->
+    <string name="status_ok">Aman</string>
+    <string name="status_warning">Waspada</string>
+    <string name="status_blocked">Bahaya</string>
+    <string name="zone_safe">Aman</string>
+    <string name="zone_warn">Waspada</string>
+    <string name="zone_danger">Bahaya</string>
+
+    <!-- Alarm / overlay -->
+    <string name="alarm_title">Ayo mundur dikit!</string>
+    <string name="alarm_subtitle">Terlalu dekat dengan layar</string>
+    <string name="alarm_dark_title">Ruangan terlalu gelap</string>
+    <string name="alarm_dark_subtitle">Nyalakan lampu ya, biar mata tidak lelah</string>
+    <string name="alarm_posture_title">Duduknya tegak ya</string>
+    <string name="alarm_posture_subtitle">Jangan terlalu menunduk</string>
+    <string name="banner_warning">Waspada: %1$s</string>
+    <string name="banner_safe">Kondisi aman</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Pengaturan</string>
+    <string name="settings_threshold_close">Ambang jarak dekat</string>
+    <string name="settings_threshold_dark">Ambang cahaya (lux)</string>
+    <string name="settings_threshold_posture">Ambang postur (derajat)</string>
+    <string name="settings_light_mode">Mode Ringan (hemat baterai)</string>
+    <string name="settings_light_mode_desc">Analisis 1 frame tiap 10 detik.</string>
+    <string name="settings_safe_banner">Tampilkan banner saat aman</string>
+    <string name="settings_recalibrate">Kalibrasi ulang</string>
+    <string name="settings_parent_lock">Kunci mode orang tua (PIN)</string>
+    <string name="settings_privacy">Privasi &amp; data</string>
+    <string name="settings_about">Tentang JagaMata</string>
+
+    <!-- Report -->
+    <string name="report_title">Laporan Mingguan</string>
+    <string name="report_share">Bagikan</string>
+    <string name="report_generate">Buat Laporan</string>
+    <string name="report_period">Periode: %1$s</string>
+    <string name="report_summary_title">Ringkasan</string>
+    <string name="report_empty">Belum cukup data untuk membuat laporan.</string>
+
+    <!-- Privacy -->
+    <string name="privacy_title">Privasi</string>
+    <string name="privacy_desc">JagaMata memproses semua gambar kamera langsung di HP Anda. Tidak ada foto yang disimpan atau dikirim ke mana pun.</string>
+    <string name="privacy_delete_title">Hapus Semua Data</string>
+    <string name="privacy_delete_desc">Menghapus seluruh riwayat pemantauan dan pengaturan dari perangkat ini.</string>
+    <string name="privacy_delete_confirm">Hapus sekarang</string>
+    <string name="privacy_delete_cancel">Batal</string>
+    <string name="privacy_delete_done">Semua data telah dihapus.</string>
+
+    <!-- Lock -->
+    <string name="lock_title">Masukkan PIN orang tua</string>
+    <string name="lock_desc">PIN diperlukan untuk membuka pengaturan dan laporan.</string>
+    <string name="lock_error">PIN salah. Coba lagi.</string>
+    <string name="lock_set_title">Buat PIN 4 digit</string>
+    <string name="lock_confirm_title">Ulangi PIN</string>
+    <string name="lock_mismatch">PIN tidak sama. Ulangi.</string>
+
+    <!-- Overlay denied -->
+    <string name="overlay_denied_title">Izinkan tampilan di atas aplikasi</string>
+    <string name="overlay_denied_desc">Tanpa izin ini, peringatan tidak bisa muncul di atas aplikasi lain. JagaMata tetap berjalan dengan notifikasi biasa.</string>
+    <string name="overlay_denied_settings">Buka Pengaturan</string>
+    <string name="overlay_denied_fallback">Lanjut dengan notifikasi</string>
+
+    <!-- Detection -->
+    <string name="detection_active">JagaMata aktif</string>
+    <string name="detection_distance">Jarak: %1$.0f cm</string>
+    <string name="detection_unknown_distance">Jarak: —</string>
+    <string name="detection_lux">Cahaya: %1$.0f lux</string>
+    <string name="detection_pitch">Postur: %1$.0f°</string>
+
+    <!-- Notification -->
+    <string name="notif_channel_name">Peringatan JagaMata</string>
+    <string name="notif_channel_desc">Notifikasi pelanggaran jarak, cahaya, dan postur.</string>
+    <string name="notif_title">JagaMata: %1$s</string>
+    <string name="notif_body">Jarak terdeteksi %1$.0f cm. Ayo mundur sedikit.</string>
+    <string name="notif_body_dark">Cahaya ruangan %1$.0f lux. Nyalakan lampu.</string>
+    <string name="notif_body_posture">Sudut kepala %1$.0f°. Duduk lebih tegak.</string>
+
+    <!-- Common -->
+    <string name="ok">OK</string>
+    <string name="cancel">Batal</string>
+    <string name="close">Tutup</string>
+    <string name="save">Simpan</string>
+    <string name="start">Mulai</string>
+    <string name="stop">Berhenti</string>
+    <string name="cm_value">%1$.0f cm</string>
+    <string name="lux_value">%1$.0f lux</string>
+    <string name="degree_value">%1$.0f°</string>
+</resources>

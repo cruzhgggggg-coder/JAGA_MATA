@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Maskot Kiko (burung hantu) — placeholder geometris PRD §2.19
+     (file JagaMata_v2.figcraft tidak tersedia). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="120dp"
+    android:height="120dp"
+    android:viewportWidth="120"
+    android:viewportHeight="120">
+    <!-- badan -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M60,22c-17,0 -30,13 -30,30v20c0,17 13,30 30,30s30,-13 30,-30v-20c0,-17 -13,-30 -30,-30z" />
+    <!-- telinga -->
+    <path
+        android:fillColor="#FF7B6B"
+        android:pathData="M38,24l9,15h-18z" />
+    <path
+        android:fillColor="#FF7B6B"
+        android:pathData="M82,24l9,15h-18z" />
+    <!-- mata kiri -->
+    <path
+        android:fillColor="#12263A"
+        android:pathData="M46,52m-11,0a11,11 0,1 1,22 0a11,11 0,1 1,-22 0" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M42,48m-3,0a3,3 0,1 1,6 0a3,3 0,1 1,-6 0" />
+    <!-- mata kanan -->
+    <path
+        android:fillColor="#12263A"
+        android:pathData="M74,52m-11,0a11,11 0,1 1,22 0a11,11 0,1 1,-22 0" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M70,48m-3,0a3,3 0,1 1,6 0a3,3 0,1 1,-6 0" />
+    <!-- paruh -->
+    <path
+        android:fillColor="#FFD166"
+        android:pathData="M60,58l-8,11h16z" />
+    <!-- sayap -->
+    <path
+        android:fillColor="#5FD4A7"
+        android:pathData="M30,62c-6,4 -8,12 -6,20c4,-2 8,-6 10,-12z" />
+    <path
+        android:fillColor="#5FD4A7"
+        android:pathData="M90,62c6,4 8,12 6,20c-4,-2 -8,-6 -10,-12z" />
+</vector>
