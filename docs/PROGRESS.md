@@ -2,9 +2,9 @@
 
 Protocol: PRD_JagaMata_AI_Agent_Build.pdf §0.3. File ini satu-satunya memori antar sesi.
 
-- Session: MiMoCode · mulai 2026-07-07
-- Environment: Windows 11 · JDK 17.0.20.1 ✅ · Android SDK `C:/Users/Zaky/AppData/Local/Android/Sdk` (platform android-37.0, build-tools 36.0.0) · Gradle wrapper 8.9 + AGP 8.7.3 · Python via `uv` ✅
-- Gate terakhir: `clean testDebugUnitTest ktlintCheck detekt assembleDebug` → **BUILD SUCCESSFUL** · 62 test lulus · APK `app/build/outputs/apk/debug/app-debug.apk`
+- Session: MiMoCode · mulai 2026-07-07 · **sesi berakhir (lanjut besok)**
+- **Pembagian tugas (info user 2026-07-07):** training ML (dataset + `pitch_best.pt`) dikerjakan **rekan tim**; tugas user = **UI/UX + fullstack** (platform Android-nya). Agent fokus ke UI/UX + fullstack — jangan mengandalkan model ML sudah ada.
+- Gate terakhir: `clean testDebugUnitTest ktlintCheck detekt assembleDebug` → **BUILD SUCCESSFUL** · 62 test lulus · APK `app/build/outputs/apk/debug/app-debug.apk` · AAB `app/build/outputs/bundle/release/app-release.aab`
 
 ## Status task (BAB 7)
 
