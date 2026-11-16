@@ -22,6 +22,7 @@ __pycache__/
 # Keystore (jangan commit)
 *.jks
 *.keystore
+keystore/
 
 # Output build lokal
 app/release/

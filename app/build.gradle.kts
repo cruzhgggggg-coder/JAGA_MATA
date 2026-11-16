@@ -24,6 +24,18 @@ android {
         buildConfigField("boolean", "USE_TFLITE_PITCH", "false")
     }
 
+    signingConfigs {
+        create("release") {
+            val keystoreFile = rootProject.file("keystore/jagamata-release.jks")
+            if (keystoreFile.exists()) {
+                storeFile = keystoreFile
+                storePassword = System.getenv("JAGAMATA_STORE_PASSWORD") ?: "jagamata-dev"
+                keyAlias = System.getenv("JAGAMATA_KEY_ALIAS") ?: "jagamata"
+                keyPassword = System.getenv("JAGAMATA_KEY_PASSWORD") ?: "jagamata-dev"
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
@@ -32,7 +44,10 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            // Signing diisi DEV-31 (keystore lokal)
+            val releaseSigning = signingConfigs.getByName("release")
+            if (releaseSigning.storeFile != null) {
+                signingConfig = releaseSigning
+            }
         }
         debug {
             isMinifyEnabled = false
