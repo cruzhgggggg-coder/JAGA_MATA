@@ -1,0 +1,23 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = crlf
+insert_final_newline = true
+indent_style = space
+indent_size = 4
+
+[*.{kt,kts}]
+max_line_length = 140
+ktlint_standard_max-line-length = disabled
+# Compose convention: nama @Composable harus UpperCamelCase
+ktlint_standard_function-naming = disabled
+ktlint_standard_no-wildcard-imports = disabled
+ktlint_standard_trailing-comma-on-call-site = enabled
+ktlint_standard_trailing-comma-on-declaration-site = enabled
+
+[*.{yml,yaml,xml,json,toml}]
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false
