@@ -41,11 +41,15 @@ FASE P5 — KPI & LAPORAN
 - [x] DEV-30 docs/Laporan_Pengujian.md + Listing_PlayStore_Draft.md
 
 FASE P6 — BUILD AKHIR
-- [ ] DEV-31 Signing config + bundleRelease
-- [ ] DEV-32 Commit + tag v1.0.0 + README final
-- [ ] DEV-33 BAB 8: verifikasi akhir → docs/LAPORAN_AKHIR.md
-- [x] DEV-34 PitchBackend + PitchBackendFactory + ml/export/convert_pitch_model.py (model belum ada → fallback Landmark, F9)
-- [ ] DEV-35 Retest K-pitch (menunggu model rekan tim)
+- [x] DEV-31 Signing config + bundleRelease → AAB signed 47 MB (keystore lokal `keystore/`)
+- [x] DEV-32 Commit per task + tag v1.0.0 + README final
+- [x] DEV-33 BAB 8: verifikasi akhir → docs/LAPORAN_AKHIR.md (SELESAI DENGAN CATATAN)
+- [x] DEV-34 PitchBackend + PitchBackendFactory + ml/export/convert_pitch_model.py (F9)
+- [!] DEV-35 Retest K-pitch — MENUNGGU model pitch_best.pt rekan tim
+      (fallback: LandmarkPitchBackend dipertahankan sebagai default — lihat ml/reports/k_pitch_retest.md)
+
+## STATUS AKHIR: SELESAI DENGAN CATATAN (PRD §9)
+DoD BAB 9 terpenuhi kecuali item hardware/akun eksternal (lihat LAPORAN_AKHIR §6).
 
 ## ASSUMPTION LOG
 Lihat `ml/reports/assumptions.md` (16 butir). Inti: figcraft tidak ada → PNG referensi;
