@@ -21,7 +21,10 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        buildConfigField("boolean", "USE_TFLITE_PITCH", "false")
+        // Model pitch hasil training rekan tim (JagaMata-ML) sudah terpasang
+        // di assets/pitch_model.tflite → aktifkan backend model (PRD §5.5).
+        // File dihapus otomatis → fallback LandmarkPitchBackend (F9).
+        buildConfigField("boolean", "USE_TFLITE_PITCH", "true")
     }
 
     signingConfigs {

@@ -1,0 +1,42 @@
+{
+  "pitch": {
+    "onnx_fp32": "ml\\models\\jagamata_pitch_tuned.onnx",
+    "onnx_int8": "ml\\models\\jagamata_pitch_tuned_int8.onnx",
+    "size_fp32_mb": 5.81,
+    "size_int8_mb": 1.62,
+    "input_shape": [
+      1,
+      3,
+      224,
+      224
+    ],
+    "output_shape": [
+      1,
+      3
+    ],
+    "output_labels": [
+      "pitch_deg",
+      "yaw_deg",
+      "roll_deg"
+    ]
+  },
+  "fundus": {
+    "onnx_path": "ml\\models\\jagamata_fundus_classifier.onnx",
+    "size_mb": 15.27,
+    "input_shape": [
+      1,
+      3,
+      224,
+      224
+    ],
+    "output_shape": [
+      1,
+      2
+    ],
+    "classes": [
+      "Normal",
+      "Myopia"
+    ]
+  },
+  "timestamp": "2026-11-19 08:46:11"
+}

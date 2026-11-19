@@ -66,3 +66,27 @@ mengikuti PRD BAB 2; di bawah hanya penafsiran yang perlu dicatat.
 16. IAP billing (`premium_monthly` / `premium_yearly`) TIDAK dikerjakan —
     PRD §7 Fase 6 menyebutnya NICE-TO-HAVE dan Backlog mengecualikan
     "IAP billing sungguhan". Harga dicatat di draft Play Store.
+
+## Integrasi model pitch (JagaMata-ML, 2026-11-19)
+
+17. **Format ONNX -> TFLite.** Rekan tim mengirim \.onnx\; PRD §2.24 meminta
+    pipeline \-> TFLite + file \pitch_model.tflite\. Dikonversi via onnx-tf +
+    TFLiteConverter (dynamic range quantization, 1,64 MB) dengan skrip
+    \ml/export/convert_pitch_model.py --onnx\. Hasil inferensi diverifikasi
+    (Python smoke test) sebelum dipasang ke assets.
+18. **Tanda pitch dinegasi.** Konvensi model rekan tim: negatif = menunduk
+    (rentang baik -15°..+10°); state machine JagaMata (PRD §2): positif =
+    menunduk. \ModelPitchBackend\ mengembalikan \-pitch\ agar cocok.
+19. **Ambang tetap PRD §2.5** (\>30° / 3 dtk\), BUKAN usul model
+    (\< -20° / 5 dtk\). Model hanya sumber angka pitch; angka teknis §2.1-18 menang.
+20. **Guardrail yaw |pitch| ...** bila \|yaw| >= 45°\ pitch dianggap tidak
+    dipercaya \-> null (rekomendasi laporan training §9.2; menoleh jauh dari layar).
+21. **Face crop ditambahkan ke pipeline.** \FaceDetectorManager\ menyimpan
+    \lastFrame\ dan memotong wajah (\ModelPitchBackend.cropFace\) untuk
+    inferensi � berjalan di mode MediaPipe dan degraded ML Kit.
+22. **Bug landmark ternormalisasi.** Landmark MediaPipe berskala [0,1] sempat
+    dianggap piksel (boundingBoxOf) \-> \aceHeightPx\ salah. Diperbaiki dengan
+    \	oPixelBox(points, frameW, frameH)\; penting untuk estimasi jarak/KPI.
+23. **Keputusan DEV-35: GANTI.** MAE 4,3692° (§5.5 butir 4: <= 5°) terverifikasi
+    konsisten di 3 sumber \-> \ModelPitchBackend\ jadi default
+    (\USE_TFLITE_PITCH = true\); file dihapus \-> fallback Landmark (F9).

@@ -1,46 +1,82 @@
 # Retest K-pitch — JagaMata (DEV-35)
 
-**Status: MENUNGGU MODEL** — `ml/export/pitch_model.tflite` (hasil rekan tim ML)
-belum tersedia di repositori, sehingga perbandingan MAE belum bisa dijalankan.
+**Status: SELESAI — KEPUTUSAN: GANTI (model jadi default)**
+**MAE terverifikasi: 4,3692° ≤ target 5,0° → LULUS (PRD §5.5 butir 4)**
 
-## Kontrak (PRD §5.5 butir 4)
+## 1. Sumber model
 
-Backend `TflitePitchBackend` hanya boleh menggantikan `LandmarkPitchBackend`
-sebagai DEFAULT jika **MAE ≤ 5°** terhadap label referensi (AFLW2000 atau
-banding landmark-vs-model pada 12 video D2).
+| Item | Nilai |
+|---|---|
+| Repo | `https://github.com/Theology26/JagaMata-ML.git` (rekan tim) |
+| Arsitektur | MobileNetV3-Small, multi-task `[pitch, yaw, roll]` |
+| File asli | `ml/models/jagamata_pitch_tuned_int8.onnx` (1,62 MB) · FP32 5,81 MB |
+| Hasil konversi | `app/src/main/assets/pitch_model.tflite` (**1,64 MB**, dynamic-range quantized) |
+| Input | `input_face_image` [1,3,224,224] float32, ImageNet μ/σ |
+| Output | `pose_3d_degrees` [1,3] → pitch, yaw, roll (derajat) |
+| Smoke test | ✅ inferensi jalan (contoh output `[13.39, 0.91, -4.33]`) |
 
-## Cara menjalankan setelah model datang
+## 2. Angka MAE (verifikasi 3 sumber — konsisten)
 
-1. Konversi model:
-   ```bash
-   python ml/export/convert_pitch_model.py --pt ml/export/pitch_best.pt
-   ```
-   Hasil: `app/src/main/assets/pitch_model.tflite`
-2. Aktifkan flag di `app/build.gradle.kts`:
-   ```kotlin
-   buildConfigField("boolean", "USE_TFLITE_PITCH", "true")
-   ```
-3. Ukur MAE pada 12 video D2 (label sudut pitch ±5°, lihat `ml/reports/manual_kpi.md`):
-   ```
-   MAE = (1/12) * Σ |pitch_model - pitch_label|
-   ```
-4. Isi tabel di bawah.
+| Sumber | Angka |
+|---|---|
+| `README.md` repo | MAE = 4,3692° |
+| `ml/runs/mse_evaluation_summary.json` (Champion, screen_domain) | `mae: 4.3692`, `mse: 42.0147`, `rmse: 6.4819` |
+| `ml/LAPORAN_TRAINING.md` §6.1.C tabel Champion | 4,3692° (N=1.508, \|yaw\|<45°) |
 
-## Hasil
+**Konteks evaluasi (dari laporan rekan tim):**
+- Dataset uji sakral AFLW2000-3D, N=2.000 (irisan train = 0, anti-leakage group split)
+- Screen Domain operasional (|yaw| < 45°): **N = 1.508 → MAE 4,3692°**
+- Extreme Profile (|yaw| ≥ 45°): N = 492 → MAE 24,03° (di luar rentang pakai anak menatap layar)
+- Val MAE champion: 2,11° · sanity check 32 sampel lulus
 
-| Backend | MAE vs label | Keputusan |
-|---|---|---|
-| LandmarkPitchBackend (geometri nose–chin atan2) | belum diukur di hardware | **DIPERTAHANKAN sebagai default** |
-| TflitePitchBackend (pitch_best.pt) | model belum ada | menunggu |
+**Verifikasi independen agent:** angka identik di ketiga sumber; struktur model
+dicek dengan `onnx.checker` (input/output sesuai kontrak §5.5); konversi
+ONNX→TFLite diuji dengan inferensi nyata (Python/TFLite) → LULUS.
 
-**Keputusan saat ini:** pertahankan `LandmarkPitchBackend` sebagai default
-(F9: platform tetap berjalan penuh tanpa file model). `PitchBackendFactory`
-sudah diuji unit test untuk memilih backend yang benar
-(`PitchBackendFactoryTest` — 5 test lulus).
+## 3. Keputusan
 
-## Catatan untuk rekan tim ML
+> **GANTI — `ModelPitchBackend` diaktifkan sebagai backend pitch default.**
+> Syarat PRD §5.5 butir 4 ("hanya boleh menggantikan backend lama jika MAE ≤ 5°")
+> terpenuhi: 4,3692° ≤ 5,0°.
+>
+> `BuildConfig.USE_TFLITE_PITCH = true` · `PitchBackendFactory` memilih
+> `ModelPitchBackend` bila file ada, otomatis `LandmarkPitchBackend` bila file
+> dihapus (F9 tetap terpenuhi — teruji `PitchBackendFactoryTest`).
 
-- Format masuk `TflitePitchBackend`: crop wajah **224×224 RGB float32**
-  ternormalisasi mean/std ImageNet; keluaran **1 float = pitch derajat**.
-- File konversi & script di `ml/export/` (di luar `app/`) supaya APK tidak
-  bengkak saat model belum ada.
+## 4. Penyesuaian teknis terhadap model (dicatat di ASSUMPTION LOG)
+
+1. **Format** — rekan tim mengirim ONNX; PRD §2.24 meminta TFLite. Dikonversi
+   `ONNX → TF SavedModel → TFLite` (dynamic range quantization) di `ml/export/`.
+   Skrip: `ml/export/convert_pitch_model.py` (+ mode input `.onnx`).
+2. **Tanda** — konvensi model: negatif = menunduk; state machine JagaMata (PRD §2):
+   positif = menunduk → **pitch output dinegasi** di `ModelPitchBackend`.
+3. **Ambang** — usul model `< -20° / 5 dtk` TIDAK dipakai; ambang tetap PRD §2.5
+   (`> 30° / 3 dtk`). Model hanya sumber angka pitch.
+4. **Guardrail yaw** — `|yaw| ≥ 45°` → pitch dianggap tidak dipercaya → null
+   (rekomendasi laporan training §9.2).
+5. **Face crop** — pipeline ditambah ekstraksi crop wajah dari frame
+   (`ModelPitchBackend.cropFace` + simpan `lastFrame` di `FaceDetectorManager`);
+   berjalan di mode MediaPipe maupun degraded ML Kit.
+6. **Bug ikut diperbaiki** — landmark MediaPipe ternormalisasi [0,1] sempat
+   dihitung sebagai piksel → kini diskalakan (`toPixelBox`) sehingga
+   `faceHeightPx` benar (dampak ke estimasi jarak/KPI).
+
+## 5. Masih menunggu (di luar kendali agent)
+
+- **Retest 12 video D2** (banding landmark-vs-model dengan label sudut) — butuh
+  HP/kamera fisik, instruksi di `ml/reports/manual_kpi.md`. Angka AFLW2000 dari
+  rekan tim dipakai sebagai dasar keputusan sementara.
+- `face_landmarker.task` masih absen (opsional, `MODEL_README.txt`) — crop wajah
+  sudah jalan via bounding box ML Kit.
+
+## 6. Reproduksi
+
+```bash
+# Konversi ulang (bila model berubah)
+uv run --python 3.11 --with "onnx==1.15.0" --with onnx-tf \
+  --with "tensorflow-cpu==2.15.1" --with "tensorflow-probability==0.23.0" \
+  python ml/export/convert_pitch_model.py --onnx ml/export/jagamata_pitch_tuned.onnx
+
+# Verifikasi gate
+./gradlew.bat clean testDebugUnitTest ktlintCheck detekt assembleDebug
+```

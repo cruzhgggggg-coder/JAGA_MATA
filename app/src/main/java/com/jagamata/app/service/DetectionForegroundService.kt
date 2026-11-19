@@ -16,6 +16,7 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
+import com.jagamata.app.BuildConfig
 import com.jagamata.app.MainActivity
 import com.jagamata.app.R
 import com.jagamata.app.data.AppDatabase
@@ -27,6 +28,8 @@ import com.jagamata.app.detection.DetectionResult
 import com.jagamata.app.detection.DetectionStateMachine
 import com.jagamata.app.detection.FaceDetectorManager
 import com.jagamata.app.detection.MinuteTicker
+import com.jagamata.app.detection.ModelPitchBackend
+import com.jagamata.app.detection.PitchBackendFactory
 import com.jagamata.app.detection.RiskLevel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -55,7 +58,13 @@ class DetectionForegroundService : LifecycleService() {
         settings = SettingsRepository(this)
         aggregator = CycleAggregator()
         stateMachine = DetectionStateMachine()
-        detector = FaceDetectorManager(this) { result -> onDetection(result) }
+        val pitchBackend =
+            PitchBackendFactory.resolve(
+                useTfliteFlag = BuildConfig.USE_TFLITE_PITCH,
+                tfliteModelAvailable = ModelPitchBackend.modelExists(this),
+                tflite = ModelPitchBackend(this),
+            )
+        detector = FaceDetectorManager(this, pitchBackend) { result -> onDetection(result) }
         _isRunning.value = true
     }
 

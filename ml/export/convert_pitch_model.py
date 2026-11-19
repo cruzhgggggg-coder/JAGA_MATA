@@ -1,27 +1,36 @@
 #!/usr/bin/env python3
-"""Konversi model pitch: pitch_best.pt -> ONNX -> TFLite (PRD §5.5, DEV-34).
+"""Konversi model pitch → TFLite (PRD §5.5 / §2.24, DEV-34).
 
-Dijalankan DI LUAR folder app/ supaya APK tidak bengkak saat model belum ada.
-Kontrak: rekan tim ML menyerahkan `pitch_best.pt` (MAE <= 5 derajat) berdasarkan
-`PANDUAN_TRAINING_ML_JagaMata.md`. Skrip ini mengubahnya menjadi
-`app/src/main/assets/pitch_model.tflite` untuk dipakai TflitePitchBackend.
+Jalur konversi yang terbukti jalan (diuji 2026-11-19):
 
-Pemakaian:
+    ONNX ──onnx-tf──► TF SavedModel ──TFLiteConverter+quant──► pitch_model.tflite
+
+Dijalankan DI LUAR folder app/ supaya APK tidak bengkak sebelum model siap.
+
+Pemakaian (dari repo JagaMata-ML yang sudah diunduh ke ml/export/):
+
+    uv run --python 3.11 \
+      --with "onnx==1.15.0" --with onnx-tf \
+      --with "tensorflow-cpu==2.15.1" --with "tensorflow-probability==0.23.0" \
+      python ml/export/convert_pitch_model.py --onnx ml/export/jagamata_pitch_tuned.onnx
+
+Jalur alternatif dari checkpoint PyTorch (butuh torch):
+
     python ml/export/convert_pitch_model.py --pt ml/export/pitch_best.pt
 
-Prasyarat:  pip install torch onnx onnx-tf tensorflow
-            (atau ai-edge-linter untuk verifikasi)
+Spesifikasi keluaran (dicek dari export_summary.json rekan tim):
+    input : input_face_image  [1,3,224,224] float32 (NCHW, ImageNet norm)
+    output: pose_3d_degrees   [1,3] → pitch, yaw, roll (derajat)
 
-Setelah file .tflite ada di assets/, aktifkan backend lewat BuildConfig:
+Setelah file ada di assets/, aktifkan lewat BuildConfig:
     buildConfigField("boolean", "USE_TFLITE_PITCH", "true")
-Tanpa file itu, aplikasi otomatis memakai LandmarkPitchBackend (F9).
+Tanpa file itu aplikasi otomatis memakai LandmarkPitchBackend (F9).
 """
 
 from __future__ import annotations
 
 import argparse
 import shutil
-import subprocess
 import sys
 from pathlib import Path
 
@@ -31,26 +40,18 @@ EXPORT_DIR = REPO_ROOT / "ml" / "export"
 TARGET_TFLITE = ASSETS_DIR / "pitch_model.tflite"
 
 
-def run(cmd: list[str]) -> None:
-    print("$", " ".join(str(c) for c in cmd))
-    subprocess.run(cmd, check=True)
-
-
-def convert(pt_path: Path) -> Path:
-    if not pt_path.exists():
-        print(f"ERROR: file .pt tidak ditemukan: {pt_path}", file=sys.stderr)
-        return sys.exit(2)
-
-    EXPORT_DIR.mkdir(parents=True, exist_ok=True)
-    onnx_path = EXPORT_DIR / "pitch_best.onnx"
-
-    # 1. PyTorch -> ONNX
+def _require(module: str, hint: str) -> object:
     try:
-        import torch  # type: ignore
+        return __import__(module)
     except ImportError:
-        print("ERROR: torch belum terpasang (pip install torch)", file=sys.stderr)
-        return sys.exit(2)
+        print(f"ERROR: modul '{module}' belum terpasang. {hint}", file=sys.stderr)
+        raise SystemExit(2)
 
+
+def pt_to_onnx(pt_path: Path) -> Path:
+    """Tahap opsional: PyTorch → ONNX (bila rekan tim mengirim .pt)."""
+    torch = _require("torch", "pip install torch")
+    onnx_path = EXPORT_DIR / "pitch_best.onnx"
     model = torch.load(pt_path, map_location="cpu")
     if hasattr(model, "eval"):
         model.eval()
@@ -58,60 +59,81 @@ def convert(pt_path: Path) -> Path:
     torch.onnx.export(
         model,
         dummy,
-        onnx_path,
-        input_names=["input"],
-        output_names=["pitch"],
-        dynamic_axes={"input": {0: "batch"}, "pitch": {0: "batch"}},
-        opset_version=17
+        str(onnx_path),
+        input_names=["input_face_image"],
+        output_names=["pose_3d_degrees"],
+        dynamic_axes={
+            "input_face_image": {0: "batch_size"},
+            "pose_3d_degrees": {0: "batch_size"},
+        },
+        opset_version=17,
     )
     print(f"ONNX ditulis: {onnx_path}")
+    return onnx_path
 
-    # 2. ONNX -> TF SavedModel -> TFLite
-    try:
-        import onnx  # type: ignore  # noqa: F401
-        from onnx_tf.backend import prepare  # type: ignore
-    except ImportError:
-        print(
-            "ERROR: onnx / onnx-tf belum terpasang (pip install onnx onnx-tf)",
-            file=sys.stderr
-        )
-        return sys.exit(2)
 
-    saved_model_dir = EXPORT_DIR / "saved_model"
-    tf_rep = prepare(onnx.load(str(onnx_path)))
-    tf_rep.export_graph(str(saved_model_dir))
+def onnx_to_saved_model(onnx_path: Path, saved_model_dir: Path) -> None:
+    onnx = _require("onnx", "pip install onnx==1.15.0")
+    onnx_tf = _require("onnx_tf", "pip install onnx-tf  (dan onnx==1.15.0, tensorflow-cpu==2.15.1)")
+    model = onnx.load(str(onnx_path))
+    # Cek struktur I/O sesuai kontrak §5.5
+    inputs = [(i.name, [d.dim_value for d in i.type.tensor_type.shape.dim]) for i in model.graph.input]
+    outputs = [(o.name, [d.dim_value for d in o.type.tensor_type.shape.dim]) for o in model.graph.output]
+    print(f"input : {inputs}")
+    print(f"output: {outputs}")
+    onnx.checker.check_model(model)
+    print("onnx.checker: OK")
+    rep = onnx_tf.prepare(model)
+    rep.export_graph(str(saved_model_dir))
+    print(f"SavedModel ditulis: {saved_model_dir}")
 
-    try:
-        import tensorflow as tf  # type: ignore
-    except ImportError:
-        print("ERROR: tensorflow belum terpasang (pip install tensorflow)", file=sys.stderr)
-        return sys.exit(2)
 
+def saved_model_to_tflite(saved_model_dir: Path, out_path: Path) -> None:
+    tf = _require("tensorflow", "pip install tensorflow-cpu==2.15.1")
     converter = tf.lite.TFLiteConverter.from_saved_model(str(saved_model_dir))
-    tflite_bytes = converter.convert()
-
-    tmp_tflite = EXPORT_DIR / "pitch_model.tflite"
-    tmp_tflite.write_bytes(tflite_bytes)
-    print(f"TFLite ditulis: {tmp_tflite} ({len(tflite_bytes)} byte)")
-
-    # 3. Salin ke assets/
-    ASSETS_DIR.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(tmp_tflite, TARGET_TFLITE)
-    print(f"Model siap pakai: {TARGET_TFLITE}")
-    print("Aktifkan dengan: buildConfigField(\"boolean\", \"USE_TFLITE_PITCH\", \"true\")")
-    return TARGET_TFLITE
+    # Dynamic range quantization → ~5x lebih kecil (8.1 MB → ~1.6 MB)
+    converter.optimizations = [tf.lite.Optimize.DEFAULT]
+    data = converter.convert()
+    out_path.write_bytes(data)
+    print(f"TFLite ditulis: {out_path} ({len(data)} byte)")
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
+    src = parser.add_mutually_exclusive_group(required=True)
+    src.add_argument("--onnx", type=Path, help="Model ONNX hasil export rekan tim")
+    src.add_argument("--pt", type=Path, help="Checkpoint PyTorch (pitch_best.pt)")
     parser.add_argument(
-        "--pt",
-        type=Path,
-        default=EXPORT_DIR / "pitch_best.pt",
-        help="Path ke model PyTorch hasil training (pitch_best.pt)"
+        "--keep-saved-model",
+        action="store_true",
+        help="Simpan SavedModel antara di ml/export/saved_model",
     )
     args = parser.parse_args()
-    convert(args.pt)
+
+    EXPORT_DIR.mkdir(parents=True, exist_ok=True)
+    ASSETS_DIR.mkdir(parents=True, exist_ok=True)
+
+    if args.pt:
+        if not args.pt.exists():
+            print(f"ERROR: file tidak ada: {args.pt}", file=sys.stderr)
+            return 2
+        onnx_path = pt_to_onnx(args.pt)
+    else:
+        if not args.onnx.exists():
+            print(f"ERROR: file tidak ada: {args.onnx}", file=sys.stderr)
+            return 2
+        onnx_path = args.onnx
+
+    saved_model_dir = EXPORT_DIR / "saved_model"
+    onnx_to_saved_model(onnx_path, saved_model_dir)
+    saved_model_to_tflite(saved_model_dir, TARGET_TFLITE)
+
+    if not args.keep_saved_model and saved_model_dir.exists():
+        shutil.rmtree(saved_model_dir, ignore_errors=True)
+
+    size = TARGET_TFLITE.stat().st_size
+    print(f"Model siap pakai: {TARGET_TFLITE} ({size / 1_048_576:.2f} MB)")
+    print('Aktifkan dengan: buildConfigField("boolean", "USE_TFLITE_PITCH", "true")')
     return 0
 
 

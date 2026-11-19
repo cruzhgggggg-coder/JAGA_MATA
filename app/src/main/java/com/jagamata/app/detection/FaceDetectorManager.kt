@@ -19,8 +19,8 @@ import java.util.concurrent.atomic.AtomicBoolean
  *
  * Utama: MediaPipe FaceLandmarker (LIVE_STREAM, 1 wajah, model
  * `assets/face_landmarker.task`). Bila model gagal dimuat -> fallback
- * ML Kit Face Detection dan fitur berjalan dalam "degraded mode"
- * (jarak + cahaya tetap jalan; pitch hanya dari MediaPipe).
+ * ML Kit Face Detection ("degraded mode": deteksi jarak + cahaya tetap jalan,
+ * pitch dihitung dari crop wajah lewat [PitchBackend] bila model tersedia).
  */
 class FaceDetectorManager(
     private val context: Context,
@@ -36,6 +36,10 @@ class FaceDetectorManager(
     val isDegraded: Boolean get() = activeBackend == DetectorBackend.MLKIT
 
     private val closed = AtomicBoolean(false)
+
+    /** Frame terakhir — dipakai untuk crop wajah ke backend pitch (PRD §5.5). */
+    @Volatile
+    private var lastFrame: Bitmap? = null
 
     /** Inisialisasi backend. @return true bila siap menerima frame. */
     fun initialize(): Boolean {
@@ -119,6 +123,7 @@ class FaceDetectorManager(
         bitmap: Bitmap,
         timestampMs: Long,
     ) {
+        lastFrame = bitmap
         when (activeBackend) {
             DetectorBackend.MEDIAPIPE -> {
                 val mpImage = BitmapImageBuilder(bitmap).build()
@@ -145,14 +150,21 @@ class FaceDetectorManager(
             return
         }
         val points = landmarks.map { LandmarkPoint(it.x(), it.y(), it.z()) }
-        val box = boundingBoxOf(points)
+        val frame = lastFrame
+        // Landmark MediaPipe ternormalisasi [0,1] → skala ke piksel frame.
+        val box =
+            frame?.let {
+                ModelPitchBackend.toPixelBox(points, it.width, it.height)
+            } ?: boundingBoxOf(points)
         val faceHeightPx = (box.bottom - box.top).toFloat()
-        val pitch = pitchBackend.pitchDeg(points, null)
+        val faceWidthPx = (box.right - box.left).toFloat()
+        val crop = frame?.let { ModelPitchBackend.cropFace(it, box) }
+        val pitch = pitchBackend.pitchDeg(points, crop)
         onResult(
             DetectionResult(
                 timestampMs = result.timestampMs(),
                 faceHeightPx = faceHeightPx.takeIf { it > 0f },
-                faceWidthPx = (box.right - box.left).toFloat().takeIf { it > 0f },
+                faceWidthPx = faceWidthPx.takeIf { it > 0f },
                 pitchDeg = pitch,
                 backend = DetectorBackend.MEDIAPIPE,
             ),
@@ -178,13 +190,16 @@ class FaceDetectorManager(
                     return@addOnSuccessListener
                 }
                 val box: Rect = face.boundingBox
+                val crop = bitmap.let { ModelPitchBackend.cropFace(it, box) }
                 onResult(
                     DetectionResult(
                         timestampMs = timestampMs,
                         faceHeightPx = box.height().toFloat().takeIf { it > 0f },
                         faceWidthPx = box.width().toFloat().takeIf { it > 0f },
-                        // degraded mode: pitch butuh 478 landmark MediaPipe
-                        pitchDeg = null,
+                        // Model pitch jalan dari crop wajah (landmark MediaPipe
+                        // tetap null di degraded mode → fallback geometri tanpa
+                        // landmark juga null).
+                        pitchDeg = pitchBackend.pitchDeg(emptyList(), crop),
                         backend = DetectorBackend.MLKIT,
                     ),
                 )
@@ -196,6 +211,7 @@ class FaceDetectorManager(
 
     fun close() {
         closed.set(true)
+        lastFrame = null
         try {
             landmarker?.close()
         } catch (_: Throwable) {

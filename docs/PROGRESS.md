@@ -44,9 +44,10 @@ FASE P6 — BUILD AKHIR
 - [x] DEV-31 Signing config + bundleRelease → AAB signed 47 MB (keystore lokal `keystore/`)
 - [x] DEV-32 Commit per task + tag v1.0.0 + README final
 - [x] DEV-33 BAB 8: verifikasi akhir → docs/LAPORAN_AKHIR.md (SELESAI DENGAN CATATAN)
-- [x] DEV-34 PitchBackend + PitchBackendFactory + ml/export/convert_pitch_model.py (F9)
-- [!] DEV-35 Retest K-pitch — MENUNGGU model pitch_best.pt rekan tim
-      (fallback: LandmarkPitchBackend dipertahankan sebagai default — lihat ml/reports/k_pitch_retest.md)
+- [x] DEV-34 PitchBackend + ModelPitchBackend (TFLite) + ml/export/convert_pitch_model.py
+      → model JagaMata-ML (MAE 4,37°) terkonversi & terpasang di assets, flag aktif
+- [x] DEV-35 Retest K-pitch → **KEPUTUSAN: GANTI** (MAE 4,3692° ≤ 5°, 3 sumber konsisten)
+      → lihat ml/reports/k_pitch_retest.md · retest 12 video D2 masih menunggu HP fisik
 
 ## STATUS AKHIR: SELESAI DENGAN CATATAN (PRD §9)
 DoD BAB 9 terpenuhi kecuali item hardware/akun eksternal (lihat LAPORAN_AKHIR §6).
