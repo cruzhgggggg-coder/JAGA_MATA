@@ -15,6 +15,11 @@ val InkSoft = Color(0xFF5A6B85)
 val InkFaint = Color(0xFF9AA7BC)
 val Divider = Color(0xFFDCE6F5)
 
+// Warna maskot Kiko dari desain (02_Mascot_Kiko / 04_App_Icon)
+val Cream = Color(0xFFFFF6E9)
+val PrimaryDark = Color(0xFF2D70B7)
+val BlueTint = Color(0xFFD4E5FF)
+
 // Zona jarak §2.23
 val ZoneSafe = Mint
 val ZoneWarn = Sunny

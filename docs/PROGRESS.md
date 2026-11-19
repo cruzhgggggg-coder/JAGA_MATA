@@ -51,6 +51,15 @@ FASE P6 — BUILD AKHIR
 ## STATUS AKHIR: SELESAI DENGAN CATATAN (PRD §9)
 DoD BAB 9 terpenuhi kecuali item hardware/akun eksternal (lihat LAPORAN_AKHIR §6).
 
+## AUDIT DESAIN (lanjutan 2026-07-07 — sesi 2)
+- [x] Potong `03_Screens_15_Layar.png` → `design/referensi/screens/` (17 sel, 15 layar unik)
+- [x] Audit programatik per layar → `docs/DESIGN_AUDIT.md` (palet, bounding box, aksen)
+- [x] Token baru dari desain: `Cream #FFF6E9`, `PrimaryDark #2D70B7`, `BlueTint #D4E5FF`
+- [x] Maskot Kiko diperbaiki: badan krem + sayap biru (sebelumnya putih/merah/mint)
+- [x] Ikon launcher diperbaiki: latar biru + badan krem (sesuai `04_App_Icon.png`)
+- [x] Gate ulang: `clean test ktlintCheck detekt assembleDebug` exit 0 · 62 test lulus
+- [ ] (opsional) CTA bottom-bar menempel + margin 24dp — lihat §4 DESIGN_AUDIT.md
+
 ## ASSUMPTION LOG
 Lihat `ml/reports/assumptions.md` (16 butir). Inti: figcraft tidak ada → PNG referensi;
 zona 50/30 cm vs OK >35 cm direkonsiliasi (semua angka terpakai); wajah hilang 2 dtk
