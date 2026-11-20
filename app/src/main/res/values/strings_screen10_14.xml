@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Batch D — 10 Pengaturan · 11 Izin & Akses · 12 Kalibrasi Kamera · 14 Privasi & Data -->
+    <!-- 10 Pengaturan (2823) -->
+    <string name="s10_hero">Atur aku sesuai\nkebutuhan\nkeluargamu, ya!</string>
+    <string name="s10_footer">JagaMata versi 1.0 · Jarak aman, mata senang!</string>
+    <string name="s10_row_notif">Notifikasi</string>
+    <string name="s10_row_calibration">Kalibrasi Kamera</string>
+    <string name="s10_row_language">Bahasa</string>
+    <string name="s10_lang_value">Bahasa Indonesia</string>
+    <string name="s10_row_dark">Mode Gelap</string>
+
+    <!-- 11 Izin & Akses (3135) -->
+    <string name="s11_title">Izin &amp; Akses</string>
+    <string name="s11_hero">Aku butuh 3 izin ini\nsupaya bisa menjaga\nmatamu, ya!</string>
+    <string name="s11_row_overlay">Tampilan di atas aplikasi</string>
+    <string name="s11_row_calib_next">Kalibrasi Kamera (langkah\nberikut)</string>
+    <string name="s11_value_required">Wajib ketiganya</string>
+    <string name="s11_footer">Semua izin bisa diatur ulang kapan saja.</string>
+
+    <!-- 12 Kalibrasi Kamera (3323) -->
+    <string name="s12_title">Kalibrasi Kamera</string>
+    <string name="s12_pill">Pegang HP 30 cm dari wajah</string>
+    <string name="s12_ruler_hint">Pakai penggaris, ya</string>
+    <string name="s12_distance">52 cm</string>
+    <string name="s12_target">Target 30 cm</string>
+    <string name="s12_target_sub">posisikan sesuai penggaris</string>
+    <string name="s12_stable">Stabil 1,5 detik — tersimpan otomatis</string>
+
+    <!-- 14 Privasi & Data (3229) -->
+    <string name="s14_title">Privasi &amp; Data</string>
+    <string name="s14_hero">Semua data tetap di\nHP-mu, tidak dikirim ke\nmana-mana.</string>
+    <string name="s14_row_photos">0 foto tersimpan</string>
+    <string name="s14_row_offline">Tanpa internet &amp; server</string>
+    <string name="s14_row_delete">Hapus semua\ndata</string>
+    <string name="s14_value_pdp">Sesuai UU PDP</string>
+    <string name="s14_row_policy">Kebijakan privasi</string>
+    <string name="s14_footer">JagaMata v1.0 · Privasi by design — 0 foto keluar HP.</string>
+</resources>

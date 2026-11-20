@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Batch C · 07 Hadiah & Streak -->
+    <string name="s07_title">Hadiah &amp; Streak</string>
+    <string name="s07_streak_title">Streak minggu ini</string>
+    <string name="s07_streak_value">5 hari</string>
+    <string name="s07_day_s">S</string>
+    <string name="s07_day_m">M</string>
+    <string name="s07_kiko_grow">Kiko tumbuh!</string>
+    <string name="s07_kiko_stage">Tahap 2 · Kiko Penjaga berkacamata</string>
+    <string name="s07_kiko_next">3 hari lagi menuju Tahap 3</string>
+    <string name="s07_collection">Koleksi Lencana</string>
+    <string name="s07_badge_mata">Mata Jagoan</string>
+    <string name="s07_badge_mata_desc">7 hari jarak aman</string>
+    <string name="s07_badge_istirahat">Rajin Istirahat</string>
+    <string name="s07_badge_istirahat_desc">5 kali istirahat</string>
+    <string name="s07_badge_jarak">Jarak Juara</string>
+    <string name="s07_badge_super">Super Streak</string>
+    <string name="s07_locked">Terkunci</string>
+
+    <!-- Batch C · 08 Profil Anak -->
+    <string name="s08_title">Profil Anak</string>
+    <string name="s08_name">Raka Pratama</string>
+    <string name="s08_age">8 tahun</string>
+    <string name="s08_grade">Kelas 3 SD</string>
+    <string name="s08_target_label">Target harian</string>
+    <string name="s08_target_value">60 menit</string>
+    <string name="s08_target_desc">waktu main gadget per hari</string>
+    <string name="s08_sensitive_title">Pengaturan Sensitif</string>
+    <string name="s08_sensitive_desc">Khusus Orang Tua — tahan 3 detik untuk membuka</string>
+    <string name="s08_row_limit">Batas waktu bermain</string>
+    <string name="s08_row_limit_value">60 menit</string>
+    <string name="s08_row_distance">Jarak minimum</string>
+    <string name="s08_row_distance_value">50 cm</string>
+    <string name="s08_open_settings">Buka Pengaturan Orang Tua</string>
+
+    <!-- Batch C · 09 Dashboard Orang Tua -->
+    <string name="s09_title">Dashboard Orang Tua</string>
+    <string name="s09_subtitle">Ringkasan kebiasaan Raka minggu ini</string>
+    <string name="s09_report_title">Laporan Mingguan</string>
+    <string name="s09_report_avg_label">Jarak rata-rata 7 hari</string>
+    <string name="s09_report_status_good">Baik</string>
+    <string name="s09_report_delta">naik 6 cm dari minggu lalu</string>
+    <string name="s09_report_threshold">50 cm</string>
+    <string name="s09_cycle_active">⏱ Siklus 1 menit — aktif</string>
+    <string name="s09_cycle_line">Siklus 14:32 · 52 cm · Aman</string>
+    <string name="s09_cycle_meta">1.440 pemeriksaan/hari · log 30 hari</string>
+    <string name="s09_tips_title">Tips minggu ini</string>
+    <string name="s09_tips_body">Ajak Raka bermain di luar setelah 20 \nmenit di depan layar.</string>
+    <string name="s09_share">Bagikan Laporan Mingguan (PDF / WhatsApp)</string>
+    <string name="s09_min_distance_label">Jarak\nminimum</string>
+    <string name="s09_min_distance_value">50 cm</string>
+
+    <!-- Batch C · 13 Kunci Orang Tua -->
+    <string name="s13_cancel">Batal</string>
+    <string name="s13_bubble">PIN ini menjaga pengaturan tetap di tangan orang tua.</string>
+    <string name="s13_title">Masuk Mode Orang Tua</string>
+    <string name="s13_pin_hint">Masukkan PIN 4 digit: %1$s · Anak cukup \ntahan 3 detik.</string>
+    <string name="s13_submit">Buka</string>
+
+    <!-- Bottom nav labels (Batch C screens) -->
+    <string name="nav_beranda">Beranda</string>
+    <string name="nav_pantau">Pantau</string>
+    <string name="nav_hadiah">Hadiah</string>
+    <string name="nav_ortu">Orang Tua</string>
+</resources>

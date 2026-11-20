@@ -10,10 +10,15 @@ import com.jagamata.app.data.AppDatabase
 object DetectionServiceLocator {
     @Volatile
     private var databaseOverride: AppDatabase? = null
+    private var appContext: Context? = null
+
+    fun init(context: Context) {
+        appContext = context.applicationContext
+    }
 
     fun database(context: Context? = null): AppDatabase {
         databaseOverride?.let { return it }
-        val ctx = requireNotNull(context) { "Context diperlukan untuk pertama kali" }
+        val ctx = context ?: appContext ?: requireNotNull(context) { "Context diperlukan untuk pertama kali" }
         return AppDatabase.getInstance(ctx).also { databaseOverride = it }
     }
 

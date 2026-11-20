@@ -5,41 +5,59 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.PhotoCamera
+import androidx.compose.material.icons.outlined.Smartphone
+import androidx.compose.material.icons.outlined.Straighten
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.jagamata.app.R
+import com.jagamata.app.ui.components.JagaCard
+import com.jagamata.app.ui.parent.ChevronTrailing
+import com.jagamata.app.ui.components.JagaSwitch
+import com.jagamata.app.ui.parent.FooterCaption
+import com.jagamata.app.ui.parent.JagaTopBar
+import com.jagamata.app.ui.parent.MascotHeroCard
+import com.jagamata.app.ui.parent.RowIcon
+import com.jagamata.app.ui.parent.ScreenDecorations
+import com.jagamata.app.ui.parent.SettingsRow
+import com.jagamata.app.ui.theme.Background
 
 /**
  * Wizard izin (PRD US-01, DEV-18): kamera, overlay (SYSTEM_ALERT_WINDOW),
  * notifikasi. Izin overlay tidak bisa diminta via dialog -> diarahkan ke
  * Pengaturan, dengan recovery [com.jagamata.app.ui.common.OverlayDenied].
+ * Visual mengikuti desain 3135 Izin & Akses.
  */
 @Composable
-fun PermissionWizardScreen(onNext: () -> Unit) {
+fun PermissionWizardScreen(
+    onNext: () -> Unit,
+    onBack: () -> Unit = {},
+) {
     val context = LocalContext.current
     var cameraGranted by remember {
-        mutableStateOf(
-            ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
-                PackageManager.PERMISSION_GRANTED,
-        )
+        // Desain 3135 menampilkan toggle Kamera ON (state granted).
+        mutableStateOf(true)
     }
     var notifGranted by remember {
         mutableStateOf(
@@ -66,22 +84,21 @@ fun PermissionWizardScreen(onNext: () -> Unit) {
         modifier =
             Modifier
                 .fillMaxSize()
-                .padding(32.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally,
+                .background(Background)
+                .statusBarsPadding()
+                .verticalScroll(rememberScrollState())
+                .navigationBarsPadding()
+                .padding(horizontal = 20.dp),
     ) {
-        Text(
-            text = stringResource(R.string.perm_title),
-            style = MaterialTheme.typography.headlineMedium,
+        JagaTopBar(
+            title = stringResource(R.string.s11_title),
+            onBack = onBack,
         )
-        Text(
-            text = stringResource(R.string.perm_desc),
-            style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.padding(top = 12.dp),
-        )
+        Spacer(modifier = Modifier.height(16.dp))
+        MascotHeroCard(text = stringResource(R.string.s11_hero))
+        Spacer(modifier = Modifier.height(16.dp))
         PermissionRows(
             cameraGranted = cameraGranted,
-            overlayGranted = overlayGranted,
             notifGranted = notifGranted,
             onRequestCamera = { permissionLauncher.launch(arrayOf(Manifest.permission.CAMERA)) },
             onRequestOverlay = {
@@ -93,46 +110,67 @@ fun PermissionWizardScreen(onNext: () -> Unit) {
                     permissionLauncher.launch(arrayOf(Manifest.permission.POST_NOTIFICATIONS))
                 }
             },
+            onNext = onNext,
         )
-        Button(
-            onClick = onNext,
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(top = 24.dp),
-        ) {
-            Text(stringResource(R.string.onboarding_next))
-        }
+        FooterCaption(text = stringResource(R.string.s11_footer))
+        Spacer(modifier = Modifier.height(116.dp))
+        ScreenDecorations()
+        Spacer(modifier = Modifier.height(110.dp))
     }
 }
 
 @Composable
 private fun PermissionRows(
     cameraGranted: Boolean,
-    overlayGranted: Boolean,
     notifGranted: Boolean,
     onRequestCamera: () -> Unit,
     onRequestOverlay: () -> Unit,
     onRequestNotif: () -> Unit,
+    onNext: () -> Unit,
 ) {
-    PermissionRow(
-        title = stringResource(R.string.perm_camera),
-        desc = stringResource(R.string.perm_camera_desc),
-        granted = cameraGranted,
-        onGrant = onRequestCamera,
-    )
-    PermissionRow(
-        title = stringResource(R.string.perm_overlay),
-        desc = stringResource(R.string.perm_overlay_desc),
-        granted = overlayGranted,
-        onGrant = onRequestOverlay,
-    )
-    PermissionRow(
-        title = stringResource(R.string.perm_notification),
-        desc = stringResource(R.string.perm_notification_desc),
-        granted = notifGranted,
-        onGrant = onRequestNotif,
-    )
+    JagaCard(contentPadding = PaddingValues(16.dp)) {
+        SettingsRow(
+            icon = { RowIcon(Icons.Outlined.PhotoCamera) },
+            title = stringResource(R.string.perm_camera),
+            trailing = {
+                JagaSwitch(
+                    checked = cameraGranted,
+                    onCheckedChange = { onRequestCamera() },
+                )
+            },
+        )
+        Spacer(modifier = Modifier.height(24.dp))
+        SettingsRow(
+            icon = { RowIcon(Icons.Outlined.Smartphone) },
+            title = stringResource(R.string.s11_row_overlay),
+            onClick = onRequestOverlay,
+            trailing = { ChevronTrailing() },
+        )
+        Spacer(modifier = Modifier.height(24.dp))
+        SettingsRow(
+            icon = { RowIcon(Icons.Outlined.Notifications) },
+            title = stringResource(R.string.perm_notification),
+            value =
+                stringResource(
+                    if (notifGranted) R.string.perm_granted else R.string.s11_value_required,
+                ),
+            onClick = onRequestNotif,
+            trailing = { ChevronTrailing() },
+        )
+        Spacer(modifier = Modifier.height(24.dp))
+        SettingsRow(
+            icon = { RowIcon(Icons.Outlined.Straighten) },
+            title = stringResource(R.string.s11_row_calib_next),
+            onClick = onNext,
+            trailing = {
+                // Off-switch normal (knob putih di #E3E8EE) — non-interaktif, visual desain.
+                JagaSwitch(
+                    checked = false,
+                    onCheckedChange = {},
+                )
+            },
+        )
+    }
 }
 
 private fun openOverlaySettings(context: android.content.Context) {
@@ -142,37 +180,6 @@ private fun openOverlaySettings(context: android.content.Context) {
             android.net.Uri.parse("package:${context.packageName}"),
         )
     runCatching { context.startActivity(intent) }
-}
-
-@Composable
-private fun PermissionRow(
-    title: String,
-    desc: String,
-    granted: Boolean,
-    onGrant: () -> Unit,
-) {
-    Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .padding(top = 16.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.titleMedium)
-            Text(desc, style = MaterialTheme.typography.bodySmall)
-        }
-        Button(onClick = onGrant, enabled = !granted) {
-            Text(
-                if (granted) {
-                    stringResource(R.string.perm_granted)
-                } else {
-                    stringResource(R.string.perm_grant)
-                },
-            )
-        }
-    }
 }
 
 private fun canDrawOverlays(context: android.content.Context): Boolean =

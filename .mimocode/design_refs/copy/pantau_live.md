@@ -1,0 +1,16 @@
+# Copy — pantau_live (id 1705)
+
+- [40,40.26] size=16 "9:41"
+- [262,77.62] size=11 "Sedang memantau"
+- [20,80.65] size=24 "Pantau Jarak"
+- [64,133.62] size=11 "Kamera depan"
+- [182,210.28] size=13 "52 cm"
+- [155.33,472.86] size=32 "52 cm"
+- [140.6,499.28] size=13 "jarak mata ke layar"
+- [139,541.28] size=13 "Jarakmu sudah pas! 👍"
+- [92,659.28] size=13 "Waktu bermain"
+- [92,692.86] size=32 "12:45"
+- [35.63,810.62] size=11 "Beranda"
+- [131.38,810.62] size=11 "Pantau"
+- [223.63,810.62] size=11 "Hadiah"
+- [306.88,810.62] size=11 "Orang Tua"

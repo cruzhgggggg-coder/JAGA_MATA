@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copy layar 01a/01b/01c/04/15 — persis dari .mimocode/design_refs/copy/*.md -->
+
+<resources>
+    <!-- 01a Onboarding 1 — Kenalan dengan Kiko -->
+    <string name="ob1_bubble">Halo! Aku Kiko, burung hantu penjaga\nmatamu.</string>
+    <string name="ob1_title">Kenalan dengan Kiko!</string>
+    <string name="ob1_desc">Kiko menemanimu bermain gadget dan\nmengingatkan dengan lembut saat matamu\nterlalu dekat ke layar.</string>
+
+    <!-- 01b Onboarding 2 — Aturan 20-20-20 -->
+    <string name="ob2_value_1">20 menit</string>
+    <string name="ob2_label_1">bermain</string>
+    <string name="ob2_value_2">6 meter\n(20 kaki)</string>
+    <string name="ob2_label_2">lihat jauh</string>
+    <string name="ob2_value_3">20 detik</string>
+    <string name="ob2_label_3">istirahat</string>
+    <string name="ob2_title">Aturan 20-20-20</string>
+    <string name="ob2_desc">Setiap 20 menit, lihat benda sejauh 6 meter\nselama 20 detik. Matamu jadi segar lagi!</string>
+
+    <!-- 01c Onboarding 3 — Jaga jarak 50 cm -->
+    <string name="ob3_badge_value">50 cm</string>
+    <string name="ob3_badge_label">jarak aman</string>
+    <string name="ob3_title">Jaga jarak 50 cm</string>
+    <string name="ob3_desc">Kiko memakai kacamata siaga. Kalau wajahmu\nlebih dekat dari 50 cm ke layar, Kiko akan\nmengingatkanmu.</string>
+
+    <!-- Onboarding shared -->
+    <string name="ob_next">Lanjut</string>
+    <string name="ob_skip">Lewati</string>
+    <string name="ob_start">Ayo Mulai!</string>
+
+    <!-- 04 Peringatan Jarak Dekat -->
+    <string name="per_title">Pantau Jarak</string>
+    <string name="per_status_badge">Terlalu dekat</string>
+    <string name="per_camera_chip">Kamera depan</string>
+    <string name="per_distance">24 cm</string>
+    <string name="per_status_pill">Terlalu dekat! Mata perlu istirahat</string>
+    <string name="per_play_label">Waktu bermain</string>
+    <string name="per_play_value">12:45</string>
+    <string name="per_sheet_title">Terlalu dekat!</string>
+    <string name="per_sheet_subtitle">Ayo mundur sedikit! Jauhkan layar sampai Kiko\ntersenyum lagi, ya.</string>
+    <string name="per_cta">Aku Mundur!</string>
+
+    <!-- Bottom nav (desain 04) -->
+    <!-- nav_* strings live in strings_screen07_13.xml (shared with bottom nav) -->
+
+    <!-- 15 Overlay Ditolak -->
+    <string name="od_skip">Nanti</string>
+    <string name="od_bubble">Tanpa izin ini, peringatan tak muncul di\natas game atau video.</string>
+    <string name="od_title">Izin \'Tampilan di atas aplikasi\'</string>
+    <string name="od_desc">Buka Pengaturan Android, aktifkan JagaMata,\nlalu kembali ke sini.</string>
+    <string name="od_cta">Buka Pengaturan</string>
+</resources>

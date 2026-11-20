@@ -26,10 +26,10 @@ private val LightColors =
         outline = Divider,
     )
 
-// Radius PRD §2.22: card 20–24, sheet 32, pill 999 (diwakili 50)
+// Radius variabel "Radius" desain: 14/16/20/22/24/32 (tidak ada < 12); kartu standar 24
 val JagaMataShapes =
     Shapes(
-        extraSmall = RoundedCornerShape(12.dp),
+        extraSmall = RoundedCornerShape(14.dp),
         small = RoundedCornerShape(16.dp),
         medium = RoundedCornerShape(20.dp),
         large = RoundedCornerShape(24.dp),

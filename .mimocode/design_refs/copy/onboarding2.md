@@ -1,0 +1,15 @@
+# Copy — onboarding2 (id 1425)
+
+- [40,40.26] size=16 "9:41"
+- [314,81.26] size=16 "Lewati"
+- [51.41,431.99] size=18 "20 menit"
+- [165.29,431.99] size=18 "6 meter "
+- [273.43,431.99] size=18 "20 detik"
+- [162.38,457.99] size=18 "(20 kaki)"
+- [62.33,459.28] size=13 "bermain"
+- [281.67,459.28] size=13 "istirahat"
+- [169,485.28] size=13 "lihat jauh"
+- [108,602.65] size=24 "Aturan 20-20-20"
+- [38.88,637.26] size=16 "Setiap 20 menit, lihat benda sejauh 6 meter "
+- [50.94,661.26] size=16 "selama 20 detik. Matamu jadi segar lagi!"
+- [173,789.26] size=16 "Lanjut"

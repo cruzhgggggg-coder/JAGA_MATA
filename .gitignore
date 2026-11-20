@@ -34,3 +34,7 @@ ktlint_log.txt
 detekt_log.txt
 lint_log.txt
 prd_extracted.txt
+
+# Workspace agent (scratch/scripts/tmp) — TAPI simpan bukti QA & referensi desain
+.mimocode/*
+!.mimocode/design_refs/

@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Batch B — copy ekskrun layar 02 Beranda, 03 Pantau Live, 05 Istirahat, 06 Statistik -->
+
+    <!-- Bottom nav (bersama layar batch B) -->
+    <string name="bnav_beranda">Beranda</string>
+    <string name="bnav_pantau">Pantau</string>
+    <string name="bnav_hadiah">Hadiah</string>
+    <string name="bnav_orang_tua">Orang Tua</string>
+
+    <!-- 02 Beranda -->
+    <string name="s02_greeting">Halo, Raka!</string>
+    <string name="s02_subtitle">Siap main sehat hari ini?</string>
+    <string name="s02_bubble">Kamu hebat! Kemarin \njarak matamu sudah \npas. Yuk ulangi lagi!</string>
+    <string name="s02_stat_distance">Jarak rata-rata</string>
+    <string name="s02_stat_time">Waktu main</string>
+    <string name="s02_value_distance">52 cm</string>
+    <string name="s02_value_time">35 mnt</string>
+    <string name="s02_status_aman">Aman</string>
+    <string name="s02_streak_value">5 hari</string>
+    <string name="s02_streak_caption">streak berturut-turut, pertahankan ya!</string>
+    <string name="s02_cta">Mulai Pantau</string>
+
+    <!-- 03 Pantau Jarak Live -->
+    <string name="s03_title">Pantau Jarak</string>
+    <string name="s03_monitoring">Sedang memantau</string>
+    <string name="s03_camera">Kamera depan</string>
+    <string name="s03_distance_badge">52 cm</string>
+    <string name="s03_distance_value">52 cm</string>
+    <string name="s03_distance_caption">jarak mata ke layar</string>
+    <string name="s03_status_pill">Jarakmu sudah pas! 👍</string>
+    <string name="s03_time_label">Waktu bermain</string>
+    <string name="s03_time_value">12:45</string>
+
+    <!-- 05 Istirahat 20-20-20 -->
+    <string name="s05_title">Waktunya Istirahat</string>
+    <string name="s05_chip">20-20-20</string>
+    <string name="s05_seconds">14</string>
+    <string name="s05_unit">detik</string>
+    <string name="s05_fresh">Segar lagi!</string>
+    <string name="s05_tip">Lihat benda sejauh 6 meter selama \n20 detik</string>
+    <string name="s05_cta">Selesai Istirahat</string>
+
+    <!-- 06 Statistik Harian -->
+    <string name="s06_title">Statistik Hari Ini</string>
+    <string name="s06_date">Minggu, 1 November</string>
+    <string name="s06_chart_title">Jarak per jam</string>
+    <string name="s06_legend_aman">Aman</string>
+    <string name="s06_legend_waspada">Waspada</string>
+    <string name="s06_legend_bahaya">Bahaya</string>
+    <string-array name="s06_hours">
+        <item>08</item>
+        <item>10</item>
+        <item>12</item>
+        <item>14</item>
+        <item>16</item>
+        <item>18</item>
+        <item>20</item>
+    </string-array>
+    <string name="s06_stat_distance">Jarak rata-rata</string>
+    <string name="s06_stat_duration">Durasi aman</string>
+    <string name="s06_value_distance">52 cm</string>
+    <string name="s06_value_duration">85 menit</string>
+    <string name="s06_status_aman">Aman</string>
+    <string name="s06_health_title">Mata kamu sehat!</string>
+    <string name="s06_health_body">80% waktumu hari ini ada di jarak \naman. Hebat, pertahankan!</string>
+</resources>

@@ -1,0 +1,18 @@
+# Copy — peringatan (id 1860)
+
+- [40,40.26] size=16 "9:41"
+- [291,77.62] size=11 "Terlalu dekat"
+- [20,80.65] size=24 "Pantau Jarak"
+- [64,133.62] size=11 "Kamera depan"
+- [182,210.28] size=13 "24 cm"
+- [107,541.28] size=13 "Terlalu dekat! Mata perlu istirahat"
+- [92,659.28] size=13 "Waktu bermain"
+- [122.5,674.65] size=24 "Terlalu dekat!"
+- [92,692.86] size=32 "12:45"
+- [28.05,713.26] size=16 "Ayo mundur sedikit! Jauhkan layar sampai Kiko "
+- [128.77,737.26] size=16 "tersenyum lagi, ya."
+- [148.5,789.26] size=16 "Aku Mundur!"
+- [35.63,810.62] size=11 "Beranda"
+- [131.38,810.62] size=11 "Pantau"
+- [223.63,810.62] size=11 "Hadiah"
+- [306.88,810.62] size=11 "Orang Tua"
