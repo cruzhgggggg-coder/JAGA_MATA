@@ -74,7 +74,7 @@ import java.io.FileOutputStream
 fun WeeklyReportScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val settings = remember { SettingsRepository(context) }
-    val childName by settings.childName.collectAsState(initial = "Rafa")
+    val childName by settings.childName.collectAsState(initial = "Sahabat")
     val childAge by settings.childAge.collectAsState(initial = 8)
 
     var dailyList by remember { mutableStateOf<List<DailyStats>>(emptyList()) }

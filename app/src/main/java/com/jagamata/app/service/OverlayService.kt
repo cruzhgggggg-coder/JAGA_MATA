@@ -80,10 +80,18 @@ class OverlayService : android.app.Service() {
         if (!canDrawOverlays()) {
             Log.w(TAG, "Izin overlay tidak ada — fallback notifikasi")
             val isCrucial = level == RiskLevel.BLOCKED
+            val (title, body) =
+                when (level) {
+                    RiskLevel.BLOCKED ->
+                        "JagaMata: Jarak Terlalu Dekat! ✋" to "Jarak matamu terlalu dekat dengan layar. Ayo mundur sedikit ya!"
+                    RiskLevel.WARNING ->
+                        "JagaMata: Peringatan Kesehatan Mata 💡" to "Perhatikan jarak aman layar, posisi kepala, atau nyalakan lampu ruangan ya!"
+                    RiskLevel.OK -> return
+                }
             NotificationHelper.throttledAlert(
                 this,
-                getString(R.string.notif_title, level.name),
-                getString(R.string.overlay_denied_fallback),
+                title,
+                body,
                 isCrucial = isCrucial,
             )
             return

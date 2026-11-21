@@ -20,10 +20,14 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -32,14 +36,19 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import android.widget.Toast
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -84,14 +93,20 @@ fun ChildProfileScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val settings = remember { SettingsRepository(context) }
-    val childName by settings.childName.collectAsState(initial = "Rafa")
+    val childName by settings.childName.collectAsState(initial = "Sahabat")
     val childAge by settings.childAge.collectAsState(initial = 8)
     val childGrade by settings.childGrade.collectAsState(initial = "Kelas 3 SD")
+    val closeThresholdCm by settings.closeThresholdCm.collectAsState(initial = 30f)
+    val dailyLimitMinutes by settings.dailyLimitMinutes.collectAsState(initial = 60)
 
     var showEditDialog by remember { mutableStateOf(false) }
+    var showSensitiveDialog by remember { mutableStateOf(false) }
+
     var inputName by remember { mutableStateOf(childName) }
     var inputAge by remember { mutableStateOf(childAge.toString()) }
     var inputGrade by remember { mutableStateOf(childGrade) }
+    var inputDistanceCm by remember { mutableFloatStateOf(closeThresholdCm) }
+    var inputLimitMinutes by remember { mutableIntStateOf(dailyLimitMinutes) }
 
     if (showEditDialog) {
         AlertDialog(
@@ -107,7 +122,7 @@ fun ChildProfileScreen(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(
-                        text = "Data usia digunakan untuk kalibrasi antropometri estimasi jarak mata.",
+                        text = "Data usia dan ambang jarak digunakan untuk kalibrasi perlindungan mata.",
                         style = MaterialTheme.typography.bodySmall,
                         color = Ink.copy(alpha = 0.72f),
                     )
@@ -132,6 +147,53 @@ fun ChildProfileScreen(
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                     )
+
+                    Spacer(modifier = Modifier.height(4.dp))
+                    // Stepper Jarak Minimum
+                    Row(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .background(SurfaceAlt, RoundedCornerShape(12.dp))
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column {
+                            Text(
+                                text = "Jarak Minimum",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = Ink,
+                            )
+                            Text(
+                                text = "Batas alarm terlalu dekat",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Ink.copy(alpha = 0.65f),
+                            )
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(
+                                onClick = { inputDistanceCm = (inputDistanceCm - 5f).coerceIn(20f, 50f) },
+                                modifier = Modifier.size(36.dp).background(Surface, CircleShape),
+                            ) {
+                                Icon(Icons.Filled.Remove, contentDescription = "Kurang 5 cm", tint = Ink)
+                            }
+                            Text(
+                                text = "${inputDistanceCm.toInt()} cm",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = PrimaryDark,
+                                modifier = Modifier.padding(horizontal = 8.dp),
+                            )
+                            IconButton(
+                                onClick = { inputDistanceCm = (inputDistanceCm + 5f).coerceIn(20f, 50f) },
+                                modifier = Modifier.size(36.dp).background(Surface, CircleShape),
+                            ) {
+                                Icon(Icons.Filled.Add, contentDescription = "Tambah 5 cm", tint = Ink)
+                            }
+                        }
+                    }
                 }
             },
             confirmButton = {
@@ -139,9 +201,11 @@ fun ChildProfileScreen(
                     onClick = {
                         val parsedAge = inputAge.toIntOrNull()?.coerceIn(3, 17) ?: 8
                         scope.launch {
-                            settings.setChildName(inputName.trim().ifEmpty { "Rafa" })
+                            settings.setChildName(inputName.trim().ifEmpty { "Sahabat" })
                             settings.setChildAge(parsedAge)
                             settings.setChildGrade(inputGrade.trim().ifEmpty { "Kelas 3 SD" })
+                            settings.setCloseThresholdCm(inputDistanceCm)
+                            Toast.makeText(context, "Profil & jarak minimum berhasil disimpan!", Toast.LENGTH_SHORT).show()
                         }
                         showEditDialog = false
                     },
@@ -152,6 +216,167 @@ fun ChildProfileScreen(
             },
             dismissButton = {
                 OutlinedButton(onClick = { showEditDialog = false }) {
+                    Text("Batal", color = Ink)
+                }
+            },
+        )
+    }
+
+    if (showSensitiveDialog) {
+        var tempDistanceCm by remember { mutableFloatStateOf(closeThresholdCm) }
+        var tempLimitMin by remember { mutableIntStateOf(dailyLimitMinutes) }
+
+        AlertDialog(
+            onDismissRequest = { showSensitiveDialog = false },
+            title = {
+                Text(
+                    text = "Atur Pengaturan Sensitif",
+                    color = Ink,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Text(
+                        text = "Sesuaikan batas jarak mata ke layar dan durasi bermain aman harian.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Ink.copy(alpha = 0.72f),
+                    )
+
+                    // Jarak Minimum
+                    Column(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .background(SurfaceAlt, RoundedCornerShape(16.dp))
+                                .padding(14.dp),
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column {
+                                Text(
+                                    text = "Jarak Minimum",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Ink,
+                                )
+                                Text(
+                                    text = "Batas alarm terlalu dekat",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = Ink.copy(alpha = 0.65f),
+                                )
+                            }
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                IconButton(
+                                    onClick = { tempDistanceCm = (tempDistanceCm - 5f).coerceIn(20f, 50f) },
+                                    modifier = Modifier.size(36.dp).background(Surface, CircleShape),
+                                ) {
+                                    Icon(Icons.Filled.Remove, contentDescription = "Kurang 5 cm", tint = Ink)
+                                }
+                                Text(
+                                    text = "${tempDistanceCm.toInt()} cm",
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.Bold,
+                                    color = PrimaryDark,
+                                    modifier = Modifier.padding(horizontal = 8.dp),
+                                )
+                                IconButton(
+                                    onClick = { tempDistanceCm = (tempDistanceCm + 5f).coerceIn(20f, 50f) },
+                                    modifier = Modifier.size(36.dp).background(Surface, CircleShape),
+                                ) {
+                                    Icon(Icons.Filled.Add, contentDescription = "Tambah 5 cm", tint = Ink)
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Slider(
+                            value = tempDistanceCm,
+                            onValueChange = { tempDistanceCm = it },
+                            valueRange = 20f..50f,
+                            steps = 5,
+                            colors =
+                                SliderDefaults.colors(
+                                    activeTrackColor = Primary,
+                                    inactiveTrackColor = Surface,
+                                    thumbColor = PrimaryDark,
+                                ),
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+
+                    // Batas Waktu Bermain
+                    Column(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .background(SurfaceAlt, RoundedCornerShape(16.dp))
+                                .padding(14.dp),
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column {
+                                Text(
+                                    text = "Batas Waktu Main",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Ink,
+                                )
+                                Text(
+                                    text = "Durasi per hari",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = Ink.copy(alpha = 0.65f),
+                                )
+                            }
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                IconButton(
+                                    onClick = { tempLimitMin = (tempLimitMin - 15).coerceIn(15, 180) },
+                                    modifier = Modifier.size(36.dp).background(Surface, CircleShape),
+                                ) {
+                                    Icon(Icons.Filled.Remove, contentDescription = "Kurang 15 menit", tint = Ink)
+                                }
+                                Text(
+                                    text = "$tempLimitMin mnt",
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.Bold,
+                                    color = PrimaryDark,
+                                    modifier = Modifier.padding(horizontal = 8.dp),
+                                )
+                                IconButton(
+                                    onClick = { tempLimitMin = (tempLimitMin + 15).coerceIn(15, 180) },
+                                    modifier = Modifier.size(36.dp).background(Surface, CircleShape),
+                                ) {
+                                    Icon(Icons.Filled.Add, contentDescription = "Tambah 15 menit", tint = Ink)
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        scope.launch {
+                            settings.setCloseThresholdCm(tempDistanceCm)
+                            settings.setDailyLimitMinutes(tempLimitMin)
+                            Toast.makeText(context, "Jarak minimum diubah ke ${tempDistanceCm.toInt()} cm!", Toast.LENGTH_SHORT).show()
+                        }
+                        showSensitiveDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Primary),
+                ) {
+                    Text("Simpan", color = Color.White)
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { showSensitiveDialog = false }) {
                     Text("Batal", color = Ink)
                 }
             },
@@ -220,11 +445,20 @@ fun ChildProfileScreen(
                         inputName = childName
                         inputAge = childAge.toString()
                         inputGrade = childGrade
+                        inputDistanceCm = closeThresholdCm
+                        inputLimitMinutes = dailyLimitMinutes
                         showEditDialog = true
                     },
                 )
-                TargetCard()
-                SensitiveSettingsCard()
+                TargetCard(
+                    dailyLimitMinutes = dailyLimitMinutes,
+                    onClick = { showSensitiveDialog = true },
+                )
+                SensitiveSettingsCard(
+                    closeThresholdCm = closeThresholdCm.toInt(),
+                    dailyLimitMinutes = dailyLimitMinutes,
+                    onEditClick = { showSensitiveDialog = true },
+                )
             }
         }
 
@@ -278,7 +512,7 @@ private fun ProfileCard(
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 // Avatar R/Inisial
-                val initialChar = (childName.firstOrNull() ?: 'R').uppercaseChar().toString()
+                val initialChar = (childName.firstOrNull() ?: 'S').uppercaseChar().toString()
                 Box(
                     modifier =
                         Modifier
@@ -376,14 +610,18 @@ private fun OutlineStar(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun TargetCard() {
+private fun TargetCard(
+    dailyLimitMinutes: Int = 60,
+    onClick: () -> Unit = {},
+) {
     Box(
         modifier =
             Modifier
                 .fillMaxWidth()
                 .height(104.dp)
                 .clip(RoundedCornerShape(24.dp))
-                .background(Brush.horizontalGradient(listOf(BlueTint, BlueTintDeep))),
+                .background(Brush.horizontalGradient(listOf(BlueTint, BlueTintDeep)))
+                .clickable(onClick = onClick),
     ) {
         Column(
             modifier =
@@ -397,7 +635,7 @@ private fun TargetCard() {
                 color = Ink,
             )
             Text(
-                text = stringResource(R.string.s08_target_value),
+                text = "$dailyLimitMinutes menit",
                 style = MaterialTheme.typography.displayMedium,
                 color = Ink,
             )
@@ -420,41 +658,63 @@ private fun TargetCard() {
 }
 
 @Composable
-private fun SensitiveSettingsCard() {
+private fun SensitiveSettingsCard(
+    closeThresholdCm: Int = 30,
+    dailyLimitMinutes: Int = 60,
+    onEditClick: () -> Unit = {},
+) {
     JagaCard(
-        modifier = Modifier,
+        modifier = Modifier.clickable(onClick = onEditClick),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 20.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.Top,
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(
-                modifier =
-                    Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(Ink),
-                contentAlignment = Alignment.Center,
+            Row(
+                modifier = Modifier.weight(1f),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(
+                    modifier =
+                        Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(Ink),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Lock,
+                        contentDescription = null,
+                        tint = Surface,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+                Column {
+                    Text(
+                        text = stringResource(R.string.s08_sensitive_title),
+                        style = MaterialTheme.typography.titleLarge,
+                        color = Ink,
+                    )
+                    Text(
+                        text = "Ketuk untuk mengubah jarak & waktu",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = PrimaryDark,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+            }
+            IconButton(
+                onClick = onEditClick,
+                modifier = Modifier.size(40.dp).background(SurfaceAlt, CircleShape),
             ) {
                 Icon(
-                    imageVector = Icons.Filled.Lock,
-                    contentDescription = null,
-                    tint = Surface,
+                    imageVector = Icons.Outlined.Edit,
+                    contentDescription = "Edit Pengaturan Sensitif",
+                    tint = Ink,
                     modifier = Modifier.size(20.dp),
-                )
-            }
-            Column {
-                Text(
-                    text = stringResource(R.string.s08_sensitive_title),
-                    style = MaterialTheme.typography.titleLarge,
-                    color = Ink,
-                )
-                Text(
-                    text = stringResource(R.string.s08_sensitive_desc),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Ink.copy(alpha = 0.72f),
                 )
             }
         }
@@ -462,12 +722,12 @@ private fun SensitiveSettingsCard() {
         Spacer(modifier = Modifier.height(20.dp))
         SettingsRow(
             label = stringResource(R.string.s08_row_limit),
-            value = stringResource(R.string.s08_row_limit_value),
+            value = "$dailyLimitMinutes menit",
         )
         Spacer(modifier = Modifier.height(18.dp))
         SettingsRow(
             label = stringResource(R.string.s08_row_distance),
-            value = stringResource(R.string.s08_row_distance_value),
+            value = "$closeThresholdCm cm",
         )
     }
 }

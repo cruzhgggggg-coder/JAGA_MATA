@@ -23,19 +23,29 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import android.widget.Toast
+import com.jagamata.app.ui.theme.PrimaryDark
+import com.jagamata.app.ui.theme.SurfaceAlt
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -91,6 +101,105 @@ fun DashboardScreen(
     val minDistanceFloat by settings.closeThresholdCm.collectAsState(initial = 30f)
     var stagedDistance by remember(minDistanceFloat) { mutableIntStateOf(minDistanceFloat.toInt()) }
     var isSavedFeedback by remember { mutableStateOf(false) }
+    var showDistanceDialog by remember { mutableStateOf(false) }
+
+    if (showDistanceDialog) {
+        var tempCm by remember { mutableFloatStateOf(minDistanceFloat) }
+        AlertDialog(
+            onDismissRequest = { showDistanceDialog = false },
+            title = {
+                Text(
+                    text = "Atur Jarak Minimum Layar",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = Ink,
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Text(
+                        text = "Batas jarak aman mata ke layar gadget. Jika lebih dekat dari batas ini, alarm & overlay akan muncul.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Ink.copy(alpha = 0.72f),
+                        textAlign = TextAlign.Center,
+                    )
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        IconButton(
+                            onClick = { tempCm = (tempCm - 5f).coerceIn(20f, 50f) },
+                            modifier = Modifier.size(44.dp).background(SurfaceAlt, CircleShape),
+                        ) {
+                            Icon(Icons.Filled.Remove, contentDescription = "Kurang 5 cm", tint = Ink)
+                        }
+
+                        Text(
+                            text = "${tempCm.toInt()} cm",
+                            style = MaterialTheme.typography.displaySmall,
+                            fontWeight = FontWeight.Bold,
+                            color = PrimaryDark,
+                            modifier = Modifier.padding(horizontal = 24.dp),
+                        )
+
+                        IconButton(
+                            onClick = { tempCm = (tempCm + 5f).coerceIn(20f, 50f) },
+                            modifier = Modifier.size(44.dp).background(SurfaceAlt, CircleShape),
+                        ) {
+                            Icon(Icons.Filled.Add, contentDescription = "Tambah 5 cm", tint = Ink)
+                        }
+                    }
+
+                    Slider(
+                        value = tempCm,
+                        onValueChange = { tempCm = it },
+                        valueRange = 20f..50f,
+                        steps = 5,
+                        colors =
+                            SliderDefaults.colors(
+                                activeTrackColor = Primary,
+                                inactiveTrackColor = SurfaceAlt,
+                                thumbColor = PrimaryDark,
+                            ),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+
+                    Text(
+                        text = "Rekomendasi dokter spesialis mata: 30–40 cm untuk mencegah miopia (rabun jauh).",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Ink.copy(alpha = 0.6f),
+                        textAlign = TextAlign.Center,
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        scope.launch {
+                            settings.setCloseThresholdCm(tempCm)
+                            stagedDistance = tempCm.toInt()
+                            Toast.makeText(context, "Jarak minimum berhasil diubah ke ${tempCm.toInt()} cm!", Toast.LENGTH_SHORT).show()
+                        }
+                        showDistanceDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Primary),
+                ) {
+                    Text("Simpan", color = Color.White)
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { showDistanceDialog = false }) {
+                    Text("Batal", color = Ink)
+                }
+            },
+        )
+    }
 
     Column(
         modifier =
@@ -156,10 +265,24 @@ fun DashboardScreen(
                 valueCm = stagedDistance,
                 isSaved = isSavedFeedback,
                 onDecrease = {
-                    stagedDistance = (stagedDistance - 5).coerceIn(20, 50)
+                    val next = (stagedDistance - 5).coerceIn(20, 50)
+                    stagedDistance = next
+                    scope.launch {
+                        settings.setCloseThresholdCm(next.toFloat())
+                        isSavedFeedback = true
+                        delay(1500L)
+                        isSavedFeedback = false
+                    }
                 },
                 onIncrease = {
-                    stagedDistance = (stagedDistance + 5).coerceIn(20, 50)
+                    val next = (stagedDistance + 5).coerceIn(20, 50)
+                    stagedDistance = next
+                    scope.launch {
+                        settings.setCloseThresholdCm(next.toFloat())
+                        isSavedFeedback = true
+                        delay(1500L)
+                        isSavedFeedback = false
+                    }
                 },
                 onSaveDistance = {
                     scope.launch {
@@ -169,6 +292,7 @@ fun DashboardScreen(
                         isSavedFeedback = false
                     }
                 },
+                onEditClick = { showDistanceDialog = true },
                 onOpenSettings = onOpenSettings,
             )
         }
@@ -191,18 +315,26 @@ private fun WeeklyReportCard(
 ) {
     val avgCm =
         state.lastCycle?.avgDistanceCm?.let { String.format(Locale.US, "%.0f cm", it) }
-            ?: stringResource(R.string.s09_report_threshold)
+            ?: "-- cm"
     val statusLabel =
-        when (state.riskLevel) {
-            RiskLevel.OK -> stringResource(R.string.s09_report_status_good)
-            RiskLevel.WARNING -> stringResource(R.string.status_warning)
-            RiskLevel.BLOCKED -> stringResource(R.string.status_blocked)
+        if (state.lastCycle == null) {
+            "Belum Ada Data"
+        } else {
+            when (state.riskLevel) {
+                RiskLevel.OK -> stringResource(R.string.s09_report_status_good)
+                RiskLevel.WARNING -> stringResource(R.string.status_warning)
+                RiskLevel.BLOCKED -> stringResource(R.string.status_blocked)
+            }
         }
     val statusColor =
-        when (state.riskLevel) {
-            RiskLevel.OK -> Mint
-            RiskLevel.WARNING -> Sunny
-            RiskLevel.BLOCKED -> com.jagamata.app.ui.theme.Coral
+        if (state.lastCycle == null) {
+            SurfaceAlt
+        } else {
+            when (state.riskLevel) {
+                RiskLevel.OK -> Mint
+                RiskLevel.WARNING -> Sunny
+                RiskLevel.BLOCKED -> com.jagamata.app.ui.theme.Coral
+            }
         }
 
     val cardModifier = if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier
@@ -261,10 +393,19 @@ private fun WeeklyReportCard(
 
         Spacer(modifier = Modifier.height(12.dp))
 
+        val chartValues: List<Float> = remember(state.dailyStats, state.lastCycle) {
+            val dist = state.lastCycle?.avgDistanceCm
+            if (dist != null) {
+                listOf(dist)
+            } else {
+                emptyList()
+            }
+        }
+
         // Grafik garis 7 hari + label ambang
         Box {
             WeeklyLineChart(
-                values = DummyDailyCm,
+                values = chartValues,
                 thresholdCm = 50f,
                 modifier =
                     Modifier
@@ -310,58 +451,67 @@ private fun WeeklyLineChart(
     thresholdCm: Float,
     modifier: Modifier = Modifier,
 ) {
-    Canvas(modifier = modifier) {
-        val w = size.width
-        val h = size.height
-        val padTop = 8f
-        val padBottom = 8f
-        val usableH = h - padTop - padBottom
-        val vMin = 46f
-        val vMax = 56f
+    Box(modifier = modifier, contentAlignment = Alignment.Center) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val w = size.width
+            val h = size.height
+            val padTop = 8f
+            val padBottom = 8f
+            val usableH = h - padTop - padBottom
+            val vMin = 20f
+            val vMax = 60f
 
-        fun yOf(v: Float): Float = padTop + usableH * ((vMax - v) / (vMax - vMin))
+            fun yOf(v: Float): Float = padTop + usableH * ((vMax - v.coerceIn(vMin, vMax)) / (vMax - vMin))
 
-        // Garis putus-putus ambang
-        val thresholdY = yOf(thresholdCm)
-        val dash = 10f
-        var x = 0f
-        while (x < w) {
-            drawLine(
-                color = Mint,
-                start = Offset(x, thresholdY),
-                end = Offset(minOf(x + dash, w), thresholdY),
-                strokeWidth = 2f,
-            )
-            x += dash * 2
-        }
-
-        // Kurva data halus (cubic, kontrol horizontal di tengah langkah — gaya desain)
-        val n = values.size
-        if (n > 1) {
-            val stepX = w / (n - 1)
-            val path = Path()
-            path.moveTo(0f, yOf(values[0]))
-            for (i in 1 until n) {
-                val x0 = (i - 1) * stepX
-                val x1 = i * stepX
-                val y0 = yOf(values[i - 1])
-                val y1 = yOf(values[i])
-                path.cubicTo(x0 + stepX * 0.5f, y0, x1 - stepX * 0.5f, y1, x1, y1)
+            // Garis putus-putus ambang
+            val thresholdY = yOf(thresholdCm)
+            val dash = 10f
+            var x = 0f
+            while (x < w) {
+                drawLine(
+                    color = Mint,
+                    start = Offset(x, thresholdY),
+                    end = Offset(minOf(x + dash, w), thresholdY),
+                    strokeWidth = 2f,
+                )
+                x += dash * 2
             }
-            drawPath(path, color = Primary, style = Stroke(width = 3f))
 
-            // Titik ring; titik terakhir di-highlight (fill + ring putih)
-            values.forEachIndexed { i, v ->
-                val px = i * stepX
-                val py = yOf(v)
-                if (i == values.lastIndex) {
-                    drawCircle(color = Primary, radius = 7f, center = Offset(px, py))
-                    drawCircle(color = Surface, radius = 5.5f, center = Offset(px, py), style = Stroke(width = 3f))
-                } else {
-                    drawCircle(color = Surface, radius = 5f, center = Offset(px, py))
-                    drawCircle(color = Primary, radius = 5f, center = Offset(px, py), style = Stroke(width = 3f))
+            // Kurva data halus jika ada data riil
+            val n = values.size
+            if (n > 1) {
+                val stepX = w / (n - 1)
+                val path = Path()
+                path.moveTo(0f, yOf(values[0]))
+                for (i in 1 until n) {
+                    val x0 = (i - 1) * stepX
+                    val x1 = i * stepX
+                    val y0 = yOf(values[i - 1])
+                    val y1 = yOf(values[i])
+                    path.cubicTo(x0 + stepX * 0.5f, y0, x1 - stepX * 0.5f, y1, x1, y1)
+                }
+                drawPath(path, color = Primary, style = Stroke(width = 3f))
+
+                // Titik ring; titik terakhir di-highlight (fill + ring putih)
+                values.forEachIndexed { i, v ->
+                    val px = i * stepX
+                    val py = yOf(v)
+                    if (i == values.lastIndex) {
+                        drawCircle(color = Primary, radius = 7f, center = Offset(px, py))
+                        drawCircle(color = Surface, radius = 5.5f, center = Offset(px, py), style = Stroke(width = 3f))
+                    } else {
+                        drawCircle(color = Surface, radius = 5f, center = Offset(px, py))
+                        drawCircle(color = Primary, radius = 5f, center = Offset(px, py), style = Stroke(width = 3f))
+                    }
                 }
             }
+        }
+        if (values.isEmpty()) {
+            Text(
+                text = "Belum ada riwayat aktivitas pekan ini",
+                style = MaterialTheme.typography.bodySmall,
+                color = Ink.copy(alpha = 0.5f),
+            )
         }
     }
 }
@@ -511,6 +661,7 @@ private fun MinDistanceCard(
     onDecrease: () -> Unit,
     onIncrease: () -> Unit,
     onSaveDistance: () -> Unit,
+    onEditClick: () -> Unit,
     @Suppress("UNUSED_PARAMETER") onOpenSettings: () -> Unit,
 ) {
     JagaCard(
@@ -544,12 +695,28 @@ private fun MinDistanceCard(
                             modifier = Modifier.size(20.dp),
                         )
                     }
-                    Text(
-                        text = String.format(Locale.US, "%d cm", valueCm),
-                        style = MaterialTheme.typography.displayMedium,
-                        color = Ink,
-                        modifier = Modifier.padding(horizontal = 10.dp),
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier =
+                            Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(SurfaceAlt)
+                                .clickable(onClick = onEditClick)
+                                .padding(horizontal = 8.dp, vertical = 4.dp),
+                    ) {
+                        Text(
+                            text = String.format(Locale.US, "%d cm", valueCm),
+                            style = MaterialTheme.typography.displayMedium,
+                            color = Ink,
+                            modifier = Modifier.padding(end = 4.dp),
+                        )
+                        Icon(
+                            imageVector = Icons.Outlined.Edit,
+                            contentDescription = "Ubah Ambang Jarak",
+                            tint = Ink.copy(alpha = 0.6f),
+                            modifier = Modifier.size(16.dp),
+                        )
+                    }
                     RoundStepButton(onClick = onIncrease) {
                         Icon(
                             imageVector = Icons.Filled.Add,

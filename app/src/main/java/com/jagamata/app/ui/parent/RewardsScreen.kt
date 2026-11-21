@@ -95,7 +95,7 @@ fun RewardsScreen(onTab: (Int) -> Unit = {}) {
     val context = LocalContext.current
     var totalCycles by remember { mutableStateOf(0) }
     var closeViolations by remember { mutableStateOf(0) }
-    var streakDays by remember { mutableStateOf(1) }
+    var streakDays by remember { mutableStateOf(0) }
     var selectedBadge by remember { mutableStateOf<BadgeInfo?>(null) }
 
     LaunchedEffect(Unit) {
@@ -104,7 +104,7 @@ fun RewardsScreen(onTab: (Int) -> Unit = {}) {
         val daily = db.dailyDao().getAll()
         totalCycles = snapshots.size
         closeViolations = snapshots.count { it.violations?.contains("TOO_CLOSE") == true }
-        streakDays = (daily.size + if (snapshots.isNotEmpty()) 1 else 0).coerceIn(1, 7)
+        streakDays = daily.size + if (snapshots.isNotEmpty()) 1 else 0
     }
 
     val kikoStage =
@@ -115,7 +115,7 @@ fun RewardsScreen(onTab: (Int) -> Unit = {}) {
         } else {
             1
         }
-    val kikoStageProgress = ((totalCycles % 10) / 10f).coerceIn(0.15f, 1f)
+    val kikoStageProgress = if (totalCycles == 0) 0f else ((totalCycles % 10) / 10f).coerceIn(0.15f, 1f)
     val nextTargetDays = (10 - (totalCycles % 10)).coerceAtLeast(1)
 
     // Logika pembukaan lencana gamifikasi berbasis riwayat pemantauan nyata (Blueprint §4.2)
@@ -381,8 +381,9 @@ private fun StreakCard(streakDays: Int) {
         val states =
             List(7) { i ->
                 when {
-                    i < (streakDays - 1).coerceAtLeast(0) -> DayState.Done
-                    i == (streakDays - 1).coerceAtLeast(0) -> DayState.Today
+                    streakDays == 0 -> DayState.Empty
+                    i < streakDays - 1 -> DayState.Done
+                    i == streakDays - 1 -> DayState.Today
                     else -> DayState.Empty
                 }
             }

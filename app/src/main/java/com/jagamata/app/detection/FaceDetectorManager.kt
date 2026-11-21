@@ -324,7 +324,17 @@ object ImageConverters {
         if (imageProxy.image == null) return null
         val bitmap = imageProxy.toBitmapOrNull() ?: yuvToBitmapFallback(imageProxy)
         if (bitmap == null) return null
-        return rotateBitmap(bitmap, imageProxy.imageInfo.rotationDegrees)
+        val softwareBitmap =
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O &&
+                bitmap.config == Bitmap.Config.HARDWARE
+            ) {
+                val copy = bitmap.copy(Bitmap.Config.ARGB_8888, false)
+                bitmap.recycle()
+                copy ?: return null
+            } else {
+                bitmap
+            }
+        return rotateBitmap(softwareBitmap, imageProxy.imageInfo.rotationDegrees)
     }
 
     private fun ImageProxy.toBitmapOrNull(): Bitmap? =

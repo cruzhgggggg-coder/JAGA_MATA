@@ -20,12 +20,16 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.filled.Straighten
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.Face
@@ -33,12 +37,25 @@ import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.PhotoCamera
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.material3.Text
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import android.widget.Toast
+import com.jagamata.app.ui.theme.Coral
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -70,6 +87,7 @@ import com.jagamata.app.ui.theme.Divider
 import com.jagamata.app.ui.theme.Ink
 import com.jagamata.app.ui.theme.InkSoft
 import com.jagamata.app.ui.theme.Primary
+import com.jagamata.app.ui.theme.PrimaryDark
 import com.jagamata.app.ui.theme.Sunny
 import com.jagamata.app.ui.theme.Surface
 import com.jagamata.app.ui.theme.SurfaceAlt
@@ -396,11 +414,35 @@ fun SettingsScreen(
 ) {
     var notifOn by remember { mutableStateOf(true) }
     var darkOn by remember { mutableStateOf(false) }
+    var showChangePinDialog by remember { mutableStateOf(false) }
+    var showDistanceDialog by remember { mutableStateOf(false) }
 
+    val closeCm by viewModel.closeThresholdCm.collectAsState()
     val context = androidx.compose.ui.platform.LocalContext.current
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     val settingsRepo = remember { SettingsRepository(context) }
     val voiceOn by settingsRepo.voiceEnabled.collectAsState(initial = true)
+
+    if (showChangePinDialog) {
+        ChangePinDialog(
+            onDismiss = { showChangePinDialog = false },
+            onSavePin = { newPin ->
+                viewModel.setParentPin(newPin)
+                Toast.makeText(context, "PIN Orang Tua berhasil diubah!", Toast.LENGTH_SHORT).show()
+            },
+        )
+    }
+
+    if (showDistanceDialog) {
+        EditDistanceDialog(
+            currentCm = closeCm,
+            onDismiss = { showDistanceDialog = false },
+            onSave = { newCm ->
+                viewModel.setCloseThresholdCm(newCm)
+                Toast.makeText(context, "Jarak minimum berhasil diubah ke ${newCm.toInt()} cm!", Toast.LENGTH_SHORT).show()
+            },
+        )
+    }
 
     Column(
         modifier =
@@ -420,6 +462,8 @@ fun SettingsScreen(
         MascotHeroCard(text = stringResource(R.string.s10_hero))
         Spacer(modifier = Modifier.height(16.dp))
         DesignSettingsCard(
+            closeCm = closeCm,
+            onOpenChangeDistance = { showDistanceDialog = true },
             notifOn = notifOn,
             onNotifChange = { notifOn = it },
             darkOn = darkOn,
@@ -429,11 +473,12 @@ fun SettingsScreen(
             onOpenCalibration = onOpenCalibration,
             onOpenChildProfile = onOpenChildProfile,
             onOpenPermissions = onOpenPermissions,
+            onOpenChangePin = { showChangePinDialog = true },
         )
         FooterCaption(text = stringResource(R.string.s10_footer))
-        Spacer(modifier = Modifier.height(116.dp))
+        Spacer(modifier = Modifier.height(24.dp))
         ScreenDecorations()
-        Spacer(modifier = Modifier.height(200.dp))
+        Spacer(modifier = Modifier.height(24.dp))
         AdvancedSettingsCard(
             viewModel = viewModel,
             onOpenPrivacy = onOpenPrivacy,
@@ -442,9 +487,201 @@ fun SettingsScreen(
     }
 }
 
-/** Kartu baris sesuai desain 2823: Notifikasi · Kalibrasi · Bahasa · Mode Gelap · Profil · Izin. */
+/** Dialog untuk mengubah PIN Orang Tua (4-digit). */
+@Composable
+private fun ChangePinDialog(
+    onDismiss: () -> Unit,
+    onSavePin: (String) -> Unit,
+) {
+    var pin by remember { mutableStateOf("") }
+    var confirmPin by remember { mutableStateOf("") }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "Ubah PIN Orang Tua",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = Ink,
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    text = "PIN 4-digit standar (Default: 1234). Masukkan 4 angka PIN baru Anda.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Ink.copy(alpha = 0.72f),
+                )
+                OutlinedTextField(
+                    value = pin,
+                    onValueChange = {
+                        if (it.length <= 4 && it.all { c -> c.isDigit() }) {
+                            pin = it
+                            errorMessage = null
+                        }
+                    },
+                    label = { Text("PIN Baru (4 digit)") },
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = confirmPin,
+                    onValueChange = {
+                        if (it.length <= 4 && it.all { c -> c.isDigit() }) {
+                            confirmPin = it
+                            errorMessage = null
+                        }
+                    },
+                    label = { Text("Konfirmasi PIN Baru") },
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                if (errorMessage != null) {
+                    Text(
+                        text = errorMessage!!,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Coral,
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (pin.length != 4) {
+                        errorMessage = "PIN harus terdiri dari 4 digit angka."
+                    } else if (pin != confirmPin) {
+                        errorMessage = "Konfirmasi PIN tidak cocok."
+                    } else {
+                        onSavePin(pin)
+                        onDismiss()
+                    }
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = Primary),
+            ) {
+                Text("Simpan PIN", color = Color.White)
+            }
+        },
+        dismissButton = {
+            OutlinedButton(onClick = onDismiss) {
+                Text("Batal", color = Ink)
+            }
+        },
+    )
+}
+
+/** Dialog untuk mengatur Jarak Minimum Aman. */
+@Composable
+private fun EditDistanceDialog(
+    currentCm: Float,
+    onDismiss: () -> Unit,
+    onSave: (Float) -> Unit,
+) {
+    var stagedCm by remember { mutableFloatStateOf(currentCm) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "Atur Jarak Minimum Layar",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = Ink,
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Text(
+                    text = "Batas jarak aman mata ke layar gadget. Jika lebih dekat dari batas ini, alarm & overlay akan memperingatkan anak.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Ink.copy(alpha = 0.72f),
+                    textAlign = TextAlign.Center,
+                )
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    IconButton(
+                        onClick = { stagedCm = (stagedCm - 5f).coerceIn(20f, 50f) },
+                        modifier = Modifier.size(44.dp).background(SurfaceAlt, CircleShape),
+                    ) {
+                        Icon(Icons.Filled.Remove, contentDescription = "Kurang 5 cm", tint = Ink)
+                    }
+
+                    Text(
+                        text = "${stagedCm.toInt()} cm",
+                        style = MaterialTheme.typography.displaySmall,
+                        fontWeight = FontWeight.Bold,
+                        color = PrimaryDark,
+                        modifier = Modifier.padding(horizontal = 24.dp),
+                    )
+
+                    IconButton(
+                        onClick = { stagedCm = (stagedCm + 5f).coerceIn(20f, 50f) },
+                        modifier = Modifier.size(44.dp).background(SurfaceAlt, CircleShape),
+                    ) {
+                        Icon(Icons.Filled.Add, contentDescription = "Tambah 5 cm", tint = Ink)
+                    }
+                }
+
+                Slider(
+                    value = stagedCm,
+                    onValueChange = { stagedCm = it },
+                    valueRange = 20f..50f,
+                    steps = 5,
+                    colors =
+                        SliderDefaults.colors(
+                            activeTrackColor = Primary,
+                            inactiveTrackColor = SurfaceAlt,
+                            thumbColor = PrimaryDark,
+                        ),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+
+                Text(
+                    text = "Rekomendasi dokter spesialis mata: 30–40 cm untuk mencegah miopia (rabun jauh) dan ketegangan otot akomodasi mata.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Ink.copy(alpha = 0.6f),
+                    textAlign = TextAlign.Center,
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    onSave(stagedCm)
+                    onDismiss()
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = Primary),
+            ) {
+                Text("Simpan Ambang", color = Color.White)
+            }
+        },
+        dismissButton = {
+            OutlinedButton(onClick = onDismiss) {
+                Text("Batal", color = Ink)
+            }
+        },
+    )
+}
+
+/** Kartu baris sesuai desain 2823: Notifikasi · Kalibrasi · Bahasa · Mode Gelap · Profil · Izin · PIN · Ambang Jarak. */
 @Composable
 private fun DesignSettingsCard(
+    closeCm: Float,
+    onOpenChangeDistance: () -> Unit,
     notifOn: Boolean,
     onNotifChange: (Boolean) -> Unit,
     darkOn: Boolean,
@@ -454,12 +691,28 @@ private fun DesignSettingsCard(
     onOpenCalibration: () -> Unit,
     onOpenChildProfile: () -> Unit,
     onOpenPermissions: () -> Unit,
+    onOpenChangePin: () -> Unit,
 ) {
     JagaCard(contentPadding = PaddingValues(16.dp)) {
         SettingsRow(
             icon = { RowIcon(Icons.Outlined.Face) },
             title = "Profil Anak (Usia & Avatar)",
             onClick = onOpenChildProfile,
+            trailing = { ChevronTrailing() },
+        )
+        Spacer(modifier = Modifier.height(24.dp))
+        SettingsRow(
+            icon = { RowIcon(Icons.Filled.Straighten) },
+            title = "Jarak Minimum Layar",
+            value = "${closeCm.toInt()} cm",
+            onClick = onOpenChangeDistance,
+            trailing = { ChevronTrailing() },
+        )
+        Spacer(modifier = Modifier.height(24.dp))
+        SettingsRow(
+            icon = { RowIcon(Icons.Outlined.Lock) },
+            title = "Ubah PIN Orang Tua",
+            onClick = onOpenChangePin,
             trailing = { ChevronTrailing() },
         )
         Spacer(modifier = Modifier.height(24.dp))

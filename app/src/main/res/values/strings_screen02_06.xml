@@ -14,11 +14,11 @@
     <string name="s02_bubble">Kamu hebat! Kemarin \njarak matamu sudah \npas. Yuk ulangi lagi!</string>
     <string name="s02_stat_distance">Jarak rata-rata</string>
     <string name="s02_stat_time">Waktu main</string>
-    <string name="s02_value_distance">52 cm</string>
-    <string name="s02_value_time">35 mnt</string>
+    <string name="s02_value_distance">0 cm</string>
+    <string name="s02_value_time">0 mnt</string>
     <string name="s02_status_aman">Aman</string>
-    <string name="s02_streak_value">5 hari</string>
-    <string name="s02_streak_caption">streak berturut-turut, pertahankan ya!</string>
+    <string name="s02_streak_value">0 hari</string>
+    <string name="s02_streak_caption">Mulai hari pertamamu hari ini!</string>
     <string name="s02_cta">Mulai Pantau</string>
 
     <!-- 03 Pantau Jarak Live -->
@@ -59,8 +59,8 @@
     </string-array>
     <string name="s06_stat_distance">Jarak rata-rata</string>
     <string name="s06_stat_duration">Durasi aman</string>
-    <string name="s06_value_distance">52 cm</string>
-    <string name="s06_value_duration">85 menit</string>
+    <string name="s06_value_distance">0 cm</string>
+    <string name="s06_value_duration">0 menit</string>
     <string name="s06_status_aman">Aman</string>
     <string name="s06_health_title">Mata kamu sehat!</string>
     <string name="s06_health_body">80% waktumu hari ini ada di jarak \naman. Hebat, pertahankan!</string>

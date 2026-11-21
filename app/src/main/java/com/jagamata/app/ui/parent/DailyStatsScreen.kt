@@ -23,6 +23,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
@@ -61,6 +67,20 @@ fun DailyStatsScreen(
     onTab: (Int) -> Unit = {},
     initialTab: Int = 1,
 ) {
+    val context = LocalContext.current
+    var avgDistanceCm by remember { mutableIntStateOf(0) }
+    var safeDurationMinutes by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(Unit) {
+        val db = com.jagamata.app.data.AppDatabase.getInstance(context)
+        val snapshots = db.snapshotDao().getAll()
+        if (snapshots.isNotEmpty()) {
+            val valid = snapshots.mapNotNull { it.avgDistanceCm }.filter { it > 0 }
+            avgDistanceCm = if (valid.isNotEmpty()) valid.average().toInt() else 0
+            safeDurationMinutes = snapshots.count { it.violations.isNullOrEmpty() }
+        }
+    }
+
     Box(
         modifier =
             Modifier
@@ -78,7 +98,10 @@ fun DailyStatsScreen(
             Spacer(modifier = Modifier.height(14.dp))
             ChartCard()
             Spacer(modifier = Modifier.height(14.dp))
-            StatCardRow()
+            StatCardRow(
+                avgDistanceCm = avgDistanceCm,
+                safeDurationMinutes = safeDurationMinutes,
+            )
             Spacer(modifier = Modifier.height(14.dp))
             InsightCard()
             Spacer(modifier = Modifier.weight(1f))
@@ -204,21 +227,29 @@ private fun BarChart() {
 
 /** Dua kartu statistik (Jarak rata-rata & Durasi aman). */
 @Composable
-private fun StatCardRow() {
+private fun StatCardRow(
+    avgDistanceCm: Int = 0,
+    safeDurationMinutes: Int = 0,
+) {
+    val distanceText = if (avgDistanceCm > 0) "$avgDistanceCm cm" else "0 cm"
+    val distanceProgress = if (avgDistanceCm > 0) (avgDistanceCm / 60f).coerceIn(0.1f, 1f) else 0f
+    val durationText = if (safeDurationMinutes > 0) "$safeDurationMinutes menit" else "0 menit"
+    val durationProgress = if (safeDurationMinutes > 0) (safeDurationMinutes / 60f).coerceIn(0.1f, 1f) else 0f
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(13.dp),
     ) {
         StatCard(
             label = stringResource(R.string.s06_stat_distance),
-            value = stringResource(R.string.s06_value_distance),
-            progress = 0.81f,
+            value = distanceText,
+            progress = distanceProgress,
             modifier = Modifier.weight(1f),
         )
         StatCard(
             label = stringResource(R.string.s06_stat_duration),
-            value = stringResource(R.string.s06_value_duration),
-            progress = 0.81f,
+            value = durationText,
+            progress = durationProgress,
             modifier = Modifier.weight(1f),
         )
     }

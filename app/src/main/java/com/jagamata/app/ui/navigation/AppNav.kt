@@ -6,12 +6,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.jagamata.app.data.SettingsRepository
+import kotlinx.coroutines.launch
 import com.jagamata.app.service.DetectionForegroundService
 import com.jagamata.app.ui.child.AlarmBlocked
 import com.jagamata.app.ui.child.BerandaScreen
@@ -215,10 +219,15 @@ fun AppNav(
             )
         }
         composable(Routes.KUNCI) {
+            val context = LocalContext.current
+            val settingsRepo = remember { SettingsRepository(context) }
+            val coroutineScope = rememberCoroutineScope()
             LockScreen(
                 verifyPin = { pinInput, onResult ->
-                    // PIN default 1234 atau valid 4 digit
-                    onResult(pinInput.length == 4)
+                    coroutineScope.launch {
+                        val ok = settingsRepo.verifyParentPin(pinInput)
+                        onResult(ok)
+                    }
                 },
                 onUnlocked = {
                     navController.navigate(Routes.DASHBOARD) {

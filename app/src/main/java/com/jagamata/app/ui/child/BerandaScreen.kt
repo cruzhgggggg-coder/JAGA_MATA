@@ -47,11 +47,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
@@ -488,6 +491,26 @@ fun BerandaScreen(
     initialTab: Int = 0,
     onOpenDailyStats: () -> Unit = {},
 ) {
+    val context = LocalContext.current
+    val settings = remember { com.jagamata.app.data.SettingsRepository(context) }
+    val childName by settings.childName.collectAsState(initial = "Sahabat")
+
+    var avgDistanceCm by remember { mutableIntStateOf(0) }
+    var playTimeMinutes by remember { mutableIntStateOf(0) }
+    var streakDays by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(Unit) {
+        val db = com.jagamata.app.data.AppDatabase.getInstance(context)
+        val snapshots = db.snapshotDao().getAll()
+        val daily = db.dailyDao().getAll()
+        if (snapshots.isNotEmpty()) {
+            val validDistances = snapshots.mapNotNull { it.avgDistanceCm }.filter { it > 0 }
+            avgDistanceCm = if (validDistances.isNotEmpty()) validDistances.average().toInt() else 0
+            playTimeMinutes = snapshots.size
+        }
+        streakDays = daily.size + if (snapshots.isNotEmpty()) 1 else 0
+    }
+
     Box(
         modifier =
             Modifier
@@ -501,16 +524,19 @@ fun BerandaScreen(
                     .statusBarsPadding()
                     .padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 100.dp),
         ) {
-            BerandaHeader()
+            BerandaHeader(childName = childName)
             Spacer(modifier = Modifier.height(16.dp))
             HeroCard()
             Spacer(modifier = Modifier.height(16.dp))
             Box(modifier = Modifier.clickable(onClick = onOpenDailyStats)) {
-                StatCardRow()
+                StatCardRow(
+                    avgDistanceCm = avgDistanceCm,
+                    playTimeMinutes = playTimeMinutes,
+                )
             }
             Spacer(modifier = Modifier.height(16.dp))
             Box(modifier = Modifier.clickable(onClick = onOpenDailyStats)) {
-                StreakCard()
+                StreakCard(streakDays = streakDays)
             }
             Spacer(modifier = Modifier.height(16.dp))
             PlayCta(text = stringResource(R.string.s02_cta), onClick = onStartPantau)
@@ -541,13 +567,13 @@ fun BerandaScreen(
 
 /** Header 02: sapaan + kilau + lonceng (desain y=58..108). */
 @Composable
-private fun BerandaHeader() {
+private fun BerandaHeader(childName: String) {
     Box(
         modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp),
     ) {
         Column(modifier = Modifier.align(Alignment.TopStart)) {
             Text(
-                text = stringResource(R.string.s02_greeting),
+                text = "Halo, $childName!",
                 style = MaterialTheme.typography.headlineMedium,
                 color = Ink,
             )
@@ -763,19 +789,27 @@ private fun HeroCard() {
 
 /** Baris dua kartu statistik (170�170, gap 13). */
 @Composable
-private fun StatCardRow() {
+private fun StatCardRow(
+    avgDistanceCm: Int = 0,
+    playTimeMinutes: Int = 0,
+) {
+    val distanceText = if (avgDistanceCm > 0) "$avgDistanceCm cm" else "0 cm"
+    val distanceProgress = if (avgDistanceCm > 0) (avgDistanceCm / 60f).coerceIn(0.1f, 1f) else 0f
+    val timeText = if (playTimeMinutes > 0) "$playTimeMinutes mnt" else "0 mnt"
+    val timeProgress = if (playTimeMinutes > 0) (playTimeMinutes / 60f).coerceIn(0.1f, 1f) else 0f
+
     Row(modifier = Modifier.fillMaxWidth()) {
         JagaStatCard(
             label = stringResource(R.string.s02_stat_distance),
-            value = stringResource(R.string.s02_value_distance),
-            progress = 0.81f,
+            value = distanceText,
+            progress = distanceProgress,
             modifier = Modifier.weight(1f),
         )
         Spacer(modifier = Modifier.width(13.dp))
         JagaStatCard(
             label = stringResource(R.string.s02_stat_time),
-            value = stringResource(R.string.s02_value_time),
-            progress = 0.81f,
+            value = timeText,
+            progress = timeProgress,
             modifier = Modifier.weight(1f),
         )
     }
@@ -783,7 +817,15 @@ private fun StatCardRow() {
 
 /** Kartu streak 02 (353�90): api 5 hari + panah. */
 @Composable
-private fun StreakCard() {
+private fun StreakCard(streakDays: Int = 0) {
+    val streakText = "$streakDays hari"
+    val captionText =
+        if (streakDays > 0) {
+            stringResource(R.string.s02_streak_caption)
+        } else {
+            "Mulai hari pertamamu hari ini!"
+        }
+
     JagaCard(
         modifier = Modifier.fillMaxWidth().heightIn(min = 90.dp),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
@@ -806,12 +848,12 @@ private fun StreakCard() {
             Spacer(modifier = Modifier.width(12.dp))
             Column {
                 Text(
-                    text = stringResource(R.string.s02_streak_value),
+                    text = streakText,
                     style = MaterialTheme.typography.displayMedium,
                     color = Ink,
                 )
                 Text(
-                    text = stringResource(R.string.s02_streak_caption),
+                    text = captionText,
                     style = MaterialTheme.typography.bodySmall,
                     color = Ink.copy(alpha = 0.72f),
                 )

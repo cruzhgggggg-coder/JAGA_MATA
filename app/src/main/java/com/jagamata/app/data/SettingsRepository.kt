@@ -31,9 +31,10 @@ class SettingsRepository(private val context: Context) {
     val onboardingDone: Flow<Boolean> = read(KEY_ONBOARDING_DONE, false)
     val parentPinHash: Flow<String> = read(KEY_PIN_HASH, "")
     val voiceEnabled: Flow<Boolean> = read(KEY_VOICE_ENABLED, true)
-    val childName: Flow<String> = read(KEY_CHILD_NAME, "Rafa")
+    val childName: Flow<String> = read(KEY_CHILD_NAME, "Sahabat")
     val childAge: Flow<Int> = read(KEY_CHILD_AGE, 8)
     val childGrade: Flow<String> = read(KEY_CHILD_GRADE, "Kelas 3 SD")
+    val dailyLimitMinutes: Flow<Int> = read(KEY_DAILY_LIMIT_MINUTES, 60)
 
     suspend fun setCloseThresholdCm(value: Float) = write(KEY_CLOSE_CM, value)
 
@@ -57,6 +58,8 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setChildGrade(value: String) = write(KEY_CHILD_GRADE, value)
 
+    suspend fun setDailyLimitMinutes(value: Int) = write(KEY_DAILY_LIMIT_MINUTES, value)
+
     suspend fun setParentPin(pin: String) {
         val salt = System.currentTimeMillis().toString()
         write(KEY_PIN_SALT, salt)
@@ -65,8 +68,8 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun verifyParentPin(pin: String): Boolean {
         val hash = parentPinHash.first()
+        if (hash.isEmpty()) return pin == DEFAULT_PIN
         val salt = context.dataStore.data.first()[KEY_PIN_SALT] ?: return false
-        if (hash.isEmpty()) return true
         return hashPin(pin, salt) == hash
     }
 
@@ -87,6 +90,7 @@ class SettingsRepository(private val context: Context) {
     }
 
     companion object {
+        const val DEFAULT_PIN = "1234"
         const val DEFAULT_CLOSE_CM = 30f
         const val DEFAULT_LUX = 150f
         const val DEFAULT_PITCH = 30f
@@ -113,6 +117,7 @@ class SettingsRepository(private val context: Context) {
         private val KEY_CHILD_NAME = stringPreferencesKey("child_name")
         private val KEY_CHILD_AGE = intPreferencesKey("child_age")
         private val KEY_CHILD_GRADE = stringPreferencesKey("child_grade")
+        private val KEY_DAILY_LIMIT_MINUTES = intPreferencesKey("daily_limit_minutes")
 
         /** SHA-256(pin + salt) hex (US-11, implementasi minimal). */
         fun hashPin(

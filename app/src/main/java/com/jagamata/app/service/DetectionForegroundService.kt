@@ -52,6 +52,7 @@ class DetectionForegroundService : LifecycleService() {
     private var cameraProvider: ProcessCameraProvider? = null
     private val analysisExecutor = Executors.newSingleThreadExecutor()
     private var lastFrameTimeMs: Long = 0L
+    private val isAnalyzing = java.util.concurrent.atomic.AtomicBoolean(false)
 
     override fun onCreate() {
         super.onCreate()
@@ -154,18 +155,24 @@ class DetectionForegroundService : LifecycleService() {
                 cameraProvider = provider
                 val analysis =
                     ImageAnalysis.Builder()
+                        .setTargetResolution(android.util.Size(480, 640))
                         .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                         .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_YUV_420_888)
                         .build()
                 analysis.setAnalyzer(analysisExecutor) { proxy ->
                     val ts = System.currentTimeMillis()
                     // Optimasi ringan & hemat baterai (Blueprint §3.1 & §5.2): Batasi ke 5 FPS (200 ms)
-                    if (ts - lastFrameTimeMs < FRAME_INTERVAL_MS) {
+                    // dan buang frame lama jika proses sebelumnya belum tuntas (Cegah antrean/lag)
+                    if (ts - lastFrameTimeMs < FRAME_INTERVAL_MS || !isAnalyzing.compareAndSet(false, true)) {
                         proxy.close()
                         return@setAnalyzer
                     }
                     lastFrameTimeMs = ts
-                    detector.detect(proxy, ts)
+                    try {
+                        detector.detect(proxy, ts)
+                    } finally {
+                        isAnalyzing.set(false)
+                    }
                 }
                 provider.unbindAll()
                 val selector =

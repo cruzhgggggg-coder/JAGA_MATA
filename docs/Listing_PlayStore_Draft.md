@@ -1,68 +1,68 @@
-# Draft Listing Play Store — JagaMata
+# Draft Listing Google Play Store — JagaMata v1.0.0
 
-Status: **DRAFT** (akun Play Console tidak tersedia di lingkungan build;
-PRD §0.5 — rilis = signed AAB/APK lokal + listing draft Markdown).
+Status: **FINAL DRAFT** (Siap Rilis / Publikasi)
 
-## Nama aplikasi
-JagaMata
+---
 
-## Subjudul (80 karakter)
-Jaga mata si kecil — deteksi jarak layar, cahaya, dan postur secara real-time
+## Nama Aplikasi
+**JagaMata: Jaga Jarak & Postur Layar Anak**
 
-## Deskripsi singkat (80 karakter)
-Pantau kesehatan mata anak secara offline. Peringatan lewat maskot Kiko.
+## Subjudul (Maks. 80 Karakter)
+Jaga mata anak dari layar dekat, ruangan gelap, dan postur menunduk.
 
-## Deskripsi lengkap
+## Deskripsi Singkat (Maks. 80 Karakter)
+Pantau kesehatan mata anak secara offline real-time bersama Maskot Kiko.
 
-**JagaMata** membantu orang tua menjaga kesehatan mata anak dari kebiasaan
-menatap layar terlalu dekat, di ruangan gelap, dan dengan postur menunduk.
+## Deskripsi Lengkap
 
-**Yang bisa dilakukan JagaMata:**
-• **Deteksi jarak real-time** — memperingatkan saat layar kurang dari 30 cm dari wajah.
-• **Deteksi cahaya ruangan** — mengingatkan menyalakan lampu saat ruangan di bawah 150 lux.
-• **Deteksi postur** — mengingatkan duduk tegak saat kepala menunduk lebih dari 30°.
-• **Peringatan lewat maskot Kiko** — burung hantu lucu yang menutup layar saat terlalu dekat.
-• **Dasbor orang tua** — ringkasan pekan ini dan grafik 7 hari.
-• **Laporan mingguan** — satu ketuk untuk membagikan ringkasan ke WhatsApp.
+**JagaMata** adalah asisten cerdas bagi orang tua untuk melindungi kesehatan mata anak saat menggunakan smartphone atau tablet. Didukung oleh teknologi kecerdasan buatan (*On-Device AI*), JagaMata mendeteksi kebiasaan layar yang berisiko memicu miopia (rabun jauh), mata lelah, dan leher kaku secara otomatis tanpa mengganggu kenyamanan belajar anak.
 
-**Privasi terjaga:**
-Semua pemrosesan dilakukan langsung di HP Anda. Tidak ada foto yang disimpan,
-dikirim, atau diunggah. Berfungsi sepenuhnya tanpa internet.
+### 🌟 Fitur Unggulan JagaMata:
 
-**Hemat baterai:**
-Mode Ringan menganalisis 1 frame setiap 10 detik — cocok untuk pemakaian
-sepanjang hari.
+1. **📏 Pengingat Jarak Layar Real-Time**
+   Mendeteksi jarak mata ke layar ponsel secara otomatis. Jika anak menatap layar lebih dekat dari batas aman (misal < 35 cm), Maskot Kiko yang ramah akan muncul memperingatkan anak untuk memundurkan layar.
 
-## Kata kunci
-kesehatan mata, anak, screen time, jarak layar, postur, orang tua, parental
-control, mata lelah, myopia, cahaya ruangan
+2. **💡 Deteksi Pencahayaan Ruangan**
+   Sensor cahaya pintar mengingatkan anak untuk menyalakan lampu saat ruangan terlalu gelap (< 150 lux), mencegah kelelahan akomodasi mata.
 
-## Kategori
+3. **🧘 Pemantau Postur Leher & Kepala**
+   Model machine learning canggih mendeteksi sudut kemiringan kepala agar anak terbiasa duduk tegak dan tidak bungkuk saat menatap layar.
+
+4. **🦉 Karakter Sahabat Anak: Maskot Kiko**
+   Peringatan disampaikan secara edukatif dan menyenangkan melalui animasi burung hantu Kiko, tanpa membuat anak merasa dimarahi atau takut.
+
+5. **⏱️ Aturan Istirahat 20-20-20**
+   Mengajak anak istirahat sejenak setiap 20 menit untuk memandang objek jauh sejauh 6 meter selama 20 detik, menjaga kesegaran otot mata.
+
+6. **🔒 Area Khusus Orang Tua Terproteksi PIN**
+   Pengaturan ambang batas jarak, target waktu bermain harian, serta data statistik dilindungi oleh PIN 4-digit yang aman.
+
+7. **📊 Laporan & Analisis Mingguan**
+   Pantau grafik kebiasaan menatap layar anak selama 7 hari terakhir dan bagikan ringkasan laporan kesehatan mata langsung ke WhatsApp keluarga atau dokter.
+
+---
+
+### 🛡️ Jaminan Privasi 100% On-Device (Zero Data Collection)
+- **Tanpa Internet:** JagaMata berfungsi sepenuhnya secara offline.
+- **Tanpa Simpan Foto:** Kamera depan hanya memproses titik antropometri secara instan di memori RAM sementara. Tidak ada foto atau video yang pernah disimpan di memori HP, apalagi dikirim ke internet.
+- **Bebas Iklan & Pelacak:** Dirancang murni untuk kesehatan anak dan ketenangan pikiran orang tua.
+
+---
+
+## Kategori Aplikasi
 Parenting / Kesehatan & Kebugaran
 
-## Aplikasi masuk ke (age rating)
-3+ (semua umur)
+## Target Usia (Age Rating)
+3+ (Cocok untuk Semua Umur / Keluarga)
 
-## Harga
-Gratis dengan pembelian dalam aplikasi (ditandai NICE-TO-HAVE di roadmap):
-• premium_monthly — Rp29.000/bulan
-• premium_yearly — Rp199.000/tahun
+## Kata Kunci Penelusuran (Keywords)
+kesehatan mata anak, jaga jarak layar, screen time anak, parental control, cegah miopia, rabun jauh anak, postur leher, screen distance monitor, waktu main gadget, maskot kiko
 
-## Screenshot yang perlu dilampirkan (D5)
-1. Splash + Intro (onboarding)
-2. Wizard kalibrasi jarak (30 cm + penggaris)
-3. Layar alarm BLOCKED dengan maskot Kiko
-4. Banner WARNING (jingga) dan banner AMAN (hijau)
-5. Dasbor orang tua (3 angka + grafik 7 hari)
-6. Pengaturan ambang (slider)
-7. Laporan mingguan + tombol Bagikan
-8. Layar Privasi (janji "0 foto keluar HP")
-
-Simpan ke `docs/screenshots/` (belum tersedia — menunggu verifikasi user
-pada perangkat fisik, lihat `ml/reports/manual_kpi.md` D5).
-
-## Kebijakan privasi (ringkas untuk formulir Play)
-Tidak ada data yang dikumpulkan atau dikirim ke server developer.
-Semua data pemantauan tersimpan lokal di perangkat dan dapat dihapus
-sepenuhnya lewat menu Privasi → Hapus Semua Data.
-Tidak ada foto kamera yang disimpan atau ditransmisikan.
+## Rencana Screenshot untuk Listing Toko:
+1. Layar Beranda Fresh & Sapaan Ramah Sahabat
+2. Layar Pantau Jarak Live dengan Indikator Gauge Aman
+3. Layar Peringatan Maskot Kiko ("Terlalu dekat! Ayo mundur sedikit")
+4. Layar Istirahat 20-20-20
+5. Dashboard Orang Tua & Grafik Riwayat Kebiasaan 7 Hari
+6. Pengaturan Ambang Jarak & Kunci PIN Aman
+7. Komitmen Privasi 100% On-Device\n

@@ -66,6 +66,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.jagamata.app.R
+import com.jagamata.app.data.SettingsRepository
 import com.jagamata.app.detection.RiskLevel
 import com.jagamata.app.service.DetectionForegroundService
 import com.jagamata.app.ui.child.DesignSparkle
@@ -100,6 +101,8 @@ fun PantauLiveScreen(
     onPauseToggle: () -> Unit = {},
 ) {
     val context = LocalContext.current
+    val settings = remember { SettingsRepository(context) }
+    val closeThresholdCm by settings.closeThresholdCm.collectAsState(initial = 30f)
     val isRunning by DetectionForegroundService.isRunning.collectAsState()
     val latest by DetectionForegroundService.latest.collectAsState()
     val riskLevel by DetectionForegroundService.riskLevel.collectAsState()
@@ -151,9 +154,9 @@ fun PantauLiveScreen(
         ) {
             PantauHeader(isRunning = isRunning)
             Spacer(modifier = Modifier.height(14.dp))
-            PreviewCard(distanceCm = latest?.distanceCm, riskLevel = riskLevel)
+            PreviewCard(distanceCm = latest?.distanceCm, riskLevel = riskLevel, thresholdCm = closeThresholdCm)
             Spacer(modifier = Modifier.height(14.dp))
-            GaugeCard(distanceCm = latest?.distanceCm, riskLevel = riskLevel)
+            GaugeCard(distanceCm = latest?.distanceCm, riskLevel = riskLevel, thresholdCm = closeThresholdCm)
             Spacer(modifier = Modifier.height(14.dp))
             LightConditionCard(lux = latest?.lux)
             Spacer(modifier = Modifier.height(14.dp))
@@ -225,15 +228,17 @@ private fun MonitoringPill(isRunning: Boolean) {
 private fun PreviewCard(
     distanceCm: Float?,
     riskLevel: RiskLevel,
+    thresholdCm: Float = 30f,
 ) {
     val distText =
         distanceCm?.let { String.format(Locale.US, "%.0f cm", it) }
             ?: "-- cm"
     val kikoExpr =
-        when (riskLevel) {
-            RiskLevel.OK -> KikoExpression.FOKUS_PENGARIS
-            RiskLevel.WARNING -> KikoExpression.KAGET
-            RiskLevel.BLOCKED -> KikoExpression.KAGET
+        when {
+            distanceCm == null -> KikoExpression.FOKUS_PENGARIS
+            distanceCm < thresholdCm -> KikoExpression.KAGET
+            distanceCm < thresholdCm + 15f -> KikoExpression.FOKUS
+            else -> KikoExpression.FOKUS_PENGARIS
         }
     Box(
         modifier =
@@ -372,6 +377,7 @@ private fun PreviewCard(
 private fun GaugeCard(
     distanceCm: Float?,
     riskLevel: RiskLevel,
+    thresholdCm: Float = 30f,
 ) {
     val distText =
         distanceCm?.let { String.format(Locale.US, "%.0f cm", it) }
@@ -380,19 +386,22 @@ private fun GaugeCard(
         when {
             distanceCm == null ->
                 Triple("Mencari wajah...", SurfaceAlt, Icons.Outlined.Face)
-            riskLevel == RiskLevel.OK ->
-                Triple(stringResource(R.string.s03_status_pill), Mint, Icons.Outlined.Check)
-            riskLevel == RiskLevel.WARNING ->
+            distanceCm < thresholdCm ->
+                Triple("Terlalu dekat! Mundur ya ✋", Coral, Icons.Outlined.Close)
+            distanceCm < thresholdCm + 15f ->
                 Triple("Mulai terlalu dekat! ⚠️", Sunny, Icons.Outlined.WarningAmber)
             else ->
-                Triple("Terlalu dekat! Mundur ya ✋", Coral, Icons.Outlined.Close)
+                Triple(stringResource(R.string.s03_status_pill), Mint, Icons.Outlined.Check)
         }
     val targetAngleDeg =
         when {
             distanceCm == null -> 314.0
-            distanceCm < 30f -> 180.0 + ((distanceCm.coerceIn(10f, 30f) - 10.0) / 20.0) * 60.0
-            distanceCm < 45f -> 253.0 + ((distanceCm - 30.0) / 15.0) * 34.0
-            else -> 300.0 + ((distanceCm.coerceAtMost(75f) - 45.0) / 30.0) * 60.0
+            distanceCm < thresholdCm ->
+                180.0 + ((distanceCm.coerceIn(10f, thresholdCm) - 10.0) / (thresholdCm - 10.0).coerceAtLeast(1.0)) * 60.0
+            distanceCm < thresholdCm + 15f ->
+                253.0 + ((distanceCm - thresholdCm) / 15.0) * 34.0
+            else ->
+                300.0 + ((distanceCm.coerceAtMost(75f) - (thresholdCm + 15.0)) / (75.0 - (thresholdCm + 15.0)).coerceAtLeast(1.0)) * 60.0
         }
     val animatedAngle by animateFloatAsState(
         targetValue = targetAngleDeg.toFloat(),

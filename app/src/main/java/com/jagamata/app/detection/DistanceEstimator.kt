@@ -45,19 +45,7 @@ class DistanceEstimator(
                 faceHeightPx
             }
 
-        // Cross-check sumbu lebar wajah (pitch-invariant horizontal axis):
-        // Rasio tinggi/lebar wajah anak rata-rata ~1.20 - 1.25.
-        // Saat ponsel dipegang di bawah, tinggi wajah terkompresi perspektif,
-        // namun lebar wajah horizontal tetap stabil.
-        val robustHeightPx =
-            if (faceWidthPx != null && faceWidthPx > 0f) {
-                val expectedHeightFromWidth = faceWidthPx * 1.22f
-                maxOf(effectiveFaceHeightPx, expectedHeightFromWidth)
-            } else {
-                effectiveFaceHeightPx
-            }
-
-        return (faceHeightCm * focalPx) / robustHeightPx
+        return (faceHeightCm * focalPx) / effectiveFaceHeightPx
     }
 
     /** Hitung + haluskan (EMA). */
@@ -73,7 +61,10 @@ class DistanceEstimator(
             if (previous == null) {
                 raw
             } else {
-                emaAlpha * raw + (1f - emaAlpha) * previous
+                val delta = abs(raw - previous)
+                // Fast-attack: Jika pengguna bergerak cepat (delta > 8 cm), respon instan
+                val dynamicAlpha = if (delta > 8f) 0.85f else emaAlpha
+                dynamicAlpha * raw + (1f - dynamicAlpha) * previous
             }
         emaCm = smoothed
         return smoothed

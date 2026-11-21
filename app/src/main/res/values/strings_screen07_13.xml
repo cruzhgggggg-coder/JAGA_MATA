@@ -3,7 +3,7 @@
     <!-- Batch C · 07 Hadiah & Streak -->
     <string name="s07_title">Hadiah &amp; Streak</string>
     <string name="s07_streak_title">Streak minggu ini</string>
-    <string name="s07_streak_value">5 hari</string>
+    <string name="s07_streak_value">0 hari</string>
     <string name="s07_day_s">S</string>
     <string name="s07_day_m">M</string>
     <string name="s07_kiko_grow">Kiko tumbuh!</string>

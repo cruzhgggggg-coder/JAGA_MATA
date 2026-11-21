@@ -119,7 +119,7 @@ object ReportGenerator {
     fun renderPdf(
         context: Context,
         summary: ReportSummary,
-        childName: String = "Rafa",
+        childName: String = "Sahabat",
         childAge: Int = 8,
     ): File {
         val dir = File(context.cacheDir, "reports").apply { mkdirs() }
