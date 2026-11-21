@@ -16,21 +16,22 @@ PRD BAB 4 & BAB 8 · disusun agent (MiMoCode) · terakhir diperbarui: sesi build
 
 ## Hasil otomatis
 
-- **Unit test: 62 lulus / 0 gagal** (10 kelas test)
+- **Unit test: 71 lulus / 0 gagal** (11 kelas test)
   - `DetectionStateMachineTest` 14 skenario (flapping, cepat-lewat, null face,
     hysteresis 35 cm, debounce 500 ms / 3 s / 10 s, prioritas)
+  - `ModelPitchBackendTest` 9 skenario (TFLite loading, toPixelBox scale, cropFace clamp & min-size, requiresFaceCrop, backend factory, yaw guardrail 45°)
+  - `ImageConvertersTest` 8 (pipeline konversi, rotasi, bounding box, verifikasi model MediaPipe di assets)
   - `DistanceEstimatorTest` 6 (rumus `d = H×f_px/h_px`, EMA, null handling, MAE)
   - `CalibrationManagerTest` 5 (`f_px = h_px×30/15`, stabilitas 1,5 s)
   - `CycleAggregatorTest` 6 (min/avg/max, violations, clear)
   - `MinuteTickerTest` 5 (K4: 10 siklus → 10 baris, drift 0)
   - `SnapshotDaoTest` 5 (insert/query/prune 30 hari)
-  - `ImageConvertersTest` 8 (pipeline konversi, rotasi, bounding box)
   - `PitchBackendFactoryTest` 5 (pemilihan backend F9)
   - `HeadPitchAnalyzerTest` 4 (fixture 10°/40°)
   - `ReportGeneratorTest` 4 (ringkasan 7 hari)
 - **ktlintCheck**: exit 0
 - **detekt**: 0 issue
-- **assembleDebug**: BUILD SUCCESSFUL
+- **assembleDebug**: BUILD SUCCESSFUL (APK 120 MB)
 
 ## Tabel riwayat KPI (D6)
 

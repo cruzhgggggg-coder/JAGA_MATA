@@ -1,38 +1,73 @@
 package com.jagamata.app.detection
 
 import kotlin.math.abs
+import kotlin.math.cos
 
 /**
  * Estimasi jarak wajah ke layar (PRD §2.7, US-03).
  *
- * Rumus: d = (H_wajah × f_px) / h_piksel
+ * Rumus: d = (H_wajah × f_px) / h_efektif
  * - H_wajah default 15 cm
  * - f_px hasil kalibrasi (lihat [CalibrationManager])
+ * - h_efektif dikompensasi sudut head pitch agar kemiringan kepala tidak
+ *   membuat jarak terhitung melompat 5-10 cm.
  * - tanpa wajah -> null, bukan 0
  *
  * Nilai halus memakai EMA (alpha 0.4) supaya angka tidak berkedip.
  */
 class DistanceEstimator(
-    private val faceHeightCm: Float = DEFAULT_FACE_HEIGHT_CM,
+    var faceHeightCm: Float = DEFAULT_FACE_HEIGHT_CM,
     private val emaAlpha: Float = DEFAULT_EMA_ALPHA,
 ) {
     private var emaCm: Float? = null
 
-    /** Hitung mentah tanpa smoothing. */
+    /**
+     * Hitung mentah tanpa smoothing dengan kompensasi sudut kemiringan kepala (pitch)
+     * dan cross-check lebar wajah untuk presisi saat ponsel dipegang di bawah mata.
+     */
     fun computeRawCm(
         faceHeightPx: Float?,
         focalPx: Float,
+        pitchDeg: Float? = null,
+        faceWidthPx: Float? = null,
     ): Float? {
         if (faceHeightPx == null || faceHeightPx <= 0f || focalPx <= 0f) return null
-        return (faceHeightCm * focalPx) / faceHeightPx
+
+        // Kompensasi kemiringan kepala (head pitch):
+        // Ketika menunduk atau ponsel dipegang agak di bawah, proyeksi tinggi wajah 2D
+        // menyusut sebesar cos(pitch).
+        val effectiveFaceHeightPx =
+            if (pitchDeg != null) {
+                val pitchRad = Math.toRadians(pitchDeg.toDouble().coerceIn(-50.0, 50.0))
+                val cosFactor = cos(pitchRad).toFloat().coerceIn(0.65f, 1.0f)
+                faceHeightPx / cosFactor
+            } else {
+                faceHeightPx
+            }
+
+        // Cross-check sumbu lebar wajah (pitch-invariant horizontal axis):
+        // Rasio tinggi/lebar wajah anak rata-rata ~1.20 - 1.25.
+        // Saat ponsel dipegang di bawah, tinggi wajah terkompresi perspektif,
+        // namun lebar wajah horizontal tetap stabil.
+        val robustHeightPx =
+            if (faceWidthPx != null && faceWidthPx > 0f) {
+                val expectedHeightFromWidth = faceWidthPx * 1.22f
+                maxOf(effectiveFaceHeightPx, expectedHeightFromWidth)
+            } else {
+                effectiveFaceHeightPx
+            }
+
+        return (faceHeightCm * focalPx) / robustHeightPx
     }
 
-    /** Hitung + haluskan (EMA). Reset otomatis kalau wajah hilang terlalu lama? Tidak — nilai terakhir dipertahankan. */
+    /** Hitung + haluskan (EMA). */
     fun update(
         faceHeightPx: Float?,
         focalPx: Float,
+        pitchDeg: Float? = null,
+        faceWidthPx: Float? = null,
     ): Float? {
-        val raw = computeRawCm(faceHeightPx, focalPx) ?: return null
+        val raw = computeRawCm(faceHeightPx, focalPx, pitchDeg, faceWidthPx) ?: return null
         val previous = emaCm
         val smoothed =
             if (previous == null) {
@@ -54,6 +89,14 @@ class DistanceEstimator(
     companion object {
         const val DEFAULT_FACE_HEIGHT_CM = 15f
         const val DEFAULT_EMA_ALPHA = 0.4f
+
+        /** Tinggi wajah acuan anak berdasarkan kelompok usia antropometri. */
+        fun getChildFaceHeightCm(ageYears: Int): Float =
+            when {
+                ageYears <= 6 -> 13.5f
+                ageYears <= 11 -> 14.0f
+                else -> 15.0f
+            }
 
         /**
          * Tinggi wajah dalam piksel dari bounding box deteksi.

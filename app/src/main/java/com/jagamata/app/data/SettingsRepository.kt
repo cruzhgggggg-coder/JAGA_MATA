@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
@@ -29,6 +30,10 @@ class SettingsRepository(private val context: Context) {
     val focalPx: Flow<Float> = read(KEY_FOCAL_PX, 0f)
     val onboardingDone: Flow<Boolean> = read(KEY_ONBOARDING_DONE, false)
     val parentPinHash: Flow<String> = read(KEY_PIN_HASH, "")
+    val voiceEnabled: Flow<Boolean> = read(KEY_VOICE_ENABLED, true)
+    val childName: Flow<String> = read(KEY_CHILD_NAME, "Rafa")
+    val childAge: Flow<Int> = read(KEY_CHILD_AGE, 8)
+    val childGrade: Flow<String> = read(KEY_CHILD_GRADE, "Kelas 3 SD")
 
     suspend fun setCloseThresholdCm(value: Float) = write(KEY_CLOSE_CM, value)
 
@@ -43,6 +48,14 @@ class SettingsRepository(private val context: Context) {
     suspend fun setFocalPx(value: Float) = write(KEY_FOCAL_PX, value)
 
     suspend fun setOnboardingDone(value: Boolean) = write(KEY_ONBOARDING_DONE, value)
+
+    suspend fun setVoiceEnabled(value: Boolean) = write(KEY_VOICE_ENABLED, value)
+
+    suspend fun setChildName(value: String) = write(KEY_CHILD_NAME, value)
+
+    suspend fun setChildAge(value: Int) = write(KEY_CHILD_AGE, value)
+
+    suspend fun setChildGrade(value: String) = write(KEY_CHILD_GRADE, value)
 
     suspend fun setParentPin(pin: String) {
         val salt = System.currentTimeMillis().toString()
@@ -77,6 +90,7 @@ class SettingsRepository(private val context: Context) {
         const val DEFAULT_CLOSE_CM = 30f
         const val DEFAULT_LUX = 150f
         const val DEFAULT_PITCH = 30f
+        const val DEFAULT_FOCAL_PX = 560f
 
         // Rentang slider Settings (PRD §2.17)
         const val CLOSE_CM_RANGE_MIN = 20f
@@ -95,6 +109,10 @@ class SettingsRepository(private val context: Context) {
         private val KEY_ONBOARDING_DONE = booleanPreferencesKey("onboarding_done")
         private val KEY_PIN_HASH = stringPreferencesKey("parent_pin_hash")
         private val KEY_PIN_SALT = stringPreferencesKey("parent_pin_salt")
+        private val KEY_VOICE_ENABLED = booleanPreferencesKey("kiko_voice_enabled")
+        private val KEY_CHILD_NAME = stringPreferencesKey("child_name")
+        private val KEY_CHILD_AGE = intPreferencesKey("child_age")
+        private val KEY_CHILD_GRADE = stringPreferencesKey("child_grade")
 
         /** SHA-256(pin + salt) hex (US-11, implementasi minimal). */
         fun hashPin(

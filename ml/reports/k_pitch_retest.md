@@ -61,13 +61,15 @@ ONNX→TFLite diuji dengan inferensi nyata (Python/TFLite) → LULUS.
    dihitung sebagai piksel → kini diskalakan (`toPixelBox`) sehingga
    `faceHeightPx` benar (dampak ke estimasi jarak/KPI).
 
-## 5. Masih menunggu (di luar kendali agent)
+## 5. Status Komponen & Verifikasi Fisik
 
 - **Retest 12 video D2** (banding landmark-vs-model dengan label sudut) — butuh
   HP/kamera fisik, instruksi di `ml/reports/manual_kpi.md`. Angka AFLW2000 dari
   rekan tim dipakai sebagai dasar keputusan sementara.
-- `face_landmarker.task` masih absen (opsional, `MODEL_README.txt`) — crop wajah
-  sudah jalan via bounding box ML Kit.
+- `face_landmarker.task` **SUDAH TERPASANG ✅** (3,58 MB di `app/src/main/assets/`) —
+  MediaPipe FaceLandmarker aktif sebagai primary backend dengan 478 landmark 3D,
+  serta crop wajah untuk `pitch_model.tflite` berfungsi optimal. Fallback ML Kit
+  tetap siap jika terjadi kendala runtime.
 
 ## 6. Reproduksi
 

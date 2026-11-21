@@ -26,7 +26,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material.icons.outlined.DarkMode
+import androidx.compose.material.icons.outlined.Face
 import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Notifications
@@ -55,6 +57,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 import com.jagamata.app.R
 import com.jagamata.app.data.SettingsRepository
 import com.jagamata.app.ui.components.JagaCard
@@ -384,6 +387,8 @@ fun SettingsScreen(
     onBack: () -> Unit,
     onOpenPrivacy: () -> Unit,
     onOpenCalibration: () -> Unit = {},
+    onOpenChildProfile: () -> Unit = {},
+    onOpenPermissions: () -> Unit = {},
     viewModel: SettingsViewModel =
         SettingsViewModel(
             androidx.compose.ui.platform.LocalContext.current.applicationContext as android.app.Application,
@@ -391,6 +396,11 @@ fun SettingsScreen(
 ) {
     var notifOn by remember { mutableStateOf(true) }
     var darkOn by remember { mutableStateOf(false) }
+
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val settingsRepo = remember { SettingsRepository(context) }
+    val voiceOn by settingsRepo.voiceEnabled.collectAsState(initial = true)
 
     Column(
         modifier =
@@ -414,7 +424,11 @@ fun SettingsScreen(
             onNotifChange = { notifOn = it },
             darkOn = darkOn,
             onDarkChange = { darkOn = it },
+            voiceOn = voiceOn,
+            onVoiceChange = { scope.launch { settingsRepo.setVoiceEnabled(it) } },
             onOpenCalibration = onOpenCalibration,
+            onOpenChildProfile = onOpenChildProfile,
+            onOpenPermissions = onOpenPermissions,
         )
         FooterCaption(text = stringResource(R.string.s10_footer))
         Spacer(modifier = Modifier.height(116.dp))
@@ -428,20 +442,25 @@ fun SettingsScreen(
     }
 }
 
-/** Kartu baris sesuai desain 2823: Notifikasi · Kalibrasi · Bahasa · Mode Gelap. */
+/** Kartu baris sesuai desain 2823: Notifikasi · Kalibrasi · Bahasa · Mode Gelap · Profil · Izin. */
 @Composable
 private fun DesignSettingsCard(
     notifOn: Boolean,
     onNotifChange: (Boolean) -> Unit,
     darkOn: Boolean,
     onDarkChange: (Boolean) -> Unit,
+    voiceOn: Boolean,
+    onVoiceChange: (Boolean) -> Unit,
     onOpenCalibration: () -> Unit,
+    onOpenChildProfile: () -> Unit,
+    onOpenPermissions: () -> Unit,
 ) {
     JagaCard(contentPadding = PaddingValues(16.dp)) {
         SettingsRow(
-            icon = { RowIcon(Icons.Outlined.Notifications) },
-            title = stringResource(R.string.s10_row_notif),
-            trailing = { DesignSwitch(checked = notifOn, onCheckedChange = onNotifChange) },
+            icon = { RowIcon(Icons.Outlined.Face) },
+            title = "Profil Anak (Usia & Avatar)",
+            onClick = onOpenChildProfile,
+            trailing = { ChevronTrailing() },
         )
         Spacer(modifier = Modifier.height(24.dp))
         SettingsRow(
@@ -449,6 +468,25 @@ private fun DesignSettingsCard(
             title = stringResource(R.string.s10_row_calibration),
             onClick = onOpenCalibration,
             trailing = { ChevronTrailing() },
+        )
+        Spacer(modifier = Modifier.height(24.dp))
+        SettingsRow(
+            icon = { RowIcon(Icons.Outlined.Lock) },
+            title = "Kelola Izin & Akses Sistem",
+            onClick = onOpenPermissions,
+            trailing = { ChevronTrailing() },
+        )
+        Spacer(modifier = Modifier.height(24.dp))
+        SettingsRow(
+            icon = { RowIcon(Icons.Filled.VolumeUp) },
+            title = "Suara Ramah Maskot Kiko",
+            trailing = { DesignSwitch(checked = voiceOn, onCheckedChange = onVoiceChange) },
+        )
+        Spacer(modifier = Modifier.height(24.dp))
+        SettingsRow(
+            icon = { RowIcon(Icons.Outlined.Notifications) },
+            title = stringResource(R.string.s10_row_notif),
+            trailing = { DesignSwitch(checked = notifOn, onCheckedChange = onNotifChange) },
         )
         Spacer(modifier = Modifier.height(24.dp))
         SettingsRow(

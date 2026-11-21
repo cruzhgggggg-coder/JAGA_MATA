@@ -20,7 +20,7 @@
 
     <!-- Batch C · 08 Profil Anak -->
     <string name="s08_title">Profil Anak</string>
-    <string name="s08_name">Raka Pratama</string>
+    <string name="s08_name">Anak Saya</string>
     <string name="s08_age">8 tahun</string>
     <string name="s08_grade">Kelas 3 SD</string>
     <string name="s08_target_label">Target harian</string>
@@ -36,17 +36,17 @@
 
     <!-- Batch C · 09 Dashboard Orang Tua -->
     <string name="s09_title">Dashboard Orang Tua</string>
-    <string name="s09_subtitle">Ringkasan kebiasaan Raka minggu ini</string>
+    <string name="s09_subtitle">Ringkasan kebiasaan layar minggu ini</string>
     <string name="s09_report_title">Laporan Mingguan</string>
     <string name="s09_report_avg_label">Jarak rata-rata 7 hari</string>
     <string name="s09_report_status_good">Baik</string>
-    <string name="s09_report_delta">naik 6 cm dari minggu lalu</string>
+    <string name="s09_report_delta">jarak optimal layar</string>
     <string name="s09_report_threshold">50 cm</string>
     <string name="s09_cycle_active">⏱ Siklus 1 menit — aktif</string>
-    <string name="s09_cycle_line">Siklus 14:32 · 52 cm · Aman</string>
+    <string name="s09_cycle_line">Siklus 1 menit · Aman</string>
     <string name="s09_cycle_meta">1.440 pemeriksaan/hari · log 30 hari</string>
     <string name="s09_tips_title">Tips minggu ini</string>
-    <string name="s09_tips_body">Ajak Raka bermain di luar setelah 20 \nmenit di depan layar.</string>
+    <string name="s09_tips_body">Ajak anak bermain di luar setelah 20 \nmenit di depan layar.</string>
     <string name="s09_share">Bagikan Laporan Mingguan (PDF / WhatsApp)</string>
     <string name="s09_min_distance_label">Jarak\nminimum</string>
     <string name="s09_min_distance_value">50 cm</string>

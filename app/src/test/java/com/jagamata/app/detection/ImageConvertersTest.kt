@@ -86,12 +86,12 @@ class ImageConvertersTest {
     }
 
     @Test
-    fun `cek keberadaan model mediapipe tidak crash`() {
-        // assets/face_landmarker.task BELUM dipasang (lihat MODEL_README.txt),
-        // sehingga FaceDetectorManager jatuh ke ML Kit (fallback F1).
+    fun `cek keberadaan model mediapipe terpasang di assets`() {
+        // assets/face_landmarker.task terpasang (lihat MODEL_README.txt),
+        // sehingga FaceDetectorManager mengaktifkan MediaPipe FaceLandmarker (full tracking mode).
         val exists = FaceDetectorManager.modelExists(ApplicationProvider.getApplicationContext())
-        org.junit.Assert.assertFalse(
-            "Model belum dipasang - kode harus siap degraded mode (F1)",
+        org.junit.Assert.assertTrue(
+            "face_landmarker.task harus ada di assets untuk full tracking mode",
             exists,
         )
     }

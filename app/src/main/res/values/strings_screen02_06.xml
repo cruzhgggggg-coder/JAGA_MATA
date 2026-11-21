@@ -9,7 +9,7 @@
     <string name="bnav_orang_tua">Orang Tua</string>
 
     <!-- 02 Beranda -->
-    <string name="s02_greeting">Halo, Raka!</string>
+    <string name="s02_greeting">Halo, Sahabat!</string>
     <string name="s02_subtitle">Siap main sehat hari ini?</string>
     <string name="s02_bubble">Kamu hebat! Kemarin \njarak matamu sudah \npas. Yuk ulangi lagi!</string>
     <string name="s02_stat_distance">Jarak rata-rata</string>

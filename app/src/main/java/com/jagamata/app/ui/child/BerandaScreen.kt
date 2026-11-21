@@ -1,7 +1,18 @@
 package com.jagamata.app.ui.child
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.EaseInOutSine
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -35,6 +46,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
@@ -48,6 +65,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.jagamata.app.R
@@ -56,6 +74,8 @@ import com.jagamata.app.ui.components.BottomNavBar
 import com.jagamata.app.ui.components.JagaCard
 import com.jagamata.app.ui.components.KikoExpression
 import com.jagamata.app.ui.components.KikoImage
+import java.util.Calendar
+import kotlinx.coroutines.launch
 import com.jagamata.app.ui.theme.Background
 import com.jagamata.app.ui.theme.BlueTint
 import com.jagamata.app.ui.theme.BlueTintDeep
@@ -465,6 +485,7 @@ fun BerandaScreen(
     onStartPantau: () -> Unit = {},
     onTab: (Int) -> Unit = {},
     initialTab: Int = 0,
+    onOpenDailyStats: () -> Unit = {},
 ) {
     Box(
         modifier =
@@ -483,9 +504,13 @@ fun BerandaScreen(
             Spacer(modifier = Modifier.height(16.dp))
             HeroCard()
             Spacer(modifier = Modifier.height(16.dp))
-            StatCardRow()
+            Box(modifier = Modifier.clickable(onClick = onOpenDailyStats)) {
+                StatCardRow()
+            }
             Spacer(modifier = Modifier.height(16.dp))
-            StreakCard()
+            Box(modifier = Modifier.clickable(onClick = onOpenDailyStats)) {
+                StreakCard()
+            }
             Spacer(modifier = Modifier.height(16.dp))
             PlayCta(text = stringResource(R.string.s02_cta), onClick = onStartPantau)
             Spacer(modifier = Modifier.weight(1f))
@@ -517,7 +542,7 @@ fun BerandaScreen(
 @Composable
 private fun BerandaHeader() {
     Box(
-        modifier = Modifier.fillMaxWidth().height(50.dp),
+        modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp),
     ) {
         Column(modifier = Modifier.align(Alignment.TopStart)) {
             Text(
@@ -561,6 +586,59 @@ private fun BerandaHeader() {
 /** Kartu hero 02: gradasi biru + Kiko + gelembung ucapan (353�154.4). */
 @Composable
 private fun HeroCard() {
+    val scope = rememberCoroutineScope()
+
+    // Sapaan kontekstual berdasarkan waktu lokal (Blueprint §4.3)
+    val defaultGreeting = remember {
+        val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+        when (hour) {
+            in 5..11 -> "Selamat pagi! ☀️ Kiko siap jaga matamu hari ini!"
+            in 12..17 -> "Selamat siang! 🌤️ Jaga jarak mata minimal 30 cm ya!"
+            in 18..21 -> "Selamat malam! 🌙 Pastikan lampu ruanganmu menyala terang!"
+            else -> "Sudah larut malam! 😴 Jangan lupa istirahatkan matamu ya!"
+        }
+    }
+
+    val quotes = remember(defaultGreeting) {
+        listOf(
+            defaultGreeting,
+            "Jarak layar aman minimal 30 cm ya! 👀",
+            "Ruangan terang bikin mata tidak cepat lelah! 💡",
+            "Duduk tegak, jangan terlalu menunduk! 👍",
+            "Ingat aturan 20-20-20: istirahat sejenak! ⏳",
+            "Mata sehat bikin belajar & main makin asyik! ✨",
+        )
+    }
+
+    var quoteIndex by remember { mutableStateOf(0) }
+
+    // 1. Animasi halus nafas/mengapung Kiko
+    val infiniteTransition = rememberInfiniteTransition(label = "kiko_float")
+    val floatY by infiniteTransition.animateFloat(
+        initialValue = -3f,
+        targetValue = 3f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1400, easing = EaseInOutSine),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "float_y",
+    )
+
+    // 2. Animasi masuk pop-in saat buka layar
+    val scaleAnim = remember { Animatable(0.75f) }
+    LaunchedEffect(Unit) {
+        scaleAnim.animateTo(
+            targetValue = 1f,
+            animationSpec = spring(
+                dampingRatio = Spring.DampingRatioMediumBouncy,
+                stiffness = Spring.StiffnessLow,
+            ),
+        )
+    }
+
+    // 3. Animasi lompat riang saat Kiko disentuh anak
+    val hopAnim = remember { Animatable(0f) }
+
     Box(
         modifier =
             Modifier
@@ -571,30 +649,67 @@ private fun HeroCard() {
                     shape = RoundedCornerShape(24.dp),
                 ),
     ) {
-        KikoImage(
-            expression = KikoExpression.SENANG,
+        // Maskot Kiko dengan animasi sapaan dan interaksi sentuh
+        Box(
             modifier =
                 Modifier
                     .align(Alignment.TopStart)
                     .offset(x = 10.dp, y = 21.5.dp)
-                    .size(width = 124.dp, height = 132.dp),
-        )
+                    .size(width = 124.dp, height = 132.dp)
+                    .graphicsLayer {
+                        scaleX = scaleAnim.value
+                        scaleY = scaleAnim.value
+                        translationY = floatY + hopAnim.value
+                    }
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                    ) {
+                        scope.launch {
+                            quoteIndex = (quoteIndex + 1) % quotes.size
+                            hopAnim.animateTo(-14f, tween(140, easing = EaseInOutSine))
+                            hopAnim.animateTo(0f, spring(dampingRatio = Spring.DampingRatioHighBouncy))
+                        }
+                    },
+        ) {
+            KikoImage(
+                expression = if (quoteIndex % 2 == 1) KikoExpression.SENANG_KACAMATA else KikoExpression.SENANG,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+
+        // Gelembung ucapan adaptif
         Box(
             modifier =
                 Modifier
                     .align(Alignment.TopStart)
                     .offset(x = 146.dp, y = 18.2.dp)
                     .size(width = 187.dp, height = 94.dp)
-                    .background(Surface, RoundedCornerShape(16.dp)),
+                    .graphicsLayer {
+                        scaleX = scaleAnim.value
+                        scaleY = scaleAnim.value
+                    }
+                    .background(Surface, RoundedCornerShape(16.dp))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                    ) {
+                        scope.launch {
+                            quoteIndex = (quoteIndex + 1) % quotes.size
+                            hopAnim.animateTo(-10f, tween(120, easing = EaseInOutSine))
+                            hopAnim.animateTo(0f, spring(dampingRatio = Spring.DampingRatioHighBouncy))
+                        }
+                    },
         ) {
             Text(
-                text = stringResource(R.string.s02_bubble),
+                text = quotes[quoteIndex],
                 style = MaterialTheme.typography.bodyMedium,
                 color = Ink,
-                modifier = Modifier.padding(14.dp),
+                modifier = Modifier.padding(12.dp),
             )
         }
-        // ekor gelembung menunjuk ke Kiko
+
+        // Ekor gelembung menunjuk ke Kiko
         Canvas(
             modifier =
                 Modifier
@@ -613,6 +728,7 @@ private fun HeroCard() {
                 }
             drawPath(path, Surface)
         }
+
         DesignSparkle(
             modifier =
                 Modifier

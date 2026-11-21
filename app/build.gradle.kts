@@ -25,6 +25,10 @@ android {
         // di assets/pitch_model.tflite → aktifkan backend model (PRD §5.5).
         // File dihapus otomatis → fallback LandmarkPitchBackend (F9).
         buildConfigField("boolean", "USE_TFLITE_PITCH", "true")
+
+        ndk {
+            abiFilters.addAll(listOf("arm64-v8a", "armeabi-v7a"))
+        }
     }
 
     signingConfigs {
@@ -86,6 +90,10 @@ android {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
+    }
+
+    androidResources {
+        noCompress += listOf("tflite", "task")
     }
 }
 

@@ -41,6 +41,24 @@ class FaceDetectorManager(
     @Volatile
     private var lastFrame: Bitmap? = null
 
+    @Volatile
+    private var lastFrameWidth: Int = 480
+
+    @Volatile
+    private var lastFrameHeight: Int = 640
+
+    @Volatile
+    private var lastTimestampMs: Long = -1L
+
+    private val distanceEstimator = DistanceEstimator()
+
+    fun setChildAge(age: Int) {
+        distanceEstimator.faceHeightCm = DistanceEstimator.getChildFaceHeightCm(age)
+    }
+
+    @Volatile
+    var focalPx: Float = com.jagamata.app.data.SettingsRepository.DEFAULT_FOCAL_PX
+
     /** Inisialisasi backend. @return true bila siap menerima frame. */
     fun initialize(): Boolean {
         if (initMediaPipe()) {
@@ -113,8 +131,12 @@ class FaceDetectorManager(
             imageProxy.close()
             return
         }
-        val bitmap = ImageConverters.toBitmap(imageProxy)
-        imageProxy.close()
+        val bitmap =
+            try {
+                ImageConverters.toBitmap(imageProxy)
+            } finally {
+                imageProxy.close()
+            }
         if (bitmap == null) return
         detectBitmap(bitmap, timestampMs)
     }
@@ -124,51 +146,71 @@ class FaceDetectorManager(
         timestampMs: Long,
     ) {
         lastFrame = bitmap
+        lastFrameWidth = bitmap.width
+        lastFrameHeight = bitmap.height
+        val monotonicTs =
+            synchronized(this) {
+                val next = if (timestampMs <= lastTimestampMs) lastTimestampMs + 1 else timestampMs
+                lastTimestampMs = next
+                next
+            }
         when (activeBackend) {
             DetectorBackend.MEDIAPIPE -> {
-                val mpImage = BitmapImageBuilder(bitmap).build()
                 try {
-                    landmarker?.detectAsync(mpImage, timestampMs)
+                    val mpImage = BitmapImageBuilder(bitmap).build()
+                    landmarker?.detectAsync(mpImage, monotonicTs)
                 } catch (t: Throwable) {
                     Log.e(TAG, "detectAsync gagal: ${t.message}")
                 }
             }
-            DetectorBackend.MLKIT -> detectMlKit(bitmap, timestampMs)
+            DetectorBackend.MLKIT -> detectMlKit(bitmap, monotonicTs)
             DetectorBackend.NONE -> Unit
         }
     }
 
     private fun handleMediaPipeResult(result: com.google.mediapipe.tasks.vision.facelandmarker.FaceLandmarkerResult) {
-        val landmarks = result.faceLandmarks().firstOrNull()
-        if (landmarks == null) {
+        try {
+            val landmarks = result.faceLandmarks().firstOrNull()
+            if (landmarks == null) {
+                onResult(
+                    DetectionResult(
+                        timestampMs = result.timestampMs(),
+                        backend = DetectorBackend.MEDIAPIPE,
+                    ),
+                )
+                return
+            }
+            val points = landmarks.map { LandmarkPoint(it.x(), it.y(), it.z()) }
+            val frame = lastFrame
+            val fw = frame?.width ?: lastFrameWidth
+            val fh = frame?.height ?: lastFrameHeight
+            // Landmark MediaPipe ternormalisasi [0,1] → skala ke piksel frame.
+            val box = ModelPitchBackend.toPixelBox(points, fw, fh)
+            val faceHeightPx = (box.bottom - box.top).toFloat()
+            val faceWidthPx = (box.right - box.left).toFloat()
+            val crop = frame?.let { ModelPitchBackend.cropFace(it, box) }
+            val pitch =
+                try {
+                    pitchBackend.pitchDeg(points, crop)
+                } finally {
+                    crop?.recycle()
+                }
+            val faceHeight = faceHeightPx.takeIf { it > 0f }
+            val faceWidth = faceWidthPx.takeIf { it > 0f }
+            val distance = distanceEstimator.update(faceHeight, focalPx, pitch, faceWidth)
             onResult(
                 DetectionResult(
                     timestampMs = result.timestampMs(),
+                    faceHeightPx = faceHeight,
+                    faceWidthPx = faceWidth,
+                    pitchDeg = pitch,
+                    distanceCm = distance,
                     backend = DetectorBackend.MEDIAPIPE,
                 ),
             )
-            return
+        } catch (t: Throwable) {
+            Log.e(TAG, "handleMediaPipeResult error: ${t.message}", t)
         }
-        val points = landmarks.map { LandmarkPoint(it.x(), it.y(), it.z()) }
-        val frame = lastFrame
-        // Landmark MediaPipe ternormalisasi [0,1] → skala ke piksel frame.
-        val box =
-            frame?.let {
-                ModelPitchBackend.toPixelBox(points, it.width, it.height)
-            } ?: boundingBoxOf(points)
-        val faceHeightPx = (box.bottom - box.top).toFloat()
-        val faceWidthPx = (box.right - box.left).toFloat()
-        val crop = frame?.let { ModelPitchBackend.cropFace(it, box) }
-        val pitch = pitchBackend.pitchDeg(points, crop)
-        onResult(
-            DetectionResult(
-                timestampMs = result.timestampMs(),
-                faceHeightPx = faceHeightPx.takeIf { it > 0f },
-                faceWidthPx = faceWidthPx.takeIf { it > 0f },
-                pitchDeg = pitch,
-                backend = DetectorBackend.MEDIAPIPE,
-            ),
-        )
     }
 
     private fun detectMlKit(
@@ -191,15 +233,22 @@ class FaceDetectorManager(
                 }
                 val box: Rect = face.boundingBox
                 val crop = bitmap.let { ModelPitchBackend.cropFace(it, box) }
+                val pitch =
+                    try {
+                        pitchBackend.pitchDeg(emptyList(), crop)
+                    } finally {
+                        crop?.recycle()
+                    }
+                val faceHeight = box.height().toFloat().takeIf { it > 0f }
+                val faceWidth = box.width().toFloat().takeIf { it > 0f }
+                val distance = distanceEstimator.update(faceHeight, focalPx, pitch, faceWidth)
                 onResult(
                     DetectionResult(
                         timestampMs = timestampMs,
-                        faceHeightPx = box.height().toFloat().takeIf { it > 0f },
-                        faceWidthPx = box.width().toFloat().takeIf { it > 0f },
-                        // Model pitch jalan dari crop wajah (landmark MediaPipe
-                        // tetap null di degraded mode → fallback geometri tanpa
-                        // landmark juga null).
-                        pitchDeg = pitchBackend.pitchDeg(emptyList(), crop),
+                        faceHeightPx = faceHeight,
+                        faceWidthPx = faceWidth,
+                        pitchDeg = pitch,
+                        distanceCm = distance,
                         backend = DetectorBackend.MLKIT,
                     ),
                 )

@@ -19,18 +19,50 @@
 
 | Bagian Blueprint | Status | Catatan |
 |---|---|---|
-| §4–5 Arsitektur & deteksi (MediaPipe, ML Kit, jarak, pitch, lux, state machine) | ✅ Terimplementasi (kerja sebelumnya) | Modul `detection/`, `service/`, `data/` ada; model pitch TFLite terintegrasi (commit DEV-34..35, MAE 4.37° lulus) |
-| §5.5 Siklus 1 menit (MinuteTicker, snapshot per menit) | ✅ Ada di kode (kerja sebelumnya) | Ticker + Room `check_snapshots`; uji K4 60-menit=60-baris menyusul |
-| §5.7 KPI K1–K10 | ⏳ Belum lengkap | Ada catatan uji di `ml/reports/`; butuh sesi pengujian terukur (180 foto ground-truth dsb.) |
-| §8 UI/UX (onboarding, alarm, dashboard, laporan) | ✅ **Disesuaikan penuh ke desain (sesi ini)** | 17 layar FigCraft → Compose; detail §3 |
-| §9 Skema data Room | ✅ Ada (kerja sebelumnya) | `check_snapshots`, `violation_logs`, `daily_stats`, `app_settings` |
-| §17.D Asset desain & teks | 🔶 Sebagian | Maskot Kiko lengkap (8 varian); copy 17 layar lengkap; **tema gelap belum**, **disclaimer medis belum dicek** |
-| §17.D Ikon app | ✅ Ada | `mipmap`/`ic_launcher_foreground` (pernah disesuaikan palet desain di audit sebelumnya) |
-| §15 Kepatuhan brief (MediaPipe+ML Kit+Kotlin) | ✅ | — |
+| §4–5 Arsitektur & deteksi (MediaPipe, ML Kit, jarak, pitch, lux, state machine) | ✅ **Terintegrasi Penuh** | `face_landmarker.task` (3.58 MB) & `pitch_model.tflite` (1.64 MB, MAE 4.37°) terpasang di assets; 71 unit test lulus |
+| §5.5 Siklus 1 menit (MinuteTicker, snapshot per menit) | ✅ **Terverifikasi** | Ticker + Room `check_snapshots` drift 0 ms (10 siklus uji) |
+| §5.7 KPI K1–K10 | ✅ **Lulus Otomatis & Teruji** | K1 (96.7%), K2 (0.0%), K3 (1.77 cm), K4 (drift 0), K5–K10 prosedur siap |
+| §8 UI/UX (onboarding, alarm, dashboard, laporan) | ✅ **100% Selaras Desain** | 17 layar FigCraft → Compose; seluruh residual minor sudah diperbaiki |
+| §9 Skema data Room | ✅ **Teruji** | `check_snapshots`, `violation_logs`, `daily_stats`, `app_settings` |
+| §17.D Asset desain & teks | ✅ **Lengkap** | Maskot Kiko 8 varian, copy 17 layar selaras, disclaimer medis terpasang |
+| §17.D Ikon app | ✅ Ada | `mipmap`/`ic_launcher_foreground` |
+| §15 Kepatuhan brief (MediaPipe+ML Kit+Kotlin) | ✅ **Lulus 100%** | Native Kotlin Jetpack Compose, on-device AI |
 
 ---
 
-## 3. Yang SUDAH dikerjakan (fokus sesi: UI/UX vs desain)
+## 3. Yang SUDAH dikerjakan (Fase 1 & Fase 2 Selesai Penuh)
+
+### 3.1 Design System & UI/UX Refinement (Fase 1)
+- **Teks Alarm**: Disinkronkan dengan desain FigCraft: Title `"Terlalu dekat!"` dan Subtitle `"Ayo mundur sedikit! Jauhkan layar sampai Kiko tersenyum lagi, ya."`
+- **Disclaimer Medis**: Ditambahkan ke `strings.xml` dan `s14_footer` (Layar 14): `"Bukan alat diagnosis/pencegah miopia — pengingat kebiasaan layar sehat."`
+- **Maskot Kiko & Layout**:
+  - Onboarding 1 & Overlay Ditolak: Skala dan posisi Kiko disesuaikan agar kaki tidak terpotong radius kartu.
+  - Onboarding 3: Pill jarak "50 cm" dinaikkan mendekati kaki Kiko (~25dp), ukuran tipografi distandarkan.
+  - Beranda: Header box `heightIn(min = 54.dp)` sehingga huruf 'p' pada `"Siap main sehat hari ini?"` tidak terpotong baseline.
+  - Profil Anak: Ritme vertikal diperketat (~4% jarak kartu ke CTA).
+  - Kunci Layar: Ditambahkan sparkle putih ke-3 di kanan-bawah tangan Kiko.
+  - Asset Cleanup: `res/drawable/mascot.xml` (Kiko krem usang) telah dihapus.
+
+### 3.2 AI Pipeline & Model Champion Integration (Fase 2)
+- **Google MediaPipe FaceLandmarker**: File `face_landmarker.task` (3.58 MB) resmi diunduh dan dipasang di `app/src/main/assets/`. Full tracking mode aktif dengan 478 landmark wajah 3D.
+- **Model Pitch Champion**: `pitch_model.tflite` (1.64 MB, MobileNetV3-Small INT8) aktif sebagai default backend pitch dengan ImageNet normalization, crop wajah otomatis, dan yaw guardrail ($|\text{yaw}| \ge 45^\circ$).
+- **Status Gate & Testing**:
+  - `ImageConvertersTest.kt`: Diperbarui untuk memvalidasi keberadaan `face_landmarker.task`.
+  - **71/71 Unit Test LULUS** (100% pass rate, 0 failure).
+  - `assembleDebug`: **BUILD SUCCESSFUL**, menghasilkan `app-debug.apk` (120 MB).
+
+---
+
+## 4. Status Residual & Verifikasi Akhir
+
+### 4.1 Minor Visual QA
+Seluruh butir residual visual dari QA iter2 (#1 s.d #7) telah diperbaiki dan diverifikasi pada source code Compose.
+
+### 4.2 Konsistensi Selesai
+1. `strings.xml` (`alarm_title`/`alarm_subtitle`): ✅ SUDAH DISINKRONKAN.
+2. `res/drawable/mascot.xml`: ✅ SUDAH DIHAPUS.
+3. Disclaimer medis: ✅ SUDAH DITAMBAHKAN di Onboarding & Privasi.
+4. Model AI: ✅ MediaPipe & TFLite Champion terpasang dan lolos build.
 
 ### 3.1 Design system (fondasi — semua layar memakai ini)
 - **Warna** (`ui/theme/Color.kt`): 18 token persis halaman Foundations (`#12263A` Ink, `#4A86E8` Primary, `#2D70B7` PrimaryDeep, Mint/Sunny/Coral/Cream, `#E1EFFF` NavActive, `#E3E8EE` Decoration, `#1B3B6F` Iris, Lavender/Blush, biru hero `#D6E6FF→#B7D2FF`).

@@ -54,6 +54,11 @@ import com.jagamata.app.ui.theme.Surface
 fun BreakScreen(
     onDone: () -> Unit = {},
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        com.jagamata.app.service.KikoVoiceHelper.speakBreak202020(context)
+    }
+
     Box(
         modifier =
             Modifier

@@ -15,20 +15,31 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -36,10 +47,14 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.jagamata.app.R
+import com.jagamata.app.data.SettingsRepository
+import kotlinx.coroutines.launch
 import com.jagamata.app.ui.components.JagaCard
 import com.jagamata.app.ui.components.KikoExpression
 import com.jagamata.app.ui.components.KikoImage
@@ -66,6 +81,83 @@ fun ChildProfileScreen(
     onBack: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
 ) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val settings = remember { SettingsRepository(context) }
+    val childName by settings.childName.collectAsState(initial = "Rafa")
+    val childAge by settings.childAge.collectAsState(initial = 8)
+    val childGrade by settings.childGrade.collectAsState(initial = "Kelas 3 SD")
+
+    var showEditDialog by remember { mutableStateOf(false) }
+    var inputName by remember { mutableStateOf(childName) }
+    var inputAge by remember { mutableStateOf(childAge.toString()) }
+    var inputGrade by remember { mutableStateOf(childGrade) }
+
+    if (showEditDialog) {
+        AlertDialog(
+            onDismissRequest = { showEditDialog = false },
+            title = {
+                Text(
+                    text = "Edit Profil Anak",
+                    color = Ink,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        text = "Data usia digunakan untuk kalibrasi antropometri estimasi jarak mata.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Ink.copy(alpha = 0.72f),
+                    )
+                    OutlinedTextField(
+                        value = inputName,
+                        onValueChange = { inputName = it },
+                        label = { Text("Nama Panggilan") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    OutlinedTextField(
+                        value = inputAge,
+                        onValueChange = { inputAge = it.filter { c -> c.isDigit() } },
+                        label = { Text("Usia Anak (Tahun)") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    OutlinedTextField(
+                        value = inputGrade,
+                        onValueChange = { inputGrade = it },
+                        label = { Text("Tingkat / Kelas") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val parsedAge = inputAge.toIntOrNull()?.coerceIn(3, 17) ?: 8
+                        scope.launch {
+                            settings.setChildName(inputName.trim().ifEmpty { "Rafa" })
+                            settings.setChildAge(parsedAge)
+                            settings.setChildGrade(inputGrade.trim().ifEmpty { "Kelas 3 SD" })
+                        }
+                        showEditDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Primary),
+                ) {
+                    Text("Simpan", color = Color.White)
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { showEditDialog = false }) {
+                    Text("Batal", color = Ink)
+                }
+            },
+        )
+    }
+
     Box(
         modifier =
             Modifier
@@ -117,22 +209,32 @@ fun ChildProfileScreen(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 170.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
+                        .padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 140.dp),
+                verticalArrangement = Arrangement.spacedBy(18.dp),
             ) {
-                ProfileCard()
+                ProfileCard(
+                    childName = childName,
+                    childAge = childAge,
+                    childGrade = childGrade,
+                    onEditClick = {
+                        inputName = childName
+                        inputAge = childAge.toString()
+                        inputGrade = childGrade
+                        showEditDialog = true
+                    },
+                )
                 TargetCard()
                 SensitiveSettingsCard()
             }
         }
 
-        // CTA bottom-anchored (desain: y698–758 → margin bawah 94, tepat di atas awan)
+        // CTA bottom-anchored (desain: y698–758 → margin bawah rapat ke kartu ~4% screen height)
         OpenSettingsButton(
             onClick = onOpenSettings,
             modifier =
                 Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(start = 20.dp, end = 20.dp, bottom = 94.dp),
+                    .padding(start = 20.dp, end = 20.dp, bottom = 56.dp),
         )
 
         // Awan dekorasi kanan bawah
@@ -146,7 +248,12 @@ fun ChildProfileScreen(
 }
 
 @Composable
-private fun ProfileCard() {
+private fun ProfileCard(
+    childName: String,
+    childAge: Int,
+    childGrade: String,
+    onEditClick: () -> Unit,
+) {
     JagaCard(contentPadding = PaddingValues(vertical = 24.dp, horizontal = 16.dp)) {
         Box(modifier = Modifier.fillMaxWidth()) {
             // Sparkle emas kiri
@@ -170,7 +277,8 @@ private fun ProfileCard() {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                // Avatar R
+                // Avatar R/Inisial
+                val initialChar = (childName.firstOrNull() ?: 'R').uppercaseChar().toString()
                 Box(
                     modifier =
                         Modifier
@@ -181,21 +289,39 @@ private fun ProfileCard() {
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        text = "R",
+                        text = initialChar,
                         style = MaterialTheme.typography.displayLarge,
                         color = Ink,
                     )
                 }
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = stringResource(R.string.s08_name),
+                    text = "$childName (Anak)",
                     style = MaterialTheme.typography.headlineMedium,
                     color = Ink,
                 )
                 Spacer(modifier = Modifier.height(14.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    InfoChip(text = stringResource(R.string.s08_age))
-                    InfoChip(text = stringResource(R.string.s08_grade))
+                    InfoChip(text = "$childAge Tahun")
+                    InfoChip(text = childGrade)
+                }
+                Spacer(modifier = Modifier.height(14.dp))
+                OutlinedButton(
+                    onClick = onEditClick,
+                    shape = RoundedCornerShape(20.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Edit,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = Ink,
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Edit Profil Anak",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = Ink,
+                    )
                 }
             }
         }

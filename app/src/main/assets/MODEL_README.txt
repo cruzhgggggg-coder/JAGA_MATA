@@ -3,8 +3,10 @@ MODEL MEDIAPIPE — face_landmarker.task
 
 File ini WAJIB ada di app/src/main/assets/face_landmarker.task (PRD §2.20).
 
-Status saat build: BELUM ADA — kode berjalan dalam "degraded mode"
-(fallback ML Kit Face Detection, lihat FaceDetectorManager.kt / F1).
+Status saat ini: TERPASANG ✅ (Full Tracking Mode aktif)
+- File model face_landmarker.task (~3.58 MB) sudah berada di assets.
+- FaceDetectorManager otomatis memakai MediaPipe FaceLandmarker
+  (LIVE_STREAM, 1 wajah, 478 landmark 3D) untuk estimasi jarak dan postur.
 
 CARA MEMASANG MODEL:
 1. Unduh dari Google MediaPipe model maker / storage resmi:

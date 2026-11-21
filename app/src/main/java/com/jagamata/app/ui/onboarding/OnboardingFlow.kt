@@ -12,9 +12,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -142,29 +145,30 @@ private fun OnboardingScaffold(
     activeDot: Int,
     title: String,
     desc: String,
-    titleTopDp: Float,
     ctaText: String,
     onNext: () -> Unit,
     onSkip: () -> Unit,
     hero: @Composable BoxScope.() -> Unit,
 ) {
-    Box(
+    Column(
         modifier =
             Modifier
                 .fillMaxSize()
-                .background(Background),
+                .background(Background)
+                .statusBarsPadding()
+                .navigationBarsPadding(),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+        // Top row: Sparkle + Skip
         Row(
             modifier =
                 Modifier
-                    .align(Alignment.TopStart)
-                    .offset(20.dp, 64.dp)
-                    .width(353.dp)
-                    .height(24.dp),
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            Sparkle(modifier = Modifier.size(14.dp), color = Sunny)
+            Sparkle(modifier = Modifier.size(16.dp), color = Sunny)
             Text(
                 text = stringResource(R.string.ob_skip),
                 style = MaterialTheme.typography.labelLarge,
@@ -173,12 +177,13 @@ private fun OnboardingScaffold(
             )
         }
 
+        // Hero card — fully responsive, centered horizontally
         Box(
             modifier =
                 Modifier
-                    .align(Alignment.TopStart)
-                    .offset(20.dp, 158.5.dp)
-                    .size(353.dp, 360.dp)
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                    .heightIn(min = 280.dp, max = 350.dp)
                     .clip(RoundedCornerShape(24.dp))
                     .background(
                         brush = Brush.verticalGradient(listOf(BlueTint, BlueTintDeep)),
@@ -187,12 +192,14 @@ private fun OnboardingScaffold(
             content = hero,
         )
 
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // Title and Description — centered on any screen width
         Column(
             modifier =
                 Modifier
-                    .align(Alignment.TopStart)
-                    .offset(20.dp, titleTopDp.dp)
-                    .width(353.dp),
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
@@ -210,13 +217,14 @@ private fun OnboardingScaffold(
             )
         }
 
+        Spacer(modifier = Modifier.weight(1f))
+
+        // Dots Indicator — centered
         Row(
             modifier =
                 Modifier
-                    .align(Alignment.TopStart)
-                    .offset(0.dp, 728.dp)
                     .fillMaxWidth()
-                    .height(8.dp),
+                    .padding(bottom = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
         ) {
             repeat(3) { i ->
@@ -232,10 +240,11 @@ private fun OnboardingScaffold(
             }
         }
 
+        // Bottom CTA button
         BottomCtaBar(
             text = ctaText,
             onClick = onNext,
-            modifier = Modifier.align(Alignment.BottomCenter),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
         )
     }
 }
@@ -248,23 +257,29 @@ private fun OnboardingPage1(onNext: () -> Unit, onSkip: () -> Unit) {
         activeDot = 0,
         title = stringResource(R.string.ob1_title),
         desc = stringResource(R.string.ob1_desc),
-        titleTopDp = 559.5f,
         ctaText = stringResource(R.string.ob_next),
         onNext = onNext,
         onSkip = onSkip,
     ) {
         SpeechBubble(
             text = stringResource(R.string.ob1_bubble),
-            modifier = Modifier.offset(24.dp, 24.dp),
+            modifier =
+                Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 16.dp, start = 16.dp, end = 16.dp),
         )
         KikoImage(
             expression = KikoExpression.SENANG,
-            modifier = Modifier.offset(66.7.dp, 115.3.dp).size(220.9.dp, 231.7.dp),
+            modifier =
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 8.dp)
+                    .size(200.dp, 210.dp),
         )
-        Sparkle(modifier = Modifier.offset(35.8.dp, 151.9.dp).size(18.dp), color = Color.White)
-        Sparkle(modifier = Modifier.offset(301.3.dp, 141.4.dp).size(13.dp), color = Color.White)
-        Sparkle(modifier = Modifier.offset(287.2.dp, 291.2.dp).size(12.dp), color = Color.White)
-        Cloud(Modifier.offset(282.4.dp, 313.9.dp).size(69.2.dp, 38.2.dp))
+        Sparkle(modifier = Modifier.align(Alignment.TopStart).padding(start = 24.dp, top = 110.dp).size(18.dp), color = Color.White)
+        Sparkle(modifier = Modifier.align(Alignment.TopEnd).padding(end = 24.dp, top = 100.dp).size(14.dp), color = Color.White)
+        Sparkle(modifier = Modifier.align(Alignment.BottomStart).padding(start = 16.dp, bottom = 40.dp).size(12.dp), color = Color.White)
+        Cloud(Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 16.dp).size(60.dp, 34.dp))
     }
 }
 
@@ -276,48 +291,51 @@ private fun OnboardingPage2(onNext: () -> Unit, onSkip: () -> Unit) {
         activeDot = 1,
         title = stringResource(R.string.ob2_title),
         desc = stringResource(R.string.ob2_desc),
-        titleTopDp = 576f,
         ctaText = stringResource(R.string.ob_next),
         onNext = onNext,
         onSkip = onSkip,
     ) {
         KikoImage(
             expression = KikoExpression.SENANG,
-            modifier = Modifier.offset(97.dp, 19.5.dp).size(159.dp, 167.dp),
+            modifier =
+                Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 12.dp)
+                    .size(136.dp, 144.dp),
         )
         Row(
             modifier =
                 Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(start = 17.dp, end = 17.dp, bottom = 10.dp)
+                    .align(Alignment.BottomCenter)
+                    .padding(horizontal = 12.dp, vertical = 10.dp)
                     .fillMaxWidth()
-                    .height(152.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    .height(140.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             StatCard(
                 modifier = Modifier.weight(1f),
-                icon = { Icon(Icons.Filled.Schedule, null, tint = Ink, modifier = Modifier.size(22.dp)) },
+                icon = { Icon(Icons.Filled.Schedule, null, tint = Ink, modifier = Modifier.size(20.dp)) },
                 iconColor = Sunny,
                 value = stringResource(R.string.ob2_value_1),
                 label = stringResource(R.string.ob2_label_1),
             )
             StatCard(
                 modifier = Modifier.weight(1f),
-                icon = { Icon(Icons.Filled.Visibility, null, tint = Ink, modifier = Modifier.size(22.dp)) },
+                icon = { Icon(Icons.Filled.Visibility, null, tint = Ink, modifier = Modifier.size(20.dp)) },
                 iconColor = Mint,
                 value = stringResource(R.string.ob2_value_2),
                 label = stringResource(R.string.ob2_label_2),
             )
             StatCard(
                 modifier = Modifier.weight(1f),
-                icon = { Icon(Icons.Filled.Pause, null, tint = Ink, modifier = Modifier.size(22.dp)) },
+                icon = { Icon(Icons.Filled.Pause, null, tint = Ink, modifier = Modifier.size(20.dp)) },
                 iconColor = Lavender,
                 value = stringResource(R.string.ob2_value_3),
                 label = stringResource(R.string.ob2_label_3),
             )
         }
-        Cloud(Modifier.offset(0.dp, 366.dp).size(69.2.dp, 38.2.dp))
-        Sparkle(modifier = Modifier.offset(320.dp, 380.dp).size(14.dp), color = Sunny)
+        Cloud(Modifier.align(Alignment.TopStart).padding(start = 12.dp, top = 20.dp).size(50.dp, 28.dp))
+        Sparkle(modifier = Modifier.align(Alignment.TopEnd).padding(end = 16.dp, top = 24.dp).size(14.dp), color = Sunny)
     }
 }
 
@@ -332,16 +350,16 @@ private fun StatCard(
     Column(
         modifier =
             modifier
-                .height(152.dp)
+                .height(140.dp)
                 .background(Surface, RoundedCornerShape(16.dp))
-                .padding(top = 12.dp),
+                .padding(top = 10.dp, start = 4.dp, end = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box(
             modifier =
                 Modifier
-                    .size(40.dp)
-                    .background(iconColor, RoundedCornerShape(20.dp)),
+                    .size(36.dp)
+                    .background(iconColor, RoundedCornerShape(18.dp)),
             contentAlignment = Alignment.Center,
             content = { icon() },
         )
@@ -352,7 +370,7 @@ private fun StatCard(
             color = Ink,
             textAlign = TextAlign.Center,
         )
-        Spacer(Modifier.height(7.dp))
+        Spacer(Modifier.height(4.dp))
         Text(
             text = label,
             style = MaterialTheme.typography.bodySmall,
@@ -370,51 +388,55 @@ private fun OnboardingPage3(onNext: () -> Unit, onSkip: () -> Unit) {
         activeDot = 2,
         title = stringResource(R.string.ob3_title),
         desc = stringResource(R.string.ob3_desc),
-        titleTopDp = 553f,
         ctaText = stringResource(R.string.ob_start),
         onNext = onNext,
         onSkip = onSkip,
     ) {
         KikoImage(
             expression = KikoExpression.SENANG_KACAMATA,
-            modifier = Modifier.offset(77.dp, 26.dp).size(199.dp, 212.dp),
+            modifier =
+                Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 16.dp)
+                    .size(175.dp, 185.dp),
         )
         Row(
             modifier =
                 Modifier
-                    .offset(57.dp, 255.5.dp)
-                    .size(240.dp, 56.dp)
-                    .background(Surface, RoundedCornerShape(28.dp))
-                    .padding(start = 16.dp, end = 14.dp),
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 20.dp)
+                    .height(52.dp)
+                    .background(Surface, RoundedCornerShape(26.dp))
+                    .padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
-                modifier = Modifier.size(40.dp).background(Mint, RoundedCornerShape(20.dp)),
+                modifier = Modifier.size(36.dp).background(Mint, RoundedCornerShape(18.dp)),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     Icons.Outlined.Straighten,
                     null,
                     tint = Ink,
-                    modifier = Modifier.size(22.dp).rotate(-45f),
+                    modifier = Modifier.size(20.dp).rotate(-45f),
                 )
             }
-            Spacer(Modifier.width(4.dp))
+            Spacer(Modifier.width(8.dp))
             Text(
                 text = stringResource(R.string.ob3_badge_value),
                 style = MaterialTheme.typography.displayMedium,
                 color = Ink,
                 maxLines = 1,
             )
-            Spacer(Modifier.width(4.dp))
+            Spacer(Modifier.width(6.dp))
             Text(
                 text = stringResource(R.string.ob3_badge_label),
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.bodyMedium,
                 color = InkSoft,
                 maxLines = 1,
             )
         }
-        Cloud(Modifier.offset(300.dp, 345.dp).size(69.2.dp, 38.2.dp))
-        Sparkle(modifier = Modifier.offset(30.dp, 372.dp).size(14.dp), color = Sunny)
+        Cloud(Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 12.dp).size(54.dp, 30.dp))
+        Sparkle(modifier = Modifier.align(Alignment.TopStart).padding(start = 20.dp, top = 30.dp).size(14.dp), color = Sunny)
     }
 }

@@ -98,7 +98,7 @@ fun OverlayDenied(onFallbackNotification: () -> Unit = {}) {
             )
             KikoImage(
                 expression = KikoExpression.SENANG,
-                modifier = Modifier.offset(66.7.dp, 115.3.dp).size(220.9.dp, 231.7.dp),
+                modifier = Modifier.offset(71.5.dp, 110.dp).size(210.dp, 220.dp),
             )
             Sparkle(modifier = Modifier.offset(35.8.dp, 151.9.dp).size(18.dp), color = Color.White)
             Sparkle(modifier = Modifier.offset(301.3.dp, 141.4.dp).size(13.dp), color = Color.White)

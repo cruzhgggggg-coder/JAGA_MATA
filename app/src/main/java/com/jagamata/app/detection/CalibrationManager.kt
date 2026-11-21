@@ -28,7 +28,9 @@ class CalibrationManager(
             recentSamples.removeFirst()
         }
         if (!isStable()) return null
-        return focalPxFromCalibration(faceHeightPx)
+        // Gunakan rata-rata tinggi wajah selama window stabil agar minim noise kamera
+        val avgHeight = recentSamples.map { it.second }.average().toFloat()
+        return focalPxFromCalibration(avgHeight)
     }
 
     fun isStable(): Boolean {
@@ -50,7 +52,7 @@ class CalibrationManager(
         const val TARGET_DISTANCE_CM = 30f
         const val REFERENCE_FACE_HEIGHT_CM = 15f
         const val STABILITY_MS = 1500L
-        const val DEFAULT_TOLERANCE_PX = 8f
+        const val DEFAULT_TOLERANCE_PX = 18f
 
         /** Rumus PRD: f_px = h_px_kalib × 30 / 15. */
         fun focalPxFromCalibration(calibrationFaceHeightPx: Float): Float = calibrationFaceHeightPx * targetRatio()

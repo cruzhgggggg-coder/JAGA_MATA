@@ -45,10 +45,10 @@ class ModelPitchBackend(
         return try {
             synchronized(lock) {
                 val input = preprocess(faceCrop) ?: return null
-                val output = FloatArray(3)
+                val output = Array(1) { FloatArray(3) }
                 interp.run(input, output)
-                val pitch = output[0]
-                val yaw = output[1]
+                val pitch = output[0][0]
+                val yaw = output[0][1]
                 if (abs(yaw) >= YAW_GUARDRAIL_DEG) {
                     // Kepala menoleh jauh dari layar — pitch tidak dipercaya.
                     null
@@ -150,14 +150,25 @@ class ModelPitchBackend(
         private fun loadModelFile(
             context: Context,
             assetName: String,
-        ): MappedByteBuffer {
-            context.assets.open(assetName).use { input ->
-                val channel = (input as FileInputStream).channel
-                return channel.map(
+        ): ByteBuffer {
+            return try {
+                val fileDescriptor = context.assets.openFd(assetName)
+                val inputStream = FileInputStream(fileDescriptor.fileDescriptor)
+                val fileChannel = inputStream.channel
+                fileChannel.map(
                     FileChannel.MapMode.READ_ONLY,
-                    0,
-                    channel.size(),
+                    fileDescriptor.startOffset,
+                    fileDescriptor.declaredLength,
                 )
+            } catch (_: Throwable) {
+                // Fallback direct buffer untuk lingkungan JVM / Robolectric
+                context.assets.open(assetName).use { input ->
+                    val bytes = input.readBytes()
+                    val direct = ByteBuffer.allocateDirect(bytes.size).order(ByteOrder.nativeOrder())
+                    direct.put(bytes)
+                    direct.rewind()
+                    direct
+                }
             }
         }
 

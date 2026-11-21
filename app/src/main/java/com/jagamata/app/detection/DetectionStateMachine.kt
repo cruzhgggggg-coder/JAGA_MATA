@@ -16,8 +16,25 @@ package com.jagamata.app.detection
  * tampil di rentang 30–50 cm. Terdokumentasi di ASSUMPTION LOG.
  */
 class DetectionStateMachine(
-    private val config: Config = Config(),
+    config: Config = Config(),
 ) {
+    var config: Config = config
+        private set
+
+    fun updateThresholds(
+        closeEnterCm: Float? = null,
+        closeExitCm: Float? = null,
+        pitchThresholdDeg: Float? = null,
+        luxThreshold: Float? = null,
+    ) {
+        config = config.copy(
+            closeEnterCm = closeEnterCm ?: config.closeEnterCm,
+            closeExitCm = closeExitCm ?: config.closeExitCm,
+            pitchThresholdDeg = pitchThresholdDeg ?: config.pitchThresholdDeg,
+            luxThreshold = luxThreshold ?: config.luxThreshold,
+        )
+    }
+
     data class Config(
         val closeEnterCm: Float = 30f,
         val closeExitCm: Float = 35f,

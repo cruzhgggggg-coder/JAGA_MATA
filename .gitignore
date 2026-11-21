@@ -1,40 +1,84 @@
-# Gradle
+# Gradle & Build Output
 .gradle/
 build/
+app/build/
 !gradle/wrapper/gradle-wrapper.jar
 local.properties
 
-# Android Studio / IntelliJ
+# Android Studio / IntelliJ / VSCode
 .idea/
 *.iml
 captures/
 .externalNativeBuild/
 .cxx/
+.vscode/
 
-# OS
+# OS & Temp
 .DS_Store
 Thumbs.db
+*.tmp
+*.bak
+*.swp
 
-# Python
+# Python & ML Environments
 __pycache__/
 *.pyc
+.venv/
+venv/
+env/
+*.egg-info/
 
-# Keystore (jangan commit)
+# Keystore (Security)
 *.jks
 *.keystore
 keystore/
 
-# Output build lokal
+# Build Outputs & APKs
 app/release/
 outputs/
+*.apk
+*.aab
 
-# Artefak kerja agent
+# AI Agents & Automation Directories
+.agents/
+.agents
+.gemini/
+.claude/
+.cursor/
+.mcp.json
+.mcp/
+mcp/
+.mimocode/*
+!.mimocode/design_refs/
+
+# Datasets & Large Raw Data
+dataset/
+datasets/
+AFLW2000/
+MyopiaStudy/
+UTKFace/
+Wider Face/
+wider_face/
+*.tar.gz
+*.tar
+*.zip
+*.7z
+*.rar
+
+# Design Assets & External Reference Docs
+*.fig
+JagaMata_v2.fig/
+Blueprint_JagaMata_Lengkap_v2.pdf
+PANDUAN_TRAINING_ML_JagaMata.pdf
+PANDUAN_TRAINING_ML_SISA4_Dataset.pdf
+
+# Logs & Artefak Kerja
 build_log.txt
 ktlint_log.txt
 detekt_log.txt
 lint_log.txt
+lint_log2.txt
 prd_extracted.txt
-
-# Workspace agent (scratch/scripts/tmp) — TAPI simpan bukti QA & referensi desain
-.mimocode/*
-!.mimocode/design_refs/
+final_log.txt
+release_log.txt
+test_log.txt

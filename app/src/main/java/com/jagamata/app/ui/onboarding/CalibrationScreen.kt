@@ -1,5 +1,7 @@
 package com.jagamata.app.ui.onboarding
 
+import java.util.Locale
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -36,6 +38,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -84,6 +87,8 @@ fun CalibrationScreen(
     onStart: () -> Unit,
     onRetry: () -> Unit,
     onNext: () -> Unit,
+    distanceCm: Float? = null,
+    onBack: () -> Unit = {},
 ) {
     Column(
         modifier =
@@ -94,14 +99,15 @@ fun CalibrationScreen(
                 .verticalScroll(rememberScrollState())
                 .navigationBarsPadding(),
     ) {
-        TitleRow()
+        TitleRow(onBack = onBack)
         Spacer(modifier = Modifier.height(14.dp))
-        CalibrationStageCard()
+        CalibrationStageCard(distanceCm = distanceCm)
         Spacer(modifier = Modifier.height(14.dp))
-        GaugeCard()
+        GaugeCard(distanceCm = distanceCm, isCalibrated = isCalibrated)
         Spacer(modifier = Modifier.height(18.dp))
         ProgressCard(
             faceHeightPx = faceHeightPx,
+            distanceCm = distanceCm,
             progress = progress,
             isCalibrated = isCalibrated,
             onStart = onStart,
@@ -114,14 +120,16 @@ fun CalibrationScreen(
 
 /** Judul H1 + kilau kuning + pill instruksi yang menempel tepi kanan. */
 @Composable
-private fun TitleRow() {
+private fun TitleRow(onBack: () -> Unit = {}) {
     Row(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .padding(start = 20.dp, top = 11.dp),
+                .padding(start = 20.dp, end = 20.dp, top = 11.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        com.jagamata.app.ui.parent.BackCircle(onBack = onBack)
+        Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = stringResource(R.string.s12_title),
             style = MaterialTheme.typography.headlineMedium,
@@ -164,7 +172,7 @@ private fun InstructionPill() {
 
 /** Kartu panggung biru #B7D2FF: penggaris, wajah–52 cm–HP, maskot. */
 @Composable
-private fun CalibrationStageCard() {
+private fun CalibrationStageCard(distanceCm: Float? = null) {
     Box(
         modifier =
             Modifier
@@ -183,7 +191,7 @@ private fun CalibrationStageCard() {
                     .align(Alignment.TopStart)
                     .padding(start = 317.dp, top = 28.dp),
         )
-        MeasurementDial()
+        MeasurementDial(distanceCm = distanceCm)
         Box(
             modifier =
                 Modifier
@@ -238,7 +246,7 @@ private fun BoxScope.RulerHintPill() {
 
 /** Kotak putus-putus + wajah + garis titik-titik "52 cm" + ikon HP. */
 @Composable
-private fun BoxScope.MeasurementDial() {
+private fun BoxScope.MeasurementDial(distanceCm: Float? = null) {
     Canvas(
         modifier =
             Modifier
@@ -306,8 +314,11 @@ private fun BoxScope.MeasurementDial() {
                 .background(Surface),
         contentAlignment = Alignment.Center,
     ) {
+        val distText =
+            distanceCm?.let { String.format(Locale.US, "%.0f cm", it) }
+                ?: stringResource(R.string.s12_distance)
         Text(
-            text = stringResource(R.string.s12_distance),
+            text = distText,
             style = MaterialTheme.typography.bodySmall,
             color = Ink,
         )
@@ -333,7 +344,17 @@ private fun BoxScope.MeasurementDial() {
 
 /** Kartu gauge: busur 3 segmen + "Target 30 cm" + banner stabil + langkah. */
 @Composable
-private fun GaugeCard() {
+private fun GaugeCard(
+    distanceCm: Float? = null,
+    isCalibrated: Boolean = false,
+) {
+    val displayDist =
+        distanceCm?.let { String.format(Locale.US, "%.0f cm", it) }
+            ?: stringResource(R.string.s12_target)
+    val displaySub =
+        if (distanceCm != null) "target kalibrasi: 30 cm"
+        else stringResource(R.string.s12_target_sub)
+
     JagaCard(contentPadding = PaddingValues(0.dp)) {
         Box(
             modifier =
@@ -341,9 +362,9 @@ private fun GaugeCard() {
                     .fillMaxWidth()
                     .height(146.dp),
         ) {
-            GaugeCanvas()
+            GaugeCanvas(distanceCm = distanceCm)
             Text(
-                text = stringResource(R.string.s12_target),
+                text = displayDist,
                 style = MaterialTheme.typography.headlineMedium,
                 color = Ink,
                 modifier =
@@ -352,7 +373,7 @@ private fun GaugeCard() {
                         .padding(top = 86.dp),
             )
             Text(
-                text = stringResource(R.string.s12_target_sub),
+                text = displaySub,
                 style = MaterialTheme.typography.bodySmall,
                 color = Ink,
                 modifier =
@@ -362,7 +383,7 @@ private fun GaugeCard() {
             )
         }
         Spacer(modifier = Modifier.height(16.dp))
-        StableBanner()
+        StableBanner(isCalibrated = isCalibrated)
         Spacer(modifier = Modifier.height(10.dp))
         StepRow()
         Spacer(modifier = Modifier.height(12.dp))
@@ -382,7 +403,11 @@ private const val GAUGE_MAX_CM = 65f
  * 253°–287°, mint 300°–360° (sudut Android, celah 13° antar segmen).
  */
 @Composable
-private fun GaugeCanvas() {
+private fun GaugeCanvas(distanceCm: Float? = null) {
+    val animatedDist by animateFloatAsState(
+        targetValue = distanceCm ?: 30f,
+        label = "calibKnob",
+    )
     Canvas(modifier = Modifier.fillMaxSize()) {
         val stroke = Stroke(width = 18.dp.toPx(), cap = StrokeCap.Round)
         val diameter = 200.dp.toPx()
@@ -418,14 +443,14 @@ private fun GaugeCanvas() {
         )
         val knobCenter =
             gaugeKnobPosition(
-                distanceCm = DUMMY_DISTANCE_CM,
+                distanceCm = animatedDist,
                 center = center,
                 radiusPx = 100.dp.toPx(),
             )
-        drawCircle(color = Surface, radius = 13.dp.toPx(), center = knobCenter)
+        drawCircle(color = Surface, radius = 12.dp.toPx(), center = knobCenter)
         drawCircle(
             color = Ink,
-            radius = 11.dp.toPx(),
+            radius = 14.dp.toPx(),
             center = knobCenter,
             style = Stroke(width = 4.dp.toPx()),
         )
@@ -433,7 +458,13 @@ private fun GaugeCanvas() {
 }
 
 @Composable
-private fun StableBanner() {
+private fun StableBanner(isCalibrated: Boolean = false) {
+    val (text, bg) =
+        if (isCalibrated) {
+            stringResource(R.string.s12_stable) to Mint
+        } else {
+            "Pegang stabil 30 cm selama 1,5 detik" to SurfaceAlt
+        }
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.Center,
@@ -441,7 +472,7 @@ private fun StableBanner() {
         Row(
             modifier =
                 Modifier
-                    .background(Mint, RoundedCornerShape(17.dp))
+                    .background(bg, RoundedCornerShape(17.dp))
                     .padding(start = 16.dp, end = 12.dp, top = 8.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -453,7 +484,7 @@ private fun StableBanner() {
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = stringResource(R.string.s12_stable),
+                text = text,
                 style = MaterialTheme.typography.bodySmall,
                 color = Ink,
             )
@@ -503,6 +534,7 @@ private fun ProgressCard(
     onStart: () -> Unit,
     onRetry: () -> Unit,
     onNext: () -> Unit,
+    distanceCm: Float? = null,
 ) {
     val percent = (progress.coerceIn(0f, 1f) * 100f).toInt()
     JagaCard(
@@ -543,11 +575,19 @@ private fun ProgressCard(
                         color = Ink,
                     )
                     if (faceHeightPx != null) {
+                        val distInfo = distanceCm?.let { " · Jarak: %.0f cm".format(it) } ?: ""
                         Text(
                             text =
                                 stringResource(R.string.calib_face_height) +
                                     ": " +
-                                    "%.0f px".format(faceHeightPx),
+                                    "%.0f px".format(faceHeightPx) +
+                                    distInfo,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = InkSoft,
+                        )
+                    } else {
+                        Text(
+                            text = "Arahkan kamera ke wajah...",
                             style = MaterialTheme.typography.bodySmall,
                             color = InkSoft,
                         )

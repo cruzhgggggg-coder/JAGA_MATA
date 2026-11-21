@@ -1,5 +1,8 @@
 package com.jagamata.app.ui.live
 
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -17,20 +20,34 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.Check
-import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.DarkMode
+import androidx.compose.material.icons.outlined.Face
+import androidx.compose.material.icons.outlined.LightMode
 import androidx.compose.material.icons.outlined.Pause
 import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.SentimentSatisfiedAlt
 import androidx.compose.material.icons.outlined.Smartphone
+import androidx.compose.material.icons.outlined.Straighten
+import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -42,10 +59,18 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import com.jagamata.app.R
+import com.jagamata.app.detection.RiskLevel
+import com.jagamata.app.service.DetectionForegroundService
+import java.util.Locale
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import com.jagamata.app.ui.child.DesignSparkle
 import com.jagamata.app.ui.components.KikoExpression
 import com.jagamata.app.ui.components.KikoImage
@@ -74,6 +99,40 @@ fun PantauLiveScreen(
     initialTab: Int = 1,
     onPauseToggle: () -> Unit = {},
 ) {
+    val context = LocalContext.current
+    val isRunning by DetectionForegroundService.isRunning.collectAsState()
+    val latest by DetectionForegroundService.latest.collectAsState()
+    val riskLevel by DetectionForegroundService.riskLevel.collectAsState()
+
+    val sessionStart = DetectionForegroundService.sessionStartEpochMs
+    var elapsedSeconds by remember {
+        mutableLongStateOf(
+            if (isRunning && sessionStart > 0L) {
+                ((System.currentTimeMillis() - sessionStart) / 1000L).coerceAtLeast(0L)
+            } else 0L,
+        )
+    }
+    LaunchedEffect(isRunning, sessionStart) {
+        if (isRunning) {
+            val startEpoch = if (sessionStart > 0L) sessionStart else System.currentTimeMillis()
+            while (isActive) {
+                elapsedSeconds = ((System.currentTimeMillis() - startEpoch) / 1000L).coerceAtLeast(0L)
+                delay(1000L)
+            }
+        } else {
+            elapsedSeconds = 0L
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        val hasCamera =
+            ContextCompat.checkSelfPermission(context, android.Manifest.permission.CAMERA) ==
+                android.content.pm.PackageManager.PERMISSION_GRANTED
+        if (hasCamera && !DetectionForegroundService.isRunning.value) {
+            DetectionForegroundService.start(context)
+        }
+    }
+
     Box(
         modifier =
             Modifier
@@ -85,16 +144,23 @@ fun PantauLiveScreen(
                 Modifier
                     .fillMaxSize()
                     .statusBarsPadding()
+                    .verticalScroll(rememberScrollState())
                     .padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 100.dp),
         ) {
-            PantauHeader()
+            PantauHeader(isRunning = isRunning)
             Spacer(modifier = Modifier.height(14.dp))
-            PreviewCard()
+            PreviewCard(distanceCm = latest?.distanceCm, riskLevel = riskLevel)
             Spacer(modifier = Modifier.height(14.dp))
-            GaugeCard()
+            GaugeCard(distanceCm = latest?.distanceCm, riskLevel = riskLevel)
             Spacer(modifier = Modifier.height(14.dp))
-            TimeCard(onPauseToggle = onPauseToggle)
-            Spacer(modifier = Modifier.weight(1f))
+            LightConditionCard(lux = latest?.lux)
+            Spacer(modifier = Modifier.height(14.dp))
+            TimeCard(
+                isRunning = isRunning,
+                elapsedSeconds = elapsedSeconds,
+                onPauseToggle = onPauseToggle,
+            )
+            Spacer(modifier = Modifier.height(16.dp))
         }
         BottomNavBar(
             items = jagaBottomNavItems(),
@@ -105,9 +171,9 @@ fun PantauLiveScreen(
     }
 }
 
-/** Header 03: judul + kilau + pill "Sedang memantau". */
+/** Header 03: judul + kilau + pill status memantau. */
 @Composable
-private fun PantauHeader() {
+private fun PantauHeader(isRunning: Boolean) {
     Row(
         modifier = Modifier.fillMaxWidth().height(32.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -122,16 +188,18 @@ private fun PantauHeader() {
             modifier = Modifier.offset(y = 5.dp).size(11.7.dp),
         )
         Spacer(modifier = Modifier.weight(1f))
-        MonitoringPill()
+        MonitoringPill(isRunning = isRunning)
     }
 }
 
 @Composable
-private fun MonitoringPill() {
+private fun MonitoringPill(isRunning: Boolean) {
+    val bg = if (isRunning) Mint else Sunny
+    val label = if (isRunning) stringResource(R.string.s03_monitoring) else "Dijeda"
     Row(
         modifier =
             Modifier
-                .background(Mint, RoundedCornerShape(13.dp))
+                .background(bg, RoundedCornerShape(13.dp))
                 .padding(start = 10.dp, end = 12.dp, top = 6.dp, bottom = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -143,7 +211,7 @@ private fun MonitoringPill() {
         )
         Spacer(modifier = Modifier.width(6.dp))
         Text(
-            text = stringResource(R.string.s03_monitoring),
+            text = label,
             style = MaterialTheme.typography.labelSmall,
             color = Ink,
         )
@@ -152,7 +220,19 @@ private fun MonitoringPill() {
 
 /** Kartu pratinjau kamera (353×240, biru): pill, wajah, badge jarak, Kiko. */
 @Composable
-private fun PreviewCard() {
+private fun PreviewCard(
+    distanceCm: Float?,
+    riskLevel: RiskLevel,
+) {
+    val distText =
+        distanceCm?.let { String.format(Locale.US, "%.0f cm", it) }
+            ?: "-- cm"
+    val kikoExpr =
+        when (riskLevel) {
+            RiskLevel.OK -> KikoExpression.FOKUS_PENGARIS
+            RiskLevel.WARNING -> KikoExpression.KAGET
+            RiskLevel.BLOCKED -> KikoExpression.KAGET
+        }
     Box(
         modifier =
             Modifier
@@ -246,7 +326,7 @@ private fun PreviewCard() {
             contentAlignment = Alignment.Center,
         ) {
             Text(
-                text = stringResource(R.string.s03_distance_badge),
+                text = distText,
                 style = MaterialTheme.typography.bodySmall,
                 color = Ink,
             )
@@ -272,7 +352,7 @@ private fun PreviewCard() {
                     .align(Alignment.BottomEnd)
                     .offset(x = (-11).dp)
                     .size(width = 88.5.dp, height = 94.25.dp),
-            expression = KikoExpression.FOKUS_PENGARIS,
+            expression = kikoExpr,
         )
         DesignSparkle(
             modifier =
@@ -287,12 +367,45 @@ private fun PreviewCard() {
 
 /** Kartu gauge 03 (353×262): busur 3 zona + nilai jarak + pill + baris skala. */
 @Composable
-private fun GaugeCard() {
+private fun GaugeCard(
+    distanceCm: Float?,
+    riskLevel: RiskLevel,
+) {
+    val distText =
+        distanceCm?.let { String.format(Locale.US, "%.0f cm", it) }
+            ?: "-- cm"
+    val (statusText, statusBg, statusIcon) =
+        when {
+            distanceCm == null ->
+                Triple("Mencari wajah...", SurfaceAlt, Icons.Outlined.Face)
+            riskLevel == RiskLevel.OK ->
+                Triple(stringResource(R.string.s03_status_pill), Mint, Icons.Outlined.Check)
+            riskLevel == RiskLevel.WARNING ->
+                Triple("Mulai terlalu dekat! ⚠️", Sunny, Icons.Outlined.WarningAmber)
+            else ->
+                Triple("Terlalu dekat! Mundur ya ✋", Coral, Icons.Outlined.Close)
+        }
+    val targetAngleDeg =
+        when {
+            distanceCm == null -> 314.0
+            distanceCm < 30f -> 180.0 + ((distanceCm.coerceIn(10f, 30f) - 10.0) / 20.0) * 60.0
+            distanceCm < 45f -> 253.0 + ((distanceCm - 30.0) / 15.0) * 34.0
+            else -> 300.0 + ((distanceCm.coerceAtMost(75f) - 45.0) / 30.0) * 60.0
+        }
+    val animatedAngle by animateFloatAsState(
+        targetValue = targetAngleDeg.toFloat(),
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow,
+        ),
+        label = "gaugeKnobAngle",
+    )
+
     JagaCard(
         contentPadding = PaddingValues(16.dp),
     ) {
         Box(
-            modifier = Modifier.fillMaxWidth().height(129.dp),
+            modifier = Modifier.fillMaxWidth().height(132.dp),
         ) {
             Canvas(
                 modifier =
@@ -318,8 +431,8 @@ private fun GaugeCard() {
                 )
                 drawArc(
                     color = Sunny,
-                    startAngle = 249f,
-                    sweepAngle = 33f,
+                    startAngle = 253f,
+                    sweepAngle = 34f,
                     useCenter = false,
                     topLeft = arcTopLeft,
                     size = arcSize,
@@ -327,22 +440,22 @@ private fun GaugeCard() {
                 )
                 drawArc(
                     color = Mint,
-                    startAngle = 295f,
-                    sweepAngle = 65f,
+                    startAngle = 300f,
+                    sweepAngle = 60f,
                     useCenter = false,
                     topLeft = arcTopLeft,
                     size = arcSize,
                     style = Stroke(width = stroke, cap = StrokeCap.Round),
                 )
-                // penanda putus di posisi 52 cm (320°)
-                val angle = Math.toRadians(320.0)
+                // penanda knob halus di posisi dinamis
+                val angle = Math.toRadians(animatedAngle.toDouble())
                 val knobX = cx + (r * cos(angle)).toFloat()
                 val knobY = cy + (r * sin(angle)).toFloat()
                 val knobCenter = Offset(knobX, knobY)
-                drawCircle(Color.White, radius = 13.dp.toPx(), center = knobCenter)
+                drawCircle(Color.White, radius = 12.dp.toPx(), center = knobCenter)
                 drawCircle(
                     Ink,
-                    radius = 15.dp.toPx(),
+                    radius = 14.dp.toPx(),
                     center = knobCenter,
                     style = Stroke(4.dp.toPx()),
                 )
@@ -351,53 +464,61 @@ private fun GaugeCard() {
                 modifier =
                     Modifier
                         .align(Alignment.TopCenter)
-                        .offset(y = 68.dp),
+                        .offset(y = 66.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(
-                    text = stringResource(R.string.s03_distance_value),
-                    style = MaterialTheme.typography.displayMedium,
+                    text = distText,
+                    style = MaterialTheme.typography.displayMedium.copy(fontWeight = FontWeight.Bold),
                     color = Ink,
                 )
                 Text(
                     text = stringResource(R.string.s03_distance_caption),
                     style = MaterialTheme.typography.bodySmall,
                     color = Ink.copy(alpha = 0.72f),
-                    modifier = Modifier.padding(top = 3.dp),
+                    modifier = Modifier.padding(top = 2.dp),
                 )
             }
         }
-        Spacer(modifier = Modifier.height(17.dp))
+        Spacer(modifier = Modifier.height(14.dp))
         Box(
             modifier = Modifier.fillMaxWidth(),
             contentAlignment = Alignment.Center,
         ) {
-            StatusPillChecked()
+            StatusPillChecked(
+                text = statusText,
+                background = statusBg,
+                icon = statusIcon,
+            )
         }
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(12.dp))
         ScaleRow()
     }
 }
 
 @Composable
-private fun StatusPillChecked() {
+private fun StatusPillChecked(
+    text: String = stringResource(R.string.s03_status_pill),
+    background: Color = Mint,
+    icon: ImageVector = Icons.Outlined.Check,
+) {
     Row(
         modifier =
             Modifier
-                .background(Mint, RoundedCornerShape(17.dp))
-                .padding(horizontal = 12.dp, vertical = 8.dp),
+                .background(background, RoundedCornerShape(17.dp))
+                .padding(horizontal = 14.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
-            imageVector = Icons.Outlined.Check,
+            imageVector = icon,
             contentDescription = null,
-            modifier = Modifier.size(12.dp),
+            modifier = Modifier.size(14.dp),
             tint = Ink,
         )
         Spacer(modifier = Modifier.width(8.dp))
         Text(
-            text = stringResource(R.string.s03_status_pill),
-            style = MaterialTheme.typography.bodySmall,
+            text = text,
+            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
             color = Ink,
         )
     }
@@ -407,29 +528,29 @@ private fun StatusPillChecked() {
 @Composable
 private fun ScaleRow() {
     Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(11.dp, Alignment.CenterHorizontally),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+        horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         ScaleCircle(
             size = 40.dp,
             background = SurfaceAlt,
             icon = Icons.Outlined.SentimentSatisfiedAlt,
-            iconSize = 20.dp,
+            iconSize = 22.dp,
         )
-        DottedConnector(width = 76.5.dp)
+        DottedConnector(modifier = Modifier.weight(1f).padding(horizontal = 8.dp))
         ScaleCircle(
             size = 36.dp,
             background = Sunny,
-            icon = Icons.Outlined.Edit,
+            icon = Icons.Outlined.Straighten,
             iconSize = 18.dp,
         )
-        DottedConnector(width = 76.5.dp)
+        DottedConnector(modifier = Modifier.weight(1f).padding(horizontal = 8.dp))
         ScaleCircle(
             size = 40.dp,
             background = SurfaceAlt,
             icon = Icons.Outlined.Smartphone,
-            iconSize = 20.dp,
+            iconSize = 22.dp,
         )
     }
 }
@@ -458,9 +579,9 @@ private fun ScaleCircle(
 }
 
 @Composable
-private fun DottedConnector(width: Dp) {
+private fun DottedConnector(modifier: Modifier = Modifier) {
     Canvas(
-        modifier = Modifier.size(width = width, height = 4.dp),
+        modifier = modifier.height(4.dp),
     ) {
         drawLine(
             color = Primary,
@@ -470,7 +591,7 @@ private fun DottedConnector(width: Dp) {
             cap = StrokeCap.Round,
             pathEffect =
                 PathEffect.dashPathEffect(
-                    floatArrayOf(2.3.dp.toPx(), 10.4.dp.toPx()),
+                    floatArrayOf(2.5.dp.toPx(), 8.dp.toPx()),
                 ),
         )
     }
@@ -478,7 +599,22 @@ private fun DottedConnector(width: Dp) {
 
 /** Kartu waktu bermain 03 (353×82) + tombol jeda. */
 @Composable
-private fun TimeCard(onPauseToggle: () -> Unit) {
+private fun TimeCard(
+    isRunning: Boolean,
+    elapsedSeconds: Long = 0L,
+    onPauseToggle: () -> Unit,
+) {
+    val icon = if (isRunning) Icons.Outlined.Pause else Icons.Filled.PlayArrow
+    val subtitle = if (isRunning) stringResource(R.string.s03_time_label) else "Status pemantauan"
+    val mainText =
+        if (isRunning) {
+            val minutes = elapsedSeconds / 60
+            val seconds = elapsedSeconds % 60
+            String.format(Locale.US, "%02d:%02d", minutes, seconds)
+        } else {
+            "Dijeda"
+        }
+
     JagaCard(
         modifier = Modifier.fillMaxWidth().height(82.dp),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
@@ -501,12 +637,12 @@ private fun TimeCard(onPauseToggle: () -> Unit) {
             Spacer(modifier = Modifier.width(12.dp))
             Column {
                 Text(
-                    text = stringResource(R.string.s03_time_label),
+                    text = subtitle,
                     style = MaterialTheme.typography.bodySmall,
                     color = Ink.copy(alpha = 0.72f),
                 )
                 Text(
-                    text = stringResource(R.string.s03_time_value),
+                    text = mainText,
                     style = MaterialTheme.typography.displayMedium,
                     color = Ink,
                 )
@@ -521,7 +657,7 @@ private fun TimeCard(onPauseToggle: () -> Unit) {
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
-                    imageVector = Icons.Outlined.Pause,
+                    imageVector = icon,
                     contentDescription = null,
                     modifier = Modifier.size(20.dp),
                     tint = Surface,
@@ -530,3 +666,107 @@ private fun TimeCard(onPauseToggle: () -> Unit) {
         }
     }
 }
+
+/** Kartu kondisi cahaya ruangan (Lux Sensor). */
+@Composable
+private fun LightConditionCard(lux: Float?) {
+    val (statusLabel, statusDesc, statusColor, icon) =
+        when {
+            lux == null ->
+                LightStatus(
+                    "Mendeteksi Cahaya...",
+                    "Menyesuaikan sensor lux ruangan",
+                    SurfaceAlt,
+                    Icons.Outlined.LightMode,
+                )
+            lux < 150f ->
+                LightStatus(
+                    "Ruangan Terlalu Gelap ⚠️",
+                    "Cahaya < 150 lux berisiko bagi mata anak. Nyalakan lampu ya!",
+                    Coral,
+                    Icons.Outlined.DarkMode,
+                )
+            lux < 300f ->
+                LightStatus(
+                    "Cahaya Cukup 💡",
+                    "Penerangan standar (150–300 lux). Disarankan lampu meja belajar.",
+                    Sunny,
+                    Icons.Outlined.LightMode,
+                )
+            lux <= 600f ->
+                LightStatus(
+                    "Cahaya Ideal & Nyaman ✨",
+                    "Pencahayaan sangat baik dan sehat untuk membaca (300–500 lux).",
+                    Mint,
+                    Icons.Outlined.Check,
+                )
+            else ->
+                LightStatus(
+                    "Ruangan Sangat Terang ☀️",
+                    "Kondisi pencahayaan terang dan aman untuk mata.",
+                    Mint,
+                    Icons.Outlined.LightMode,
+                )
+        }
+
+    val luxValueText = lux?.let { String.format(Locale.US, "%.0f lux", it) } ?: "-- lux"
+
+    JagaCard(
+        modifier = Modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier =
+                    Modifier
+                        .size(44.dp)
+                        .background(statusColor.copy(alpha = 0.25f), CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp),
+                    tint = Ink,
+                )
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "Cahaya Sekitar",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Ink.copy(alpha = 0.72f),
+                    )
+                    Text(
+                        text = luxValueText,
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        color = Ink,
+                    )
+                }
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = statusLabel,
+                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                    color = Ink,
+                )
+                Text(
+                    text = statusDesc,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Ink.copy(alpha = 0.72f),
+                )
+            }
+        }
+    }
+}
+
+private data class LightStatus(
+    val label: String,
+    val desc: String,
+    val color: Color,
+    val icon: ImageVector,
+)

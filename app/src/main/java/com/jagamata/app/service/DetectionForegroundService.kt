@@ -48,9 +48,11 @@ class DetectionForegroundService : LifecycleService() {
     private lateinit var detector: FaceDetectorManager
     private lateinit var aggregator: CycleAggregator
     private lateinit var stateMachine: DetectionStateMachine
+    private lateinit var lightMonitor: com.jagamata.app.detection.LightMonitor
     private var ticker: MinuteTicker? = null
     private var cameraProvider: ProcessCameraProvider? = null
     private val analysisExecutor = Executors.newSingleThreadExecutor()
+    private var lastFrameTimeMs: Long = 0L
 
     override fun onCreate() {
         super.onCreate()
@@ -65,6 +67,38 @@ class DetectionForegroundService : LifecycleService() {
                 tflite = ModelPitchBackend(this),
             )
         detector = FaceDetectorManager(this, pitchBackend) { result -> onDetection(result) }
+        lightMonitor = com.jagamata.app.detection.LightMonitor(this)
+        lifecycleScope.launch {
+            settings.focalPx.collect { saved ->
+                detector.focalPx = if (saved > 0f) saved else SettingsRepository.DEFAULT_FOCAL_PX
+            }
+        }
+        lifecycleScope.launch {
+            settings.closeThresholdCm.collect { threshold ->
+                stateMachine.updateThresholds(
+                    closeEnterCm = threshold,
+                    closeExitCm = threshold + 5f,
+                )
+            }
+        }
+        lifecycleScope.launch {
+            settings.luxThreshold.collect { lux ->
+                stateMachine.updateThresholds(luxThreshold = lux)
+            }
+        }
+        lifecycleScope.launch {
+            settings.pitchThresholdDeg.collect { pitch ->
+                stateMachine.updateThresholds(pitchThresholdDeg = pitch)
+            }
+        }
+        lifecycleScope.launch {
+            settings.childAge.collect { age ->
+                detector.setChildAge(age)
+            }
+        }
+        if (sessionStartEpochMs == 0L) {
+            sessionStartEpochMs = System.currentTimeMillis()
+        }
         _isRunning.value = true
     }
 
@@ -76,6 +110,7 @@ class DetectionForegroundService : LifecycleService() {
         super.onStartCommand(intent, flags, startId)
         startForegroundWithNotification()
         detector.initialize()
+        lightMonitor.start()
         startCamera()
         startTicker()
         return Service.START_STICKY
@@ -83,12 +118,30 @@ class DetectionForegroundService : LifecycleService() {
 
     private fun startForegroundWithNotification() {
         val notification: Notification = NotificationHelper.serviceNotification(this)
+        val hasCamera =
+            ContextCompat.checkSelfPermission(this, android.Manifest.permission.CAMERA) ==
+                android.content.pm.PackageManager.PERMISSION_GRANTED
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(
-                NotificationHelper.NOTIF_ID_SERVICE,
-                notification,
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA,
-            )
+            val type =
+                if (hasCamera) {
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA
+                } else {
+                    0
+                }
+            try {
+                startForeground(
+                    NotificationHelper.NOTIF_ID_SERVICE,
+                    notification,
+                    type,
+                )
+            } catch (t: Throwable) {
+                Log.w(TAG, "startForeground camera gagal, fallback tanpa type: ${t.message}")
+                try {
+                    startForeground(NotificationHelper.NOTIF_ID_SERVICE, notification)
+                } catch (t2: Throwable) {
+                    Log.e(TAG, "startForeground gagal: ${t2.message}")
+                }
+            }
         } else {
             startForeground(NotificationHelper.NOTIF_ID_SERVICE, notification)
         }
@@ -100,7 +153,6 @@ class DetectionForegroundService : LifecycleService() {
             try {
                 val provider = future.get()
                 cameraProvider = provider
-                val preview = Preview.Builder().build()
                 val analysis =
                     ImageAnalysis.Builder()
                         .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
@@ -108,15 +160,27 @@ class DetectionForegroundService : LifecycleService() {
                         .build()
                 analysis.setAnalyzer(analysisExecutor) { proxy ->
                     val ts = System.currentTimeMillis()
+                    // Optimasi ringan & hemat baterai (Blueprint §3.1 & §5.2): Batasi ke 5 FPS (200 ms)
+                    if (ts - lastFrameTimeMs < FRAME_INTERVAL_MS) {
+                        proxy.close()
+                        return@setAnalyzer
+                    }
+                    lastFrameTimeMs = ts
                     detector.detect(proxy, ts)
                 }
                 provider.unbindAll()
+                val selector =
+                    if (provider.hasCamera(CameraSelector.DEFAULT_FRONT_CAMERA)) {
+                        CameraSelector.DEFAULT_FRONT_CAMERA
+                    } else {
+                        CameraSelector.DEFAULT_BACK_CAMERA
+                    }
                 provider.bindToLifecycle(
                     this,
-                    CameraSelector.DEFAULT_BACK_CAMERA,
-                    preview,
+                    selector,
                     analysis,
                 )
+                Log.i(TAG, "Kamera berhasil diikat ke foreground service ($selector)")
             } catch (t: Throwable) {
                 Log.e(TAG, "Kamera gagal diikat: ${t.message}")
             }
@@ -146,10 +210,11 @@ class DetectionForegroundService : LifecycleService() {
     }
 
     private fun onDetection(result: DetectionResult) {
-        aggregator.add(result)
-        val level = stateMachine.onResult(result)
+        val withLux = if (result.lux == null) result.copy(lux = lightMonitor.lastLux()) else result
+        aggregator.add(withLux)
+        val level = stateMachine.onResult(withLux)
         _riskLevel.value = level
-        _latest.value = result
+        _latest.value = withLux
         OverlayService.requestLevel(this, level)
     }
 
@@ -192,7 +257,9 @@ class DetectionForegroundService : LifecycleService() {
                     com.jagamata.app.detection.ViolationType.BAD_POSTURE ->
                         getString(R.string.notif_body_posture, summary.maxPitchDeg ?: 0f)
                 }
-            NotificationHelper.throttledAlert(this, title, body)
+            val isCrucial = summary.violations.contains(com.jagamata.app.detection.ViolationType.TOO_CLOSE) &&
+                (summary.minDistanceCm ?: 30f) < 25f
+            NotificationHelper.throttledAlert(this, title, body, isCrucial = isCrucial)
         }
         _lastCycle.value = summary
     }
@@ -200,9 +267,11 @@ class DetectionForegroundService : LifecycleService() {
     override fun onDestroy() {
         ticker?.stop()
         detector.close()
+        lightMonitor.stop()
         cameraProvider?.unbindAll()
         analysisExecutor.shutdown()
         _isRunning.value = false
+        sessionStartEpochMs = 0L
         OverlayService.requestLevel(this, RiskLevel.OK)
         super.onDestroy()
     }
@@ -215,9 +284,13 @@ class DetectionForegroundService : LifecycleService() {
     companion object {
         private const val TAG = "DetectionFgService"
         private const val DAY_MS = 86_400_000L
+        private const val FRAME_INTERVAL_MS = 200L // 5 FPS (Blueprint §3.1 & §5.2)
 
         private val _isRunning = MutableStateFlow(false)
         val isRunning: StateFlow<Boolean> = _isRunning
+
+        @Volatile
+        var sessionStartEpochMs: Long = 0L
 
         private val _riskLevel = MutableStateFlow(RiskLevel.OK)
         val riskLevel: StateFlow<RiskLevel> = _riskLevel

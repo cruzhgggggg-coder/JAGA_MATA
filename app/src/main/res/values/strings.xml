@@ -71,14 +71,15 @@
     <string name="zone_danger">Bahaya</string>
 
     <!-- Alarm / overlay -->
-    <string name="alarm_title">Ayo mundur dikit!</string>
-    <string name="alarm_subtitle">Terlalu dekat dengan layar</string>
+    <string name="alarm_title">Terlalu dekat!</string>
+    <string name="alarm_subtitle">Ayo mundur sedikit! Jauhkan layar sampai Kiko tersenyum lagi, ya.</string>
     <string name="alarm_dark_title">Ruangan terlalu gelap</string>
     <string name="alarm_dark_subtitle">Nyalakan lampu ya, biar mata tidak lelah</string>
     <string name="alarm_posture_title">Duduknya tegak ya</string>
     <string name="alarm_posture_subtitle">Jangan terlalu menunduk</string>
     <string name="banner_warning">Waspada: %1$s</string>
     <string name="banner_safe">Kondisi aman</string>
+    <string name="medical_disclaimer">Bukan alat diagnosis/pencegah miopia — pengingat kebiasaan layar sehat</string>
 
     <!-- Settings -->
     <string name="settings_title">Pengaturan</string>

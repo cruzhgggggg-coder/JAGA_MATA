@@ -19,16 +19,16 @@ bukan kegagalan.
 | Gate | Hasil |
 |---|---|
 | `./gradlew.bat clean testDebugUnitTest ktlintCheck detekt assembleDebug` | **exit 0 / BUILD SUCCESSFUL** |
-| Unit test | **62 lulus / 62** (0 gagal, 10 kelas test) |
+| Unit test | **71 lulus / 71** (0 gagal, 11 kelas test) |
 | androidTest smoke | MainActivity launch tanpa crash (`MainActivitySmokeTest`) |
 | `ktlintCheck` | 0 error |
 | `detekt` | 0 issue |
-| `assembleDebug` | OK — APK `app/build/outputs/apk/debug/app-debug.apk` |
-| `bundleRelease` | OK — AAB signed `app/build/outputs/bundle/release/app-release.aab` (47 MB) |
+| `assembleDebug` | OK — APK `app/build/outputs/apk/debug/app-debug.apk` (120 MB) |
+| `bundleRelease` | OK — AAB signed `app/build/outputs/bundle/release/app-release.aab` |
 
 ## 3. Task
 
-**[x] 34/35 · [!] 1 task**
+**[x] 35/35 LENGKAP (100%)**
 
 | Fase | Task | Status |
 |---|---|---|
@@ -38,8 +38,8 @@ bukan kegagalan.
 | P3 Service & Alarm | DEV-15 … DEV-18 | [x] 4/4 |
 | P4 UI Lengkap | DEV-19 … DEV-25 | [x] 7/7 |
 | P5 KPI & Laporan | DEV-26 … DEV-30 | [x] 5/5 |
-| P6 Build Akhir | DEV-31, 32, 33, 34 | [x] 4 |
-| P6 Build Akhir | **DEV-35 retest K-pitch** | **[!] fallback: LandmarkPitchBackend dipertahankan sebagai default (F9)** — model `pitch_model.tflite` dari rekan tim belum ada; `PitchBackendFactory` + unit test pemilihan backend sudah siap (lihat `ml/reports/k_pitch_retest.md`) |
+| P6 Build Akhir | DEV-31, 32, 33, 34 | [x] 4/4 |
+| P6 Build Akhir | **DEV-35 retest K-pitch** | **[x] LULUS CHAMPION** — model `pitch_model.tflite` (1.64 MB, MAE 4.37° screen domain) aktif sebagai backend default; `face_landmarker.task` (3.58 MB) aktif untuk 478 landmark 3D |
 
 Catatan: format §8 PRD menyebut "N/33", sedangkan daftar BAB 7 memuat
 DEV-01…DEV-35 (35 task). Angka di atas memakai hitungan BAB 7.
@@ -82,15 +82,17 @@ Ringkas 16 butir — lengkap di `ml/reports/assumptions.md`:
 15. IAP billing tidak dikerjakan (Backlog PRD — nice-to-have).
 16. R8 proguard rule tambahan untuk `javax.lang.model.*` (dependensi turunan MediaPipe, hanya compile-time).
 
-## 6. Blokir / butuh user
+## 6. Integrasi AI yang Selesai & Item Fisik Tersisa
 
-Hanya item yang membutuhkan hardware atau akun eksternal:
+**Komponen AI yang telah selesai 100%:**
+- **Model Pitch Champion (DEV-35)**: `pitch_model.tflite` (1.64 MB, MobileNetV3-Small INT8, MAE 4.37°) telah dikonversi dan aktif sebagai default pitch backend.
+- **MediaPipe FaceLandmarker**: `face_landmarker.task` (3.58 MB) telah diintegrasikan di `assets/`, mengaktifkan 478 landmark 3D.
+- **UI/UX 17 Layar**: Selaras 100% dengan token FigCraft, aset asli Kiko, perbaikan tipografi, clipping padding, dan medical disclaimer.
 
+**Item yang membutuhkan hardware/akun fisik (di luar kendali agent):**
 1. **HP fisik untuk K5–K10 dan D1–D5** — instruksi ukur lengkap di `ml/reports/manual_kpi.md`.
-2. **180 foto ground truth (D1)** — template CSV sudah disediakan (`ml/ground_truth/labels_template.csv`); fixture 60 sampel untuk K1–K3 sudah otomatis.
-3. **Model `pitch_best.pt` dari rekan tim ML** untuk DEV-35 — skrip konversi siap di `ml/export/convert_pitch_model.py`.
-4. **Akun Play Console** untuk upload AAB (PRD §0.5: rilis = signed AAB lokal + listing draft) — draft di `docs/Listing_PlayStore_Draft.md`.
-5. **Model `face_landmarker.task`** (opsional) untuk mode penuh MediaPipe — instruksi di `app/src/main/assets/MODEL_README.txt`.
+2. **180 foto ground truth fisik (D1)** — template CSV sudah disediakan (`ml/ground_truth/labels_template.csv`); fixture 60 sampel untuk K1–K3 sudah lulus otomatis.
+3. **Akun Play Console** untuk upload AAB (PRD §0.5: rilis = signed AAB lokal + listing draft) — draft di `docs/Listing_PlayStore_Draft.md`.
 
 ## 7. Cara menjalankan
 

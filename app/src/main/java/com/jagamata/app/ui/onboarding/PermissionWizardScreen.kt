@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -33,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.jagamata.app.R
 import com.jagamata.app.ui.components.JagaCard
+import com.jagamata.app.ui.components.PrimaryButton
 import com.jagamata.app.ui.parent.ChevronTrailing
 import com.jagamata.app.ui.components.JagaSwitch
 import com.jagamata.app.ui.parent.FooterCaption
@@ -55,9 +57,11 @@ fun PermissionWizardScreen(
     onBack: () -> Unit = {},
 ) {
     val context = LocalContext.current
+    val hasCamera =
+        ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
+            PackageManager.PERMISSION_GRANTED
     var cameraGranted by remember {
-        // Desain 3135 menampilkan toggle Kamera ON (state granted).
-        mutableStateOf(true)
+        mutableStateOf(hasCamera)
     }
     var notifGranted by remember {
         mutableStateOf(
@@ -74,11 +78,24 @@ fun PermissionWizardScreen(
         rememberLauncherForActivityResult(
             ActivityResultContracts.RequestMultiplePermissions(),
         ) { results ->
-            cameraGranted = results[Manifest.permission.CAMERA] ?: cameraGranted
+            cameraGranted = results[Manifest.permission.CAMERA] ?: (
+                ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
+                    PackageManager.PERMISSION_GRANTED
+            )
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 notifGranted = results[Manifest.permission.POST_NOTIFICATIONS] ?: notifGranted
             }
         }
+
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        if (!hasCamera) {
+            val perms = mutableListOf(Manifest.permission.CAMERA)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                perms.add(Manifest.permission.POST_NOTIFICATIONS)
+            }
+            permissionLauncher.launch(perms.toTypedArray())
+        }
+    }
 
     Column(
         modifier =
@@ -113,9 +130,15 @@ fun PermissionWizardScreen(
             onNext = onNext,
         )
         FooterCaption(text = stringResource(R.string.s11_footer))
-        Spacer(modifier = Modifier.height(116.dp))
+        Spacer(modifier = Modifier.height(24.dp))
+        PrimaryButton(
+            text = "Lanjut ke Beranda",
+            onClick = onNext,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Spacer(modifier = Modifier.height(32.dp))
         ScreenDecorations()
-        Spacer(modifier = Modifier.height(110.dp))
+        Spacer(modifier = Modifier.height(32.dp))
     }
 }
 
@@ -132,6 +155,7 @@ private fun PermissionRows(
         SettingsRow(
             icon = { RowIcon(Icons.Outlined.PhotoCamera) },
             title = stringResource(R.string.perm_camera),
+            onClick = onRequestCamera,
             trailing = {
                 JagaSwitch(
                     checked = cameraGranted,
@@ -162,13 +186,7 @@ private fun PermissionRows(
             icon = { RowIcon(Icons.Outlined.Straighten) },
             title = stringResource(R.string.s11_row_calib_next),
             onClick = onNext,
-            trailing = {
-                // Off-switch normal (knob putih di #E3E8EE) — non-interaktif, visual desain.
-                JagaSwitch(
-                    checked = false,
-                    onCheckedChange = {},
-                )
-            },
+            trailing = { ChevronTrailing() },
         )
     }
 }

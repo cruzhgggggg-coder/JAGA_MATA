@@ -3,6 +3,7 @@ package com.jagamata.app.ui.parent
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,10 +27,22 @@ import androidx.compose.material.icons.outlined.CardGiftcard
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.People
 import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.window.Dialog
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -40,10 +53,12 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.jagamata.app.R
+import com.jagamata.app.data.AppDatabase
 import com.jagamata.app.ui.components.BottomNavItem
 import com.jagamata.app.ui.components.BottomNavBar
 import com.jagamata.app.ui.components.JagaCard
@@ -62,15 +77,75 @@ import com.jagamata.app.ui.theme.Mint
 import com.jagamata.app.ui.theme.Primary
 import com.jagamata.app.ui.theme.Sunny
 import com.jagamata.app.ui.theme.Surface
+import com.jagamata.app.ui.theme.SurfaceAlt
+
+data class BadgeInfo(
+    val title: String,
+    val subtitle: String,
+    val description: String,
+    val criteria: String,
+    val locked: Boolean,
+)
 
 /**
  * 07 Hadiah & Streak — kartu streak mingguan, progres Kiko, koleksi lencana.
- * Konten statis mengikuti desain; bottom nav tab Hadiah (index 2).
+ * Terkoneksi dinamis ke database Room untuk status pencapaian nyata anak.
  */
 @Composable
 fun RewardsScreen(
     onTab: (Int) -> Unit = {},
 ) {
+    val context = LocalContext.current
+    var totalCycles by remember { mutableStateOf(0) }
+    var closeViolations by remember { mutableStateOf(0) }
+    var streakDays by remember { mutableStateOf(1) }
+    var selectedBadge by remember { mutableStateOf<BadgeInfo?>(null) }
+
+    LaunchedEffect(Unit) {
+        val db = AppDatabase.getInstance(context)
+        val snapshots = db.snapshotDao().getAll()
+        val daily = db.dailyDao().getAll()
+        totalCycles = snapshots.size
+        closeViolations = snapshots.count { it.violations?.contains("TOO_CLOSE") == true }
+        streakDays = (daily.size + if (snapshots.isNotEmpty()) 1 else 0).coerceIn(1, 7)
+    }
+
+    val kikoStage = if (totalCycles >= 20) 3 else if (totalCycles >= 10) 2 else 1
+    val kikoStageProgress = ((totalCycles % 10) / 10f).coerceIn(0.15f, 1f)
+    val nextTargetDays = (10 - (totalCycles % 10)).coerceAtLeast(1)
+
+    // Logika pembukaan lencana gamifikasi berbasis riwayat pemantauan nyata (Blueprint §4.2)
+    val badges = listOf(
+        BadgeInfo(
+            title = stringResource(R.string.s07_badge_mata),
+            subtitle = if (totalCycles >= 1) "Terbuka 🎉" else stringResource(R.string.s07_badge_mata_desc),
+            description = "Lencana penjaga mata setia yang telah mulai membiasakan jarak pandang layar yang sehat.",
+            criteria = "Selesaikan minimal 1 sesi pemantauan jarak layar dengan Kiko.",
+            locked = totalCycles < 1,
+        ),
+        BadgeInfo(
+            title = stringResource(R.string.s07_badge_istirahat),
+            subtitle = if (totalCycles >= 5) "Terbuka 🎉" else stringResource(R.string.s07_badge_istirahat_desc),
+            description = "Lencana kepatuhan aturan 20-20-20 untuk memberi jeda istirahat mata dari radiasi layar.",
+            criteria = "Pantau kesehatan mata hingga mencapai minimal 5 siklus pemantauan.",
+            locked = totalCycles < 5,
+        ),
+        BadgeInfo(
+            title = stringResource(R.string.s07_badge_jarak),
+            subtitle = if (totalCycles >= 3 && closeViolations == 0) "Terbuka 🎉" else stringResource(R.string.s07_locked),
+            description = "Lencana disiplin menjaga jarak HP selalu aman di atas 30 cm tanpa peringatan bahaya.",
+            criteria = "Selesaikan 3 sesi berturut-turut tanpa pelanggaran jarak terlalu dekat.",
+            locked = !(totalCycles >= 3 && closeViolations == 0),
+        ),
+        BadgeInfo(
+            title = stringResource(R.string.s07_badge_super),
+            subtitle = if (streakDays >= 3) "Terbuka 🎉" else stringResource(R.string.s07_locked),
+            description = "Lencana konsistensi tingkat tinggi penjaga mata sejati!",
+            criteria = "Pertahankan kebiasaan melihat layar sehat selama 3 hari berturut-turut.",
+            locked = streakDays < 3,
+        ),
+    )
+
     Column(
         modifier =
             Modifier
@@ -101,9 +176,9 @@ fun RewardsScreen(
                 }
             }
 
-            StreakCard()
+            StreakCard(streakDays = streakDays)
 
-            KikoGrowthCard()
+            KikoGrowthCard(stage = kikoStage, progress = kikoStageProgress, nextDays = nextTargetDays)
 
             Text(
                 text = stringResource(R.string.s07_collection),
@@ -112,7 +187,7 @@ fun RewardsScreen(
                 modifier = Modifier.padding(top = 4.dp),
             )
 
-            BadgeGrid()
+            BadgeGrid(badges = badges, onBadgeClick = { selectedBadge = it })
         }
 
         BottomNavBar(
@@ -121,10 +196,158 @@ fun RewardsScreen(
             onSelect = onTab,
         )
     }
+
+    if (selectedBadge != null) {
+        val b = selectedBadge!!
+        Dialog(onDismissRequest = { selectedBadge = null }) {
+            Surface(
+                shape = RoundedCornerShape(28.dp),
+                color = Surface,
+                tonalElevation = 6.dp,
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp),
+            ) {
+                Column(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    // Badge Visual Circle dengan Star/Lock
+                    Box(
+                        modifier =
+                            Modifier
+                                .size(88.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    if (b.locked) {
+                                        Brush.linearGradient(listOf(SurfaceAlt, Divider))
+                                    } else {
+                                        Brush.radialGradient(listOf(Sunny, Cream))
+                                    },
+                                )
+                                .border(
+                                    width = 3.dp,
+                                    color = if (b.locked) Divider else Sunny,
+                                    shape = CircleShape,
+                                ),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        if (b.locked) {
+                            Icon(
+                                imageVector = Icons.Filled.Lock,
+                                contentDescription = "Terkunci",
+                                tint = Ink.copy(alpha = 0.5f),
+                                modifier = Modifier.size(36.dp),
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Filled.Star,
+                                contentDescription = "Terbuka",
+                                tint = Ink,
+                                modifier = Modifier.size(44.dp),
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Chip status bergaya FigCraft
+                    Box(
+                        modifier =
+                            Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(if (b.locked) Coral.copy(alpha = 0.15f) else Mint.copy(alpha = 0.2f))
+                                .border(
+                                    width = 1.dp,
+                                    color = if (b.locked) Coral else Mint,
+                                    shape = RoundedCornerShape(12.dp),
+                                )
+                                .padding(horizontal = 14.dp, vertical = 6.dp),
+                    ) {
+                        Text(
+                            text = if (b.locked) "Terkunci 🔒" else "Lencana Terbuka 🎉",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = if (b.locked) Coral else Mint,
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text(
+                        text = b.title,
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Ink,
+                        textAlign = TextAlign.Center,
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Detail Card (Krim Canvas FigCraft)
+                    Column(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(Cream)
+                                .padding(16.dp),
+                    ) {
+                        Text(
+                            text = b.description,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Ink,
+                            textAlign = TextAlign.Start,
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            text = "Cara Mendapatkan:",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = Primary,
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = b.criteria,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Ink.copy(alpha = 0.8f),
+                            textAlign = TextAlign.Start,
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    Button(
+                        onClick = { selectedBadge = null },
+                        shape = RoundedCornerShape(24.dp),
+                        colors =
+                            ButtonDefaults.buttonColors(
+                                containerColor = if (b.locked) Primary else Mint,
+                                contentColor = if (b.locked) Color.White else Ink,
+                            ),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .height(48.dp),
+                    ) {
+                        Text(
+                            text = if (b.locked) "Saya Mengerti! 💪" else "Keren Banget! 🎉",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable
-private fun StreakCard() {
+private fun StreakCard(streakDays: Int) {
     JagaCard(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 18.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -140,7 +363,7 @@ private fun StreakCard() {
                 FlameIcon(modifier = Modifier.size(16.dp, 21.dp))
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = stringResource(R.string.s07_streak_value),
+                    text = "$streakDays hari",
                     style = MaterialTheme.typography.displayMedium,
                     color = Ink,
                 )
@@ -150,8 +373,13 @@ private fun StreakCard() {
         Spacer(modifier = Modifier.height(14.dp))
 
         val days = listOf("S", "S", "R", "K", "J", "S", "M")
-        // 5 hari tercentang (mint), hari keenam (Sunny, API), hari ketujuh kosong
-        val states = listOf(DayState.Done, DayState.Done, DayState.Done, DayState.Done, DayState.Done, DayState.Today, DayState.Empty)
+        val states = List(7) { i ->
+            when {
+                i < (streakDays - 1).coerceAtLeast(0) -> DayState.Done
+                i == (streakDays - 1).coerceAtLeast(0) -> DayState.Today
+                else -> DayState.Empty
+            }
+        }
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -242,7 +470,17 @@ private fun FlameIcon(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun KikoGrowthCard() {
+private fun KikoGrowthCard(
+    stage: Int,
+    progress: Float,
+    nextDays: Int,
+) {
+    val stageName = when (stage) {
+        1 -> "Tahap 1 · Kiko Pemula"
+        2 -> "Tahap 2 · Kiko Penjaga Berkacamata"
+        else -> "Tahap 3 · Kiko Pahlawan Mata"
+    }
+
     Box(
         modifier =
             Modifier
@@ -253,7 +491,7 @@ private fun KikoGrowthCard() {
     ) {
         // Kiko free-standing di kiri (tanpa disc biru, sesuai desain)
         KikoImage(
-            expression = KikoExpression.SENANG_KACAMATA,
+            expression = if (stage >= 2) KikoExpression.SENANG_KACAMATA else KikoExpression.SENANG,
             modifier =
                 Modifier
                     .align(Alignment.CenterStart)
@@ -272,7 +510,7 @@ private fun KikoGrowthCard() {
                 color = Ink,
             )
             Text(
-                text = stringResource(R.string.s07_kiko_stage),
+                text = stageName,
                 style = MaterialTheme.typography.bodySmall,
                 color = Ink,
             )
@@ -289,7 +527,7 @@ private fun KikoGrowthCard() {
                 Box(
                     modifier =
                         Modifier
-                            .fillMaxWidth(0.56f)
+                            .fillMaxWidth(progress.coerceIn(0.1f, 1f))
                             .height(10.dp)
                             .clip(RoundedCornerShape(5.dp))
                             .background(Primary),
@@ -297,7 +535,7 @@ private fun KikoGrowthCard() {
             }
             Spacer(modifier = Modifier.height(6.dp))
             Text(
-                text = stringResource(R.string.s07_kiko_next),
+                text = "$nextDays sesi lagi menuju tahap berikutnya",
                 style = MaterialTheme.typography.labelSmall,
                 color = Ink,
             )
@@ -306,48 +544,50 @@ private fun KikoGrowthCard() {
 }
 
 @Composable
-private fun BadgeGrid() {
+private fun BadgeGrid(
+    badges: List<BadgeInfo>,
+    onBadgeClick: (BadgeInfo) -> Unit,
+) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(13.dp)) {
-            BadgeCard(
-                title = stringResource(R.string.s07_badge_mata),
-                subtitle = stringResource(R.string.s07_badge_mata_desc),
-                locked = false,
-                modifier = Modifier.weight(1f),
-            )
-            BadgeCard(
-                title = stringResource(R.string.s07_badge_istirahat),
-                subtitle = stringResource(R.string.s07_badge_istirahat_desc),
-                locked = false,
-                modifier = Modifier.weight(1f),
-            )
+            if (badges.size >= 2) {
+                BadgeCard(
+                    badge = badges[0],
+                    onClick = { onBadgeClick(badges[0]) },
+                    modifier = Modifier.weight(1f),
+                )
+                BadgeCard(
+                    badge = badges[1],
+                    onClick = { onBadgeClick(badges[1]) },
+                    modifier = Modifier.weight(1f),
+                )
+            }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(13.dp)) {
-            BadgeCard(
-                title = stringResource(R.string.s07_badge_jarak),
-                subtitle = stringResource(R.string.s07_locked),
-                locked = true,
-                modifier = Modifier.weight(1f),
-            )
-            BadgeCard(
-                title = stringResource(R.string.s07_badge_super),
-                subtitle = stringResource(R.string.s07_locked),
-                locked = true,
-                modifier = Modifier.weight(1f),
-            )
+            if (badges.size >= 4) {
+                BadgeCard(
+                    badge = badges[2],
+                    onClick = { onBadgeClick(badges[2]) },
+                    modifier = Modifier.weight(1f),
+                )
+                BadgeCard(
+                    badge = badges[3],
+                    onClick = { onBadgeClick(badges[3]) },
+                    modifier = Modifier.weight(1f),
+                )
+            }
         }
     }
 }
 
 @Composable
 private fun BadgeCard(
-    title: String,
-    subtitle: String,
-    locked: Boolean,
+    badge: BadgeInfo,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     JagaCard(
-        modifier = modifier,
+        modifier = modifier.clickable { onClick() },
         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 20.dp),
     ) {
         Box(
@@ -358,17 +598,17 @@ private fun BadgeCard(
             contentAlignment = Alignment.Center,
         ) {
             BadgeMedallion(
-                locked = locked,
+                locked = badge.locked,
                 modifier = Modifier.size(124.dp, 96.dp),
             )
             KikoImage(
-                expression = KikoExpression.SENANG_KACAMATA,
+                expression = if (badge.locked) KikoExpression.SENANG else KikoExpression.SENANG_KACAMATA,
                 modifier =
                     Modifier
                         .size(62.dp)
-                        .then(if (locked) Modifier.graphicsLayer { alpha = 0.4f } else Modifier),
+                        .then(if (badge.locked) Modifier.graphicsLayer { alpha = 0.4f } else Modifier),
             )
-            if (locked) {
+            if (badge.locked) {
                 Box(
                     modifier =
                         Modifier
@@ -390,7 +630,7 @@ private fun BadgeCard(
         }
         Spacer(modifier = Modifier.height(10.dp))
         Text(
-            text = title,
+            text = badge.title,
             style = MaterialTheme.typography.titleLarge,
             color = Ink,
             textAlign = TextAlign.Center,
@@ -398,7 +638,7 @@ private fun BadgeCard(
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
-            text = subtitle,
+            text = badge.subtitle,
             style = MaterialTheme.typography.bodySmall,
             color = Ink,
             textAlign = TextAlign.Center,

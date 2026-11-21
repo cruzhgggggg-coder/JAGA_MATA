@@ -21,15 +21,21 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.ui.text.font.FontWeight
+import kotlinx.coroutines.delay
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -43,6 +49,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.jagamata.app.R
+import kotlinx.coroutines.launch
 import com.jagamata.app.detection.RiskLevel
 import com.jagamata.app.ui.components.BottomNavBar
 import com.jagamata.app.ui.components.JagaCard
@@ -72,11 +79,18 @@ fun DashboardScreen(
     onOpenReport: () -> Unit,
     viewModel: DashboardViewModel = DashboardViewModel(),
     onTab: (Int) -> Unit = {},
+    onOpenChildProfile: () -> Unit = {},
+    onOpenDailyStats: () -> Unit = {},
 ) {
     val state by viewModel.uiState.collectAsState()
     LaunchedEffect(Unit) { viewModel.refresh() }
 
-    var minDistance by remember { mutableIntStateOf(50) }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val settings = remember { com.jagamata.app.data.SettingsRepository(context) }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val minDistanceFloat by settings.closeThresholdCm.collectAsState(initial = 30f)
+    var stagedDistance by remember(minDistanceFloat) { mutableIntStateOf(minDistanceFloat.toInt()) }
+    var isSavedFeedback by remember { mutableStateOf(false) }
 
     Column(
         modifier =
@@ -123,18 +137,38 @@ fun DashboardScreen(
                 Spacer(modifier = Modifier.width(8.dp))
                 KikoImage(
                     expression = KikoExpression.SENANG,
-                    modifier = Modifier.size(56.dp),
+                    modifier =
+                        Modifier
+                            .size(56.dp)
+                            .clip(CircleShape)
+                            .clickable(onClick = onOpenChildProfile),
                 )
             }
 
-            WeeklyReportCard(state = state)
+            WeeklyReportCard(
+                state = state,
+                onClick = onOpenDailyStats,
+            )
             CycleCard(state = state)
             TipsCard()
             ShareButton(onClick = onOpenReport)
             MinDistanceCard(
-                valueCm = minDistance,
-                onDecrease = { if (minDistance > 10) minDistance -= 5 },
-                onIncrease = { if (minDistance < 100) minDistance += 5 },
+                valueCm = stagedDistance,
+                isSaved = isSavedFeedback,
+                onDecrease = {
+                    stagedDistance = (stagedDistance - 5).coerceIn(20, 50)
+                },
+                onIncrease = {
+                    stagedDistance = (stagedDistance + 5).coerceIn(20, 50)
+                },
+                onSaveDistance = {
+                    scope.launch {
+                        settings.setCloseThresholdCm(stagedDistance.toFloat())
+                        isSavedFeedback = true
+                        delay(2000L)
+                        isSavedFeedback = false
+                    }
+                },
                 onOpenSettings = onOpenSettings,
             )
         }
@@ -151,7 +185,10 @@ fun DashboardScreen(
 private val DummyDailyCm = listOf(48f, 52f, 50f, 54f, 51f, 55f, 53f)
 
 @Composable
-private fun WeeklyReportCard(state: DashboardViewModel.UiState) {
+private fun WeeklyReportCard(
+    state: DashboardViewModel.UiState,
+    onClick: (() -> Unit)? = null,
+) {
     val avgCm =
         state.lastCycle?.avgDistanceCm?.let { String.format(Locale.US, "%.0f cm", it) }
             ?: stringResource(R.string.s09_report_threshold)
@@ -168,7 +205,11 @@ private fun WeeklyReportCard(state: DashboardViewModel.UiState) {
             RiskLevel.BLOCKED -> com.jagamata.app.ui.theme.Coral
         }
 
-    JagaCard(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 18.dp)) {
+    val cardModifier = if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier
+    JagaCard(
+        modifier = cardModifier,
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 18.dp),
+    ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -339,16 +380,32 @@ private fun CycleCard(state: DashboardViewModel.UiState) {
         Spacer(modifier = Modifier.height(8.dp))
         val dist =
             state.lastCycle?.avgDistanceCm?.let { String.format(Locale.US, "%.0f cm", it) }
-                ?: "52 cm"
+                ?: "-- cm"
+        val lux =
+            state.lastCycle?.avgLux?.let { String.format(Locale.US, "%.0f lux", it) }
+                ?: "-- lux"
+        val pitch =
+            state.lastCycle?.maxPitchDeg?.let { String.format(Locale.US, "%.0f°", it) }
+                ?: "--°"
         val risk =
             when (state.riskLevel) {
                 RiskLevel.OK -> stringResource(R.string.zone_safe)
                 RiskLevel.WARNING -> stringResource(R.string.zone_warn)
                 RiskLevel.BLOCKED -> stringResource(R.string.zone_danger)
             }
-        val timeLabel = "14:32"
+        val timeLabel =
+            state.lastCycle?.startedAtMs?.let {
+                val sdf = java.text.SimpleDateFormat("HH:mm", Locale.getDefault())
+                sdf.format(java.util.Date(it))
+            } ?: "baru"
+        val line =
+            if (state.lastCycle != null) {
+                "Siklus $timeLabel · 📏 $dist · 🌑 $lux · 🙇 $pitch ($risk)"
+            } else {
+                "Belum ada rekaman siklus · Tekan Pantau Live"
+            }
         Text(
-            text = "Siklus $timeLabel · $dist · $risk",
+            text = line,
             style = MaterialTheme.typography.labelLarge,
             color = Primary,
         )
@@ -450,44 +507,81 @@ private fun ShareButton(onClick: () -> Unit) {
 @Composable
 private fun MinDistanceCard(
     valueCm: Int,
+    isSaved: Boolean,
     onDecrease: () -> Unit,
     onIncrease: () -> Unit,
+    onSaveDistance: () -> Unit,
     @Suppress("UNUSED_PARAMETER") onOpenSettings: () -> Unit,
 ) {
     JagaCard(
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = stringResource(R.string.s09_min_distance_label),
-                style = MaterialTheme.typography.titleLarge,
-                color = Ink,
-                modifier = Modifier.weight(1f),
-            )
-            RoundStepButton(onClick = onDecrease) {
-                Icon(
-                    imageVector = Icons.Filled.Remove,
-                    contentDescription = "−",
-                    tint = Ink,
-                    modifier = Modifier.size(20.dp),
-                )
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.s09_min_distance_label),
+                        style = MaterialTheme.typography.titleLarge,
+                        color = Ink,
+                    )
+                    Text(
+                        text = "Batas ambang alarm: jika anak lebih dekat dari ini, alarm & overlay akan muncul",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Ink.copy(alpha = 0.65f),
+                    )
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    RoundStepButton(onClick = onDecrease) {
+                        Icon(
+                            imageVector = Icons.Filled.Remove,
+                            contentDescription = "−",
+                            tint = Ink,
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
+                    Text(
+                        text = String.format(Locale.US, "%d cm", valueCm),
+                        style = MaterialTheme.typography.displayMedium,
+                        color = Ink,
+                        modifier = Modifier.padding(horizontal = 10.dp),
+                    )
+                    RoundStepButton(onClick = onIncrease) {
+                        Icon(
+                            imageVector = Icons.Filled.Add,
+                            contentDescription = "+",
+                            tint = Ink,
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
+                }
             }
-            Text(
-                text = String.format(Locale.US, "%d cm", valueCm),
-                style = MaterialTheme.typography.displayMedium,
-                color = Ink,
-                modifier = Modifier.padding(horizontal = 12.dp),
-            )
-            RoundStepButton(onClick = onIncrease) {
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            Button(
+                onClick = onSaveDistance,
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (isSaved) Mint else Primary,
+                    contentColor = if (isSaved) Ink else Color.White,
+                ),
+                modifier = Modifier.fillMaxWidth().height(46.dp),
+            ) {
                 Icon(
-                    imageVector = Icons.Filled.Add,
-                    contentDescription = "+",
-                    tint = Ink,
-                    modifier = Modifier.size(20.dp),
+                    imageVector = Icons.Filled.Check,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = if (isSaved) "✓ Ambang Tersimpan ($valueCm cm)" else "Simpan Ambang Jarak",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
                 )
             }
         }
