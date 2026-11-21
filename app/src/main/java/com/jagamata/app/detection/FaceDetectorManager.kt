@@ -7,6 +7,7 @@ import android.util.Log
 import androidx.camera.core.ImageProxy
 import com.google.mediapipe.framework.image.BitmapImageBuilder
 import com.google.mediapipe.tasks.core.BaseOptions
+import com.google.mediapipe.tasks.core.Delegate
 import com.google.mediapipe.tasks.vision.core.RunningMode
 import com.google.mediapipe.tasks.vision.facelandmarker.FaceLandmarker
 import com.google.mlkit.vision.common.InputImage
@@ -87,6 +88,7 @@ class FaceDetectorManager(
                     .setBaseOptions(
                         BaseOptions.builder()
                             .setModelAssetPath(MODEL_ASSET)
+                            .setDelegate(Delegate.CPU)
                             .build(),
                     )
                     .setRunningMode(RunningMode.LIVE_STREAM)
@@ -94,7 +96,12 @@ class FaceDetectorManager(
                     .setOutputFaceBlendshapes(false)
                     .setOutputFacialTransformationMatrixes(false)
                     .setResultListener { result, _ -> handleMediaPipeResult(result) }
-                    .setErrorListener { e -> Log.e(TAG, "MediaPipe error: ${e.message}", e) }
+                    .setErrorListener { e ->
+                        Log.e(TAG, "MediaPipe error: ${e.message}", e)
+                        if (initMlKit()) {
+                            activeBackend = DetectorBackend.MLKIT
+                        }
+                    }
                     .build()
             landmarker = FaceLandmarker.createFromOptions(context, options)
             true
@@ -161,6 +168,10 @@ class FaceDetectorManager(
                     landmarker?.detectAsync(mpImage, monotonicTs)
                 } catch (t: Throwable) {
                     Log.e(TAG, "detectAsync gagal: ${t.message}")
+                    if (initMlKit()) {
+                        activeBackend = DetectorBackend.MLKIT
+                        detectMlKit(bitmap, monotonicTs)
+                    }
                 }
             }
             DetectorBackend.MLKIT -> detectMlKit(bitmap, monotonicTs)
