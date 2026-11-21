@@ -1,6 +1,5 @@
 package com.jagamata.app.ui.onboarding
 
-import java.util.Locale
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -67,9 +66,10 @@ import com.jagamata.app.ui.theme.Ink
 import com.jagamata.app.ui.theme.InkSoft
 import com.jagamata.app.ui.theme.Mint
 import com.jagamata.app.ui.theme.Primary
+import com.jagamata.app.ui.theme.Sunny
 import com.jagamata.app.ui.theme.Surface
 import com.jagamata.app.ui.theme.SurfaceAlt
-import com.jagamata.app.ui.theme.Sunny
+import java.util.Locale
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
@@ -352,8 +352,11 @@ private fun GaugeCard(
         distanceCm?.let { String.format(Locale.US, "%.0f cm", it) }
             ?: stringResource(R.string.s12_target)
     val displaySub =
-        if (distanceCm != null) "target kalibrasi: 30 cm"
-        else stringResource(R.string.s12_target_sub)
+        if (distanceCm != null) {
+            "target kalibrasi: 30 cm"
+        } else {
+            stringResource(R.string.s12_target_sub)
+        }
 
     JagaCard(contentPadding = PaddingValues(0.dp)) {
         Box(

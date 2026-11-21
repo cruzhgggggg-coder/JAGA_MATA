@@ -57,7 +57,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.launch
 import com.jagamata.app.R
 import com.jagamata.app.data.SettingsRepository
 import com.jagamata.app.ui.components.JagaCard
@@ -71,10 +70,11 @@ import com.jagamata.app.ui.theme.Divider
 import com.jagamata.app.ui.theme.Ink
 import com.jagamata.app.ui.theme.InkSoft
 import com.jagamata.app.ui.theme.Primary
+import com.jagamata.app.ui.theme.Sunny
 import com.jagamata.app.ui.theme.Surface
 import com.jagamata.app.ui.theme.SurfaceAlt
-import com.jagamata.app.ui.theme.Sunny
 import com.jagamata.app.ui.viewModel.SettingsViewModel
+import kotlinx.coroutines.launch
 
 /** Top bar layar desain: tombol kembali 44 + judul H2 (18) di tengah. */
 @Composable

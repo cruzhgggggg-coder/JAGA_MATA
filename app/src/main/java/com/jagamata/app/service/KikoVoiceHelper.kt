@@ -27,22 +27,23 @@ object KikoVoiceHelper {
     fun initialize(context: Context) {
         if (tts != null) return
         val appContext = context.applicationContext
-        tts = TextToSpeech(appContext) { status ->
-            if (status == TextToSpeech.SUCCESS) {
-                val localeId = Locale("id", "ID")
-                val langResult = tts?.setLanguage(localeId)
-                if (langResult == TextToSpeech.LANG_MISSING_DATA || langResult == TextToSpeech.LANG_NOT_SUPPORTED) {
-                    Log.w(TAG, "Bahasa Indonesia tidak tersedia pada engine TTS, menggunakan bahasa default")
-                    tts?.language = Locale.getDefault()
+        tts =
+            TextToSpeech(appContext) { status ->
+                if (status == TextToSpeech.SUCCESS) {
+                    val localeId = Locale("id", "ID")
+                    val langResult = tts?.setLanguage(localeId)
+                    if (langResult == TextToSpeech.LANG_MISSING_DATA || langResult == TextToSpeech.LANG_NOT_SUPPORTED) {
+                        Log.w(TAG, "Bahasa Indonesia tidak tersedia pada engine TTS, menggunakan bahasa default")
+                        tts?.language = Locale.getDefault()
+                    }
+                    tts?.setSpeechRate(0.95f) // Tempo ramah anak sedikit santai
+                    tts?.setPitch(1.15f) // Nada maskot sedikit lebih ceria/tinggi
+                    isReady = true
+                    Log.i(TAG, "Kiko Voice TTS siap digunakan")
+                } else {
+                    Log.e(TAG, "Gagal menginisialisasi TextToSpeech: status=$status")
                 }
-                tts?.setSpeechRate(0.95f) // Tempo ramah anak sedikit santai
-                tts?.setPitch(1.15f)      // Nada maskot sedikit lebih ceria/tinggi
-                isReady = true
-                Log.i(TAG, "Kiko Voice TTS siap digunakan")
-            } else {
-                Log.e(TAG, "Gagal menginisialisasi TextToSpeech: status=$status")
             }
-        }
     }
 
     fun speak(

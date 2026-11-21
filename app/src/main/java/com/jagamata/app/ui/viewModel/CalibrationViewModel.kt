@@ -46,11 +46,12 @@ class CalibrationViewModel(application: Application) : AndroidViewModel(applicat
     fun startCalibration() {
         calibrationManager.reset()
         sampleStartTimeMs = System.currentTimeMillis()
-        _uiState.value = _uiState.value.copy(
-            isCalibrating = true,
-            isCalibrated = false,
-            progress = 0f,
-        )
+        _uiState.value =
+            _uiState.value.copy(
+                isCalibrating = true,
+                isCalibrated = false,
+                progress = 0f,
+            )
     }
 
     fun retryCalibration() {
@@ -70,18 +71,20 @@ class CalibrationViewModel(application: Application) : AndroidViewModel(applicat
         val currentState = _uiState.value
 
         if (!currentState.isCalibrating || currentState.isCalibrated) {
-            _uiState.value = currentState.copy(
-                faceHeightPx = height,
-                distanceCm = distance,
-            )
+            _uiState.value =
+                currentState.copy(
+                    faceHeightPx = height,
+                    distanceCm = distance,
+                )
             return
         }
 
         if (height == null || height <= 0f) {
-            _uiState.value = currentState.copy(
-                faceHeightPx = null,
-                distanceCm = distance,
-            )
+            _uiState.value =
+                currentState.copy(
+                    faceHeightPx = null,
+                    distanceCm = distance,
+                )
             return
         }
 
@@ -91,24 +94,26 @@ class CalibrationViewModel(application: Application) : AndroidViewModel(applicat
         val prog = (elapsed / CalibrationManager.STABILITY_MS.toFloat()).coerceIn(0f, 1f)
 
         if (focalPx != null) {
-            _uiState.value = currentState.copy(
-                faceHeightPx = height,
-                distanceCm = distance,
-                progress = 1f,
-                isCalibrating = false,
-                isCalibrated = true,
-                calibratedFocalPx = focalPx,
-            )
+            _uiState.value =
+                currentState.copy(
+                    faceHeightPx = height,
+                    distanceCm = distance,
+                    progress = 1f,
+                    isCalibrating = false,
+                    isCalibrated = true,
+                    calibratedFocalPx = focalPx,
+                )
             viewModelScope.launch {
                 settings.setFocalPx(focalPx)
                 settings.setOnboardingDone(true)
             }
         } else {
-            _uiState.value = currentState.copy(
-                faceHeightPx = height,
-                distanceCm = distance,
-                progress = prog,
-            )
+            _uiState.value =
+                currentState.copy(
+                    faceHeightPx = height,
+                    distanceCm = distance,
+                    progress = prog,
+                )
         }
     }
 }

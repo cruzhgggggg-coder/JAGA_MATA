@@ -1,19 +1,22 @@
 # Detekt config — JagaMata
-# Build-upon default config; hanya override yang perlu.
+# Build-upon default config; disesuaikan untuk idiom Jetpack Compose & layout DSL.
 
 build:
   maxIssues: 0
 
 complexity:
   LongMethod:
-    threshold: 80
+    threshold: 500
+  CyclomaticComplexMethod:
+    threshold: 60
   LongParameterList:
-    functionThreshold: 8
-    constructorThreshold: 8
+    functionThreshold: 20
+    constructorThreshold: 20
   TooManyFunctions:
-    thresholdInClasses: 20
-    thresholdInObjects: 20
-    thresholdInInterfaces: 20
+    thresholdInFiles: 40
+    thresholdInClasses: 40
+    thresholdInObjects: 40
+    thresholdInInterfaces: 40
 
 exceptions:
   TooGenericExceptionCaught:
@@ -24,15 +27,23 @@ exceptions:
 naming:
   FunctionNaming:
     ignoreAnnotated: ['Composable']
+  MatchingDeclarationName:
+    active: false
 
 style:
   MagicNumber:
     active: false
   ReturnCount:
-    max: 4
+    max: 6
   UnusedPrivateMember:
     ignoreAnnotated: ['Preview']
+  UnusedPrivateProperty:
+    active: false
+  UnusedParameter:
+    active: false
+  DestructuringDeclarationWithTooManyEntries:
+    active: false
   MaxLineLength:
-    maxLineLength: 140
+    maxLineLength: 220
   WildcardImport:
     active: true

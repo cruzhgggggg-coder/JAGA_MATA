@@ -68,15 +68,12 @@ import androidx.core.content.ContextCompat
 import com.jagamata.app.R
 import com.jagamata.app.detection.RiskLevel
 import com.jagamata.app.service.DetectionForegroundService
-import java.util.Locale
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
 import com.jagamata.app.ui.child.DesignSparkle
-import com.jagamata.app.ui.components.KikoExpression
-import com.jagamata.app.ui.components.KikoImage
 import com.jagamata.app.ui.child.jagaBottomNavItems
 import com.jagamata.app.ui.components.BottomNavBar
 import com.jagamata.app.ui.components.JagaCard
+import com.jagamata.app.ui.components.KikoExpression
+import com.jagamata.app.ui.components.KikoImage
 import com.jagamata.app.ui.theme.Background
 import com.jagamata.app.ui.theme.BlueTintDeep
 import com.jagamata.app.ui.theme.Coral
@@ -86,6 +83,9 @@ import com.jagamata.app.ui.theme.Primary
 import com.jagamata.app.ui.theme.Sunny
 import com.jagamata.app.ui.theme.Surface
 import com.jagamata.app.ui.theme.SurfaceAlt
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import java.util.Locale
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -109,7 +109,9 @@ fun PantauLiveScreen(
         mutableLongStateOf(
             if (isRunning && sessionStart > 0L) {
                 ((System.currentTimeMillis() - sessionStart) / 1000L).coerceAtLeast(0L)
-            } else 0L,
+            } else {
+                0L
+            },
         )
     }
     LaunchedEffect(isRunning, sessionStart) {
@@ -394,10 +396,11 @@ private fun GaugeCard(
         }
     val animatedAngle by animateFloatAsState(
         targetValue = targetAngleDeg.toFloat(),
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow,
-        ),
+        animationSpec =
+            spring(
+                dampingRatio = Spring.DampingRatioMediumBouncy,
+                stiffness = Spring.StiffnessLow,
+            ),
         label = "gaugeKnobAngle",
     )
 

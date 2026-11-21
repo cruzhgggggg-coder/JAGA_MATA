@@ -133,48 +133,55 @@ object ReportGenerator {
         // Background
         canvas.drawColor(Color.WHITE)
 
-        val headerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.parseColor("#4A86E8")
-            style = Paint.Style.FILL
-        }
+        val headerPaint =
+            Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.parseColor("#4A86E8")
+                style = Paint.Style.FILL
+            }
         // Header banner
         canvas.drawRect(0f, 0f, 595f, 90f, headerPaint)
 
-        val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.WHITE
-            textSize = 20f
-            isFakeBoldText = true
-        }
+        val titlePaint =
+            Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.WHITE
+                textSize = 20f
+                isFakeBoldText = true
+            }
         canvas.drawText("JagaMata — Laporan Kesehatan Mata & Skrining Layar", 30f, 45f, titlePaint)
 
-        val subtitlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.parseColor("#E1EFFF")
-            textSize = 11f
-        }
+        val subtitlePaint =
+            Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.parseColor("#E1EFFF")
+                textSize = 11f
+            }
         canvas.drawText("Protokol Pemantauan Jarak On-Device (Rule 20-20-20 & Distance Compliance)", 30f, 68f, subtitlePaint)
 
         // Info Pasien / Anak Card
-        val cardPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.parseColor("#F2F7FF")
-            style = Paint.Style.FILL
-        }
-        val cardBorder = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.parseColor("#D6E6FF")
-            style = Paint.Style.STROKE
-            strokeWidth = 1.5f
-        }
+        val cardPaint =
+            Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.parseColor("#F2F7FF")
+                style = Paint.Style.FILL
+            }
+        val cardBorder =
+            Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.parseColor("#D6E6FF")
+                style = Paint.Style.STROKE
+                strokeWidth = 1.5f
+            }
         canvas.drawRoundRect(30f, 110f, 565f, 185f, 8f, 8f, cardPaint)
         canvas.drawRoundRect(30f, 110f, 565f, 185f, 8f, 8f, cardBorder)
 
-        val textBold = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.parseColor("#12263A")
-            textSize = 12f
-            isFakeBoldText = true
-        }
-        val textBody = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.parseColor("#12263A")
-            textSize = 11f
-        }
+        val textBold =
+            Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.parseColor("#12263A")
+                textSize = 12f
+                isFakeBoldText = true
+            }
+        val textBody =
+            Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.parseColor("#12263A")
+                textSize = 11f
+            }
 
         canvas.drawText("Nama Anak:", 45f, 135f, textBold)
         canvas.drawText("$childName ($childAge Tahun)", 130f, 135f, textBody)
@@ -192,40 +199,57 @@ object ReportGenerator {
         var y = 220f
         canvas.drawText("RINGKASAN KEPATUHAN & STATUS KLINIS", 30f, y, textBold)
         y += 15f
-        val dividerPaint = Paint().apply {
-            color = Color.parseColor("#4A86E8")
-            strokeWidth = 2f
-        }
+        val dividerPaint =
+            Paint().apply {
+                color = Color.parseColor("#4A86E8")
+                strokeWidth = 2f
+            }
         canvas.drawLine(30f, y, 565f, y, dividerPaint)
         y += 25f
 
         // 4 Kotak Metrik (KPI)
         val kpiWidth = 125f
-        val kpis = listOf(
-            Triple("Total Siklus", "${summary.totalCycles}", "#4A86E8"),
-            Triple("Pelanggaran Jarak", "${summary.totalCloseViolations}x", if (summary.totalCloseViolations > 10) "#FF7B6B" else "#50C878"),
-            Triple("Menit Ruang Gelap", "${summary.totalDarkMinutes} mnt", if (summary.totalDarkMinutes > 30) "#FFD166" else "#50C878"),
-            Triple("Kepatuhan Postur", "${summary.totalPostureViolations}x", "#4A86E8")
-        )
+        val kpis =
+            listOf(
+                Triple("Total Siklus", "${summary.totalCycles}", "#4A86E8"),
+                Triple(
+                    "Pelanggaran Jarak",
+                    "${summary.totalCloseViolations}x",
+                    if (summary.totalCloseViolations > 10) "#FF7B6B" else "#50C878",
+                ),
+                Triple("Menit Ruang Gelap", "${summary.totalDarkMinutes} mnt", if (summary.totalDarkMinutes > 30) "#FFD166" else "#50C878"),
+                Triple("Kepatuhan Postur", "${summary.totalPostureViolations}x", "#4A86E8"),
+            )
         for (i in kpis.indices) {
             val kpiLeft = 30f + i * (kpiWidth + 8f)
             val (kpiTitle, kpiVal, kpiColor) = kpis[i]
-            val bg = Paint().apply { color = Color.parseColor("#F8FAFC"); style = Paint.Style.FILL }
-            val border = Paint().apply { color = Color.parseColor(kpiColor); style = Paint.Style.STROKE; strokeWidth = 1f }
+            val bg =
+                Paint().apply {
+                    color = Color.parseColor("#F8FAFC")
+                    style = Paint.Style.FILL
+                }
+            val border =
+                Paint().apply {
+                    color = Color.parseColor(kpiColor)
+                    style = Paint.Style.STROKE
+                    strokeWidth = 1f
+                }
             canvas.drawRoundRect(kpiLeft, y, kpiLeft + kpiWidth, y + 55f, 6f, 6f, bg)
             canvas.drawRoundRect(kpiLeft, y, kpiLeft + kpiWidth, y + 55f, 6f, 6f, border)
 
-            val valPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = Color.parseColor(kpiColor)
-                textSize = 16f
-                isFakeBoldText = true
-                textAlign = Paint.Align.CENTER
-            }
-            val lblPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = Color.parseColor("#64748B")
-                textSize = 9f
-                textAlign = Paint.Align.CENTER
-            }
+            val valPaint =
+                Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                    color = Color.parseColor(kpiColor)
+                    textSize = 16f
+                    isFakeBoldText = true
+                    textAlign = Paint.Align.CENTER
+                }
+            val lblPaint =
+                Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                    color = Color.parseColor("#64748B")
+                    textSize = 9f
+                    textAlign = Paint.Align.CENTER
+                }
             canvas.drawText(kpiVal, kpiLeft + kpiWidth / 2f, y + 26f, valPaint)
             canvas.drawText(kpiTitle, kpiLeft + kpiWidth / 2f, y + 44f, lblPaint)
         }
@@ -237,16 +261,18 @@ object ReportGenerator {
         y += 20f
 
         // Header Tabel
-        val thPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.parseColor("#F1F5F9")
-            style = Paint.Style.FILL
-        }
+        val thPaint =
+            Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.parseColor("#F1F5F9")
+                style = Paint.Style.FILL
+            }
         canvas.drawRect(30f, y, 565f, y + 22f, thPaint)
-        val thText = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.parseColor("#334155")
-            textSize = 10f
-            isFakeBoldText = true
-        }
+        val thText =
+            Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.parseColor("#334155")
+                textSize = 10f
+                isFakeBoldText = true
+            }
         canvas.drawText("Hari / Tanggal", 40f, y + 15f, thText)
         canvas.drawText("Total Sesi", 170f, y + 15f, thText)
         canvas.drawText("Jarak < 30 cm", 270f, y + 15f, thText)
@@ -262,10 +288,11 @@ object ReportGenerator {
             val rowBg = if (idx % 2 == 0) Color.WHITE else Color.parseColor("#F8FAFC")
             canvas.drawRect(30f, y, 565f, y + 20f, Paint().apply { color = rowBg })
 
-            val rowText = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = Color.parseColor("#1E293B")
-                textSize = 10f
-            }
+            val rowText =
+                Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                    color = Color.parseColor("#1E293B")
+                    textSize = 10f
+                }
             canvas.drawText(dName, 40f, y + 14f, rowText)
             canvas.drawText("${d?.totalCycles ?: 0} siklus", 170f, y + 14f, rowText)
             canvas.drawText("${d?.closeViolations ?: 0} kali", 270f, y + 14f, rowText)
@@ -273,11 +300,12 @@ object ReportGenerator {
 
             val status = if ((d?.closeViolations ?: 0) > 5) "Perhatian" else "Aman"
             val statusColor = if (status == "Aman") "#50C878" else "#FF7B6B"
-            val statusPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = Color.parseColor(statusColor)
-                textSize = 10f
-                isFakeBoldText = true
-            }
+            val statusPaint =
+                Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                    color = Color.parseColor(statusColor)
+                    textSize = 10f
+                    isFakeBoldText = true
+                }
             canvas.drawText(status, 480f, y + 14f, statusPaint)
             y += 20f
         }
@@ -289,30 +317,34 @@ object ReportGenerator {
         canvas.drawLine(30f, y, 565f, y, dividerPaint)
         y += 20f
 
-        val recoBox = Paint().apply {
-            color = Color.parseColor("#FFFBEB")
-            style = Paint.Style.FILL
-        }
-        val recoBorder = Paint().apply {
-            color = Color.parseColor("#FDE68A")
-            style = Paint.Style.STROKE
-            strokeWidth = 1f
-        }
+        val recoBox =
+            Paint().apply {
+                color = Color.parseColor("#FFFBEB")
+                style = Paint.Style.FILL
+            }
+        val recoBorder =
+            Paint().apply {
+                color = Color.parseColor("#FDE68A")
+                style = Paint.Style.STROKE
+                strokeWidth = 1f
+            }
         canvas.drawRoundRect(30f, y, 565f, y + 115f, 6f, 6f, recoBox)
         canvas.drawRoundRect(30f, y, 565f, y + 115f, 6f, 6f, recoBorder)
 
-        val recoText = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.parseColor("#92400E")
-            textSize = 9.5f
-        }
+        val recoText =
+            Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.parseColor("#92400E")
+                textSize = 9.5f
+            }
         var ry = y + 18f
-        val recoLines = listOf(
-            "1. Aturan 20-20-20: Setiap 20 menit menatap layar, pandang objek berjarak 6 meter selama minimal 20 detik.",
-            "2. Validasi Klinis Miopia (SPORTHR, p < 0.001): Tingkatkan aktivitas luar ruangan minimal 1.5 - 2 jam per hari.",
-            "   Penelitian membuktikan sinar matahari alami merangsang pelepasan dopamin retina penghambat pemanjangan aksial bola mata.",
-            "3. Pertahankan pencahayaan ruangan di atas 150 lux dan hindari penggunaan gawai di ruangan gelap total sebelum tidur.",
-            "4. Jika anak sering mengucek mata atau memicingkan mata saat melihat jauh, segera konsultasikan ke Dokter Spesialis Mata (Sp.M)."
-        )
+        val recoLines =
+            listOf(
+                "1. Aturan 20-20-20: Setiap 20 menit menatap layar, pandang objek berjarak 6 meter selama minimal 20 detik.",
+                "2. Validasi Klinis Miopia (SPORTHR, p < 0.001): Tingkatkan aktivitas luar ruangan minimal 1.5 - 2 jam per hari.",
+                "   Penelitian membuktikan sinar matahari alami merangsang pelepasan dopamin retina penghambat pemanjangan aksial bola mata.",
+                "3. Pertahankan pencahayaan ruangan di atas 150 lux dan hindari penggunaan gawai di ruangan gelap total sebelum tidur.",
+                "4. Jika anak sering mengucek mata atau memicingkan mata saat melihat jauh, segera konsultasikan ke Dokter Spesialis Mata (Sp.M).",
+            )
         for (line in recoLines) {
             canvas.drawText(line, 42f, ry, recoText)
             ry += 18f
@@ -323,19 +355,59 @@ object ReportGenerator {
         canvas.drawText("Orang Tua / Wali Murid,", 60f, y, textBody)
         canvas.drawText("Dokter Spesialis Mata / Pemeriksa,", 360f, y, textBody)
         y += 45f
-        canvas.drawLine(60f, y, 200f, y, Paint().apply { color = Color.parseColor("#94A3B8"); strokeWidth = 1f })
-        canvas.drawLine(360f, y, 520f, y, Paint().apply { color = Color.parseColor("#94A3B8"); strokeWidth = 1f })
+        canvas.drawLine(
+            60f,
+            y,
+            200f,
+            y,
+            Paint().apply {
+                color = Color.parseColor("#94A3B8")
+                strokeWidth = 1f
+            },
+        )
+        canvas.drawLine(
+            360f,
+            y,
+            520f,
+            y,
+            Paint().apply {
+                color = Color.parseColor("#94A3B8")
+                strokeWidth = 1f
+            },
+        )
         y += 14f
-        canvas.drawText("(..........................................)", 60f, y, Paint().apply { color = Color.parseColor("#94A3B8"); textSize = 9f })
-        canvas.drawText("(..........................................)", 360f, y, Paint().apply { color = Color.parseColor("#94A3B8"); textSize = 9f })
+        canvas.drawText(
+            "(..........................................)",
+            60f,
+            y,
+            Paint().apply {
+                color = Color.parseColor("#94A3B8")
+                textSize = 9f
+            },
+        )
+        canvas.drawText(
+            "(..........................................)",
+            360f,
+            y,
+            Paint().apply {
+                color = Color.parseColor("#94A3B8")
+                textSize = 9f
+            },
+        )
 
         // Footer
-        val footerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.parseColor("#94A3B8")
-            textSize = 8.5f
-            textAlign = Paint.Align.CENTER
-        }
-        canvas.drawText("Dokumen ini dihasilkan secara otomatis oleh Aplikasi JagaMata — On-Device Eye Protection Platform", 595f / 2f, 825f, footerPaint)
+        val footerPaint =
+            Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.parseColor("#94A3B8")
+                textSize = 8.5f
+                textAlign = Paint.Align.CENTER
+            }
+        canvas.drawText(
+            "Dokumen ini dihasilkan secara otomatis oleh Aplikasi JagaMata — On-Device Eye Protection Platform",
+            595f / 2f,
+            825f,
+            footerPaint,
+        )
 
         document.finishPage(page)
         FileOutputStream(pdfFile).use { out ->

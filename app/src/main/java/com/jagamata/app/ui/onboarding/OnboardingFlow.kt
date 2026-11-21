@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -76,18 +75,19 @@ import com.jagamata.app.ui.theme.Surface
 @Composable
 internal fun Cloud(modifier: Modifier = Modifier) {
     Canvas(modifier = modifier) {
-        val p = Path().apply {
-            moveTo(16.71f, 38.222f)
-            cubicTo(7.161f, 38.222f, 0f, 32.25f, 0f, 23.889f)
-            cubicTo(0f, 16.125f, 5.968f, 10.75f, 13.129f, 10.75f)
-            cubicTo(15.516f, 3.583f, 22.081f, 0f, 29.839f, 0f)
-            cubicTo(39.387f, 0f, 46.548f, 6.569f, 47.742f, 14.333f)
-            cubicTo(49.532f, 13.139f, 51.919f, 12.542f, 54.306f, 12.542f)
-            cubicTo(62.065f, 12.542f, 69.226f, 18.514f, 69.226f, 25.681f)
-            cubicTo(69.226f, 32.847f, 63.258f, 38.222f, 54.903f, 38.222f)
-            lineTo(16.71f, 38.222f)
-            close()
-        }
+        val p =
+            Path().apply {
+                moveTo(16.71f, 38.222f)
+                cubicTo(7.161f, 38.222f, 0f, 32.25f, 0f, 23.889f)
+                cubicTo(0f, 16.125f, 5.968f, 10.75f, 13.129f, 10.75f)
+                cubicTo(15.516f, 3.583f, 22.081f, 0f, 29.839f, 0f)
+                cubicTo(39.387f, 0f, 46.548f, 6.569f, 47.742f, 14.333f)
+                cubicTo(49.532f, 13.139f, 51.919f, 12.542f, 54.306f, 12.542f)
+                cubicTo(62.065f, 12.542f, 69.226f, 18.514f, 69.226f, 25.681f)
+                cubicTo(69.226f, 32.847f, 63.258f, 38.222f, 54.903f, 38.222f)
+                lineTo(16.71f, 38.222f)
+                close()
+            }
         scale(size.width / 69.226f, size.height / 38.222f, pivot = Offset.Zero) {
             drawPath(p, Color.White)
         }
@@ -96,7 +96,10 @@ internal fun Cloud(modifier: Modifier = Modifier) {
 
 /** Gelembung ucapan putih r16 + ekor — teks bodySmall 15 tengah. */
 @Composable
-internal fun SpeechBubble(text: String, modifier: Modifier = Modifier) {
+internal fun SpeechBubble(
+    text: String,
+    modifier: Modifier = Modifier,
+) {
     Column(modifier = modifier.width(305.dp)) {
         Box(
             modifier =
@@ -115,14 +118,15 @@ internal fun SpeechBubble(text: String, modifier: Modifier = Modifier) {
             )
         }
         Canvas(modifier = Modifier.size(18.dp, 13.dp).align(Alignment.CenterHorizontally)) {
-            val p = Path().apply {
-                moveTo(0f, 0f)
-                lineTo(18f, 0f)
-                cubicTo(13f, 3f, 10f, 8f, 8f, 12.5f)
-                cubicTo(7.8f, 13f, 7.1f, 13f, 7f, 12.5f)
-                cubicTo(6.4f, 8f, 4.5f, 3f, 0f, 0f)
-                close()
-            }
+            val p =
+                Path().apply {
+                    moveTo(0f, 0f)
+                    lineTo(18f, 0f)
+                    cubicTo(13f, 3f, 10f, 8f, 8f, 12.5f)
+                    cubicTo(7.8f, 13f, 7.1f, 13f, 7f, 12.5f)
+                    cubicTo(6.4f, 8f, 4.5f, 3f, 0f, 0f)
+                    close()
+                }
             drawPath(p, Surface)
         }
     }
@@ -252,7 +256,10 @@ private fun OnboardingScaffold(
 // ------------------------------------------------------------- Halaman 01a
 
 @Composable
-private fun OnboardingPage1(onNext: () -> Unit, onSkip: () -> Unit) {
+private fun OnboardingPage1(
+    onNext: () -> Unit,
+    onSkip: () -> Unit,
+) {
     OnboardingScaffold(
         activeDot = 0,
         title = stringResource(R.string.ob1_title),
@@ -286,7 +293,10 @@ private fun OnboardingPage1(onNext: () -> Unit, onSkip: () -> Unit) {
 // ------------------------------------------------------------- Halaman 01b
 
 @Composable
-private fun OnboardingPage2(onNext: () -> Unit, onSkip: () -> Unit) {
+private fun OnboardingPage2(
+    onNext: () -> Unit,
+    onSkip: () -> Unit,
+) {
     OnboardingScaffold(
         activeDot = 1,
         title = stringResource(R.string.ob2_title),
@@ -383,7 +393,10 @@ private fun StatCard(
 // ------------------------------------------------------------- Halaman 01c
 
 @Composable
-private fun OnboardingPage3(onNext: () -> Unit, onSkip: () -> Unit) {
+private fun OnboardingPage3(
+    onNext: () -> Unit,
+    onSkip: () -> Unit,
+) {
     OnboardingScaffold(
         activeDot = 2,
         title = stringResource(R.string.ob3_title),

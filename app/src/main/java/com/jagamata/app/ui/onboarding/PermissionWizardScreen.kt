@@ -34,9 +34,9 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.jagamata.app.R
 import com.jagamata.app.ui.components.JagaCard
+import com.jagamata.app.ui.components.JagaSwitch
 import com.jagamata.app.ui.components.PrimaryButton
 import com.jagamata.app.ui.parent.ChevronTrailing
-import com.jagamata.app.ui.components.JagaSwitch
 import com.jagamata.app.ui.parent.FooterCaption
 import com.jagamata.app.ui.parent.JagaTopBar
 import com.jagamata.app.ui.parent.MascotHeroCard

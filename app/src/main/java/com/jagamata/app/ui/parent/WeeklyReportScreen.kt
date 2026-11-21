@@ -82,21 +82,23 @@ fun WeeklyReportScreen(onBack: () -> Unit) {
     LaunchedEffect(Unit) {
         val db = AppDatabase.getInstance(context)
         val stats = db.dailyDao().getAll()
-        dailyList = if (stats.isNotEmpty()) {
-            stats.takeLast(7)
-        } else {
-            // Data awal edukatif bila belum ada riwayat siklus
-            listOf(
-                DailyStats(dayEpoch = 1, totalCycles = 15, closeViolations = 2, darkMinutes = 0, postureViolations = 1),
-                DailyStats(dayEpoch = 2, totalCycles = 22, closeViolations = 1, darkMinutes = 1, postureViolations = 0),
-                DailyStats(dayEpoch = 3, totalCycles = 30, closeViolations = 0, darkMinutes = 0, postureViolations = 1),
-            )
-        }
+        dailyList =
+            if (stats.isNotEmpty()) {
+                stats.takeLast(7)
+            } else {
+                // Data awal edukatif bila belum ada riwayat siklus
+                listOf(
+                    DailyStats(dayEpoch = 1, totalCycles = 15, closeViolations = 2, darkMinutes = 0, postureViolations = 1),
+                    DailyStats(dayEpoch = 2, totalCycles = 22, closeViolations = 1, darkMinutes = 1, postureViolations = 0),
+                    DailyStats(dayEpoch = 3, totalCycles = 30, closeViolations = 0, darkMinutes = 0, postureViolations = 1),
+                )
+            }
     }
 
-    val summary = remember(dailyList) {
-        ReportGenerator.summarize(dailyList, periodLabel = "7 Hari Terakhir")
-    }
+    val summary =
+        remember(dailyList) {
+            ReportGenerator.summarize(dailyList, periodLabel = "7 Hari Terakhir")
+        }
 
     Column(
         modifier =
@@ -194,7 +196,10 @@ fun WeeklyReportScreen(onBack: () -> Unit) {
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Berdasarkan analisis onset miopia, anak disarankan memperbanyak aktivitas luar ruangan minimal 1.5–2 jam/hari. Sinar matahari merangsang pelepasan dopamin yang terbukti efektif menekan risiko mata minus.",
+                        text =
+                            "Berdasarkan analisis onset miopia, anak disarankan memperbanyak aktivitas " +
+                                "luar ruangan minimal 1.5–2 jam/hari. Sinar matahari merangsang pelepasan dopamin " +
+                                "yang terbukti efektif menekan risiko mata minus.",
                         style = MaterialTheme.typography.bodySmall,
                         color = Ink.copy(alpha = 0.85f),
                     )

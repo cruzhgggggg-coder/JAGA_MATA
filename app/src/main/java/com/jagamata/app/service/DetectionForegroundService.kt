@@ -11,7 +11,6 @@ import android.os.IBinder
 import android.util.Log
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
-import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleService
@@ -257,8 +256,9 @@ class DetectionForegroundService : LifecycleService() {
                     com.jagamata.app.detection.ViolationType.BAD_POSTURE ->
                         getString(R.string.notif_body_posture, summary.maxPitchDeg ?: 0f)
                 }
-            val isCrucial = summary.violations.contains(com.jagamata.app.detection.ViolationType.TOO_CLOSE) &&
-                (summary.minDistanceCm ?: 30f) < 25f
+            val isCrucial =
+                summary.violations.contains(com.jagamata.app.detection.ViolationType.TOO_CLOSE) &&
+                    (summary.minDistanceCm ?: 30f) < 25f
             NotificationHelper.throttledAlert(this, title, body, isCrucial = isCrucial)
         }
         _lastCycle.value = summary

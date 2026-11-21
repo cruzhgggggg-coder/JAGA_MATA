@@ -23,20 +23,17 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.CardGiftcard
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.People
 import androidx.compose.material.icons.outlined.Visibility
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.window.Dialog
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -49,18 +46,20 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import com.jagamata.app.R
 import com.jagamata.app.data.AppDatabase
-import com.jagamata.app.ui.components.BottomNavItem
 import com.jagamata.app.ui.components.BottomNavBar
+import com.jagamata.app.ui.components.BottomNavItem
 import com.jagamata.app.ui.components.JagaCard
 import com.jagamata.app.ui.components.KikoExpression
 import com.jagamata.app.ui.components.KikoImage
@@ -68,8 +67,8 @@ import com.jagamata.app.ui.components.Sparkle
 import com.jagamata.app.ui.theme.Background
 import com.jagamata.app.ui.theme.BlueTint
 import com.jagamata.app.ui.theme.BlueTintDeep
-import com.jagamata.app.ui.theme.Cream
 import com.jagamata.app.ui.theme.Coral
+import com.jagamata.app.ui.theme.Cream
 import com.jagamata.app.ui.theme.Divider
 import com.jagamata.app.ui.theme.Ink
 import com.jagamata.app.ui.theme.Lavender
@@ -92,9 +91,7 @@ data class BadgeInfo(
  * Terkoneksi dinamis ke database Room untuk status pencapaian nyata anak.
  */
 @Composable
-fun RewardsScreen(
-    onTab: (Int) -> Unit = {},
-) {
+fun RewardsScreen(onTab: (Int) -> Unit = {}) {
     val context = LocalContext.current
     var totalCycles by remember { mutableStateOf(0) }
     var closeViolations by remember { mutableStateOf(0) }
@@ -110,41 +107,49 @@ fun RewardsScreen(
         streakDays = (daily.size + if (snapshots.isNotEmpty()) 1 else 0).coerceIn(1, 7)
     }
 
-    val kikoStage = if (totalCycles >= 20) 3 else if (totalCycles >= 10) 2 else 1
+    val kikoStage =
+        if (totalCycles >= 20) {
+            3
+        } else if (totalCycles >= 10) {
+            2
+        } else {
+            1
+        }
     val kikoStageProgress = ((totalCycles % 10) / 10f).coerceIn(0.15f, 1f)
     val nextTargetDays = (10 - (totalCycles % 10)).coerceAtLeast(1)
 
     // Logika pembukaan lencana gamifikasi berbasis riwayat pemantauan nyata (Blueprint §4.2)
-    val badges = listOf(
-        BadgeInfo(
-            title = stringResource(R.string.s07_badge_mata),
-            subtitle = if (totalCycles >= 1) "Terbuka 🎉" else stringResource(R.string.s07_badge_mata_desc),
-            description = "Lencana penjaga mata setia yang telah mulai membiasakan jarak pandang layar yang sehat.",
-            criteria = "Selesaikan minimal 1 sesi pemantauan jarak layar dengan Kiko.",
-            locked = totalCycles < 1,
-        ),
-        BadgeInfo(
-            title = stringResource(R.string.s07_badge_istirahat),
-            subtitle = if (totalCycles >= 5) "Terbuka 🎉" else stringResource(R.string.s07_badge_istirahat_desc),
-            description = "Lencana kepatuhan aturan 20-20-20 untuk memberi jeda istirahat mata dari radiasi layar.",
-            criteria = "Pantau kesehatan mata hingga mencapai minimal 5 siklus pemantauan.",
-            locked = totalCycles < 5,
-        ),
-        BadgeInfo(
-            title = stringResource(R.string.s07_badge_jarak),
-            subtitle = if (totalCycles >= 3 && closeViolations == 0) "Terbuka 🎉" else stringResource(R.string.s07_locked),
-            description = "Lencana disiplin menjaga jarak HP selalu aman di atas 30 cm tanpa peringatan bahaya.",
-            criteria = "Selesaikan 3 sesi berturut-turut tanpa pelanggaran jarak terlalu dekat.",
-            locked = !(totalCycles >= 3 && closeViolations == 0),
-        ),
-        BadgeInfo(
-            title = stringResource(R.string.s07_badge_super),
-            subtitle = if (streakDays >= 3) "Terbuka 🎉" else stringResource(R.string.s07_locked),
-            description = "Lencana konsistensi tingkat tinggi penjaga mata sejati!",
-            criteria = "Pertahankan kebiasaan melihat layar sehat selama 3 hari berturut-turut.",
-            locked = streakDays < 3,
-        ),
-    )
+    val badges =
+        listOf(
+            BadgeInfo(
+                title = stringResource(R.string.s07_badge_mata),
+                subtitle = if (totalCycles >= 1) "Terbuka 🎉" else stringResource(R.string.s07_badge_mata_desc),
+                description = "Lencana penjaga mata setia yang telah mulai membiasakan jarak pandang layar yang sehat.",
+                criteria = "Selesaikan minimal 1 sesi pemantauan jarak layar dengan Kiko.",
+                locked = totalCycles < 1,
+            ),
+            BadgeInfo(
+                title = stringResource(R.string.s07_badge_istirahat),
+                subtitle = if (totalCycles >= 5) "Terbuka 🎉" else stringResource(R.string.s07_badge_istirahat_desc),
+                description = "Lencana kepatuhan aturan 20-20-20 untuk memberi jeda istirahat mata dari radiasi layar.",
+                criteria = "Pantau kesehatan mata hingga mencapai minimal 5 siklus pemantauan.",
+                locked = totalCycles < 5,
+            ),
+            BadgeInfo(
+                title = stringResource(R.string.s07_badge_jarak),
+                subtitle = if (totalCycles >= 3 && closeViolations == 0) "Terbuka 🎉" else stringResource(R.string.s07_locked),
+                description = "Lencana disiplin menjaga jarak HP selalu aman di atas 30 cm tanpa peringatan bahaya.",
+                criteria = "Selesaikan 3 sesi berturut-turut tanpa pelanggaran jarak terlalu dekat.",
+                locked = !(totalCycles >= 3 && closeViolations == 0),
+            ),
+            BadgeInfo(
+                title = stringResource(R.string.s07_badge_super),
+                subtitle = if (streakDays >= 3) "Terbuka 🎉" else stringResource(R.string.s07_locked),
+                description = "Lencana konsistensi tingkat tinggi penjaga mata sejati!",
+                criteria = "Pertahankan kebiasaan melihat layar sehat selama 3 hari berturut-turut.",
+                locked = streakDays < 3,
+            ),
+        )
 
     Column(
         modifier =
@@ -373,13 +378,14 @@ private fun StreakCard(streakDays: Int) {
         Spacer(modifier = Modifier.height(14.dp))
 
         val days = listOf("S", "S", "R", "K", "J", "S", "M")
-        val states = List(7) { i ->
-            when {
-                i < (streakDays - 1).coerceAtLeast(0) -> DayState.Done
-                i == (streakDays - 1).coerceAtLeast(0) -> DayState.Today
-                else -> DayState.Empty
+        val states =
+            List(7) { i ->
+                when {
+                    i < (streakDays - 1).coerceAtLeast(0) -> DayState.Done
+                    i == (streakDays - 1).coerceAtLeast(0) -> DayState.Today
+                    else -> DayState.Empty
+                }
             }
-        }
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -475,11 +481,12 @@ private fun KikoGrowthCard(
     progress: Float,
     nextDays: Int,
 ) {
-    val stageName = when (stage) {
-        1 -> "Tahap 1 · Kiko Pemula"
-        2 -> "Tahap 2 · Kiko Penjaga Berkacamata"
-        else -> "Tahap 3 · Kiko Pahlawan Mata"
-    }
+    val stageName =
+        when (stage) {
+            1 -> "Tahap 1 · Kiko Pemula"
+            2 -> "Tahap 2 · Kiko Penjaga Berkacamata"
+            else -> "Tahap 3 · Kiko Pahlawan Mata"
+        }
 
     Box(
         modifier =

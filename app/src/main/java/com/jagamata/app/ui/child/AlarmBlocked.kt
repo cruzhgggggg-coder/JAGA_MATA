@@ -46,8 +46,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.jagamata.app.R
 import com.jagamata.app.ui.components.BottomCtaBar
-import com.jagamata.app.ui.components.BottomNavItem
 import com.jagamata.app.ui.components.BottomNavBar
+import com.jagamata.app.ui.components.BottomNavItem
 import com.jagamata.app.ui.components.KikoExpression
 import com.jagamata.app.ui.components.KikoImage
 import com.jagamata.app.ui.components.Sparkle
@@ -261,16 +261,28 @@ private fun PantauJarakScene() {
                             style = Stroke(width = 2.dp.toPx()),
                         )
                         // wajah smiley
-                        drawCircle(Iris.copy(alpha = 0.7f), radius = 3.dp.toPx(), center = Offset(size.width / 2 - 9.dp.toPx(), size.height / 2 - 6.dp.toPx()))
-                        drawCircle(Iris.copy(alpha = 0.7f), radius = 3.dp.toPx(), center = Offset(size.width / 2 + 9.dp.toPx(), size.height / 2 - 6.dp.toPx()))
-                        val smile = Path().apply {
-                            moveTo(size.width / 2 - 11.dp.toPx(), size.height / 2 + 8.dp.toPx())
-                            cubicTo(
-                                size.width / 2 - 5.dp.toPx(), size.height / 2 + 14.dp.toPx(),
-                                size.width / 2 + 5.dp.toPx(), size.height / 2 + 14.dp.toPx(),
-                                size.width / 2 + 11.dp.toPx(), size.height / 2 + 8.dp.toPx(),
-                            )
-                        }
+                        drawCircle(
+                            Iris.copy(alpha = 0.7f),
+                            radius = 3.dp.toPx(),
+                            center = Offset(size.width / 2 - 9.dp.toPx(), size.height / 2 - 6.dp.toPx()),
+                        )
+                        drawCircle(
+                            Iris.copy(alpha = 0.7f),
+                            radius = 3.dp.toPx(),
+                            center = Offset(size.width / 2 + 9.dp.toPx(), size.height / 2 - 6.dp.toPx()),
+                        )
+                        val smile =
+                            Path().apply {
+                                moveTo(size.width / 2 - 11.dp.toPx(), size.height / 2 + 8.dp.toPx())
+                                cubicTo(
+                                    size.width / 2 - 5.dp.toPx(),
+                                    size.height / 2 + 14.dp.toPx(),
+                                    size.width / 2 + 5.dp.toPx(),
+                                    size.height / 2 + 14.dp.toPx(),
+                                    size.width / 2 + 11.dp.toPx(),
+                                    size.height / 2 + 8.dp.toPx(),
+                                )
+                            }
                         drawPath(smile, Iris.copy(alpha = 0.7f), style = Stroke(width = 2.5.dp.toPx(), cap = StrokeCap.Round))
                     }
                 }

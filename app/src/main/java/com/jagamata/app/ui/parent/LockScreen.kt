@@ -17,12 +17,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Backspace
-import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -39,7 +37,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -53,7 +50,6 @@ import com.jagamata.app.ui.theme.Background
 import com.jagamata.app.ui.theme.BlueTint
 import com.jagamata.app.ui.theme.BlueTintDeep
 import com.jagamata.app.ui.theme.Coral
-import com.jagamata.app.ui.theme.Divider
 import com.jagamata.app.ui.theme.Ink
 import com.jagamata.app.ui.theme.Primary
 import com.jagamata.app.ui.theme.Surface
@@ -191,7 +187,14 @@ fun LockScreen(
             for (i in 0 until 4) {
                 val isFilled = i < pin.length
                 val dotColor by animateColorAsState(
-                    targetValue = if (isError) Coral else if (isFilled) Primary else SurfaceAlt,
+                    targetValue =
+                        if (isError) {
+                            Coral
+                        } else if (isFilled) {
+                            Primary
+                        } else {
+                            SurfaceAlt
+                        },
                     label = "dotColor_$i",
                 )
                 val dotScale = remember { Animatable(1f) }
@@ -248,12 +251,13 @@ private fun NumericKeypad(
     onDigitClick: (String) -> Unit,
     onDeleteClick: () -> Unit,
 ) {
-    val keypadRows = listOf(
-        listOf("1", "2", "3"),
-        listOf("4", "5", "6"),
-        listOf("7", "8", "9"),
-        listOf("", "0", "DEL"),
-    )
+    val keypadRows =
+        listOf(
+            listOf("1", "2", "3"),
+            listOf("4", "5", "6"),
+            listOf("7", "8", "9"),
+            listOf("", "0", "DEL"),
+        )
 
     Column(
         verticalArrangement = Arrangement.spacedBy(14.dp),
@@ -304,10 +308,11 @@ private fun NumericKeypad(
                             ) {
                                 Text(
                                     text = key,
-                                    style = MaterialTheme.typography.titleLarge.copy(
-                                        fontSize = 24.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                    ),
+                                    style =
+                                        MaterialTheme.typography.titleLarge.copy(
+                                            fontSize = 24.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                        ),
                                     color = Ink,
                                 )
                             }

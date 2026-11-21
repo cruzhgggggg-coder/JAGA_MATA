@@ -51,9 +51,7 @@ import com.jagamata.app.ui.theme.Surface
  * CTA "Selesai Istirahat" menempel di bawah via [BottomCtaBar].
  */
 @Composable
-fun BreakScreen(
-    onDone: () -> Unit = {},
-) {
+fun BreakScreen(onDone: () -> Unit = {}) {
     val context = androidx.compose.ui.platform.LocalContext.current
     androidx.compose.runtime.LaunchedEffect(Unit) {
         com.jagamata.app.service.KikoVoiceHelper.speakBreak202020(context)

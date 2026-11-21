@@ -28,8 +28,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.ui.text.font.FontWeight
-import kotlinx.coroutines.delay
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -46,10 +44,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.jagamata.app.R
-import kotlinx.coroutines.launch
 import com.jagamata.app.detection.RiskLevel
 import com.jagamata.app.ui.components.BottomNavBar
 import com.jagamata.app.ui.components.JagaCard
@@ -65,6 +63,8 @@ import com.jagamata.app.ui.theme.Sunny
 import com.jagamata.app.ui.theme.Surface
 import com.jagamata.app.ui.theme.SurfaceAlt
 import com.jagamata.app.ui.viewModel.DashboardViewModel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.util.Locale
 
 /**
@@ -566,10 +566,11 @@ private fun MinDistanceCard(
             Button(
                 onClick = onSaveDistance,
                 shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isSaved) Mint else Primary,
-                    contentColor = if (isSaved) Ink else Color.White,
-                ),
+                colors =
+                    ButtonDefaults.buttonColors(
+                        containerColor = if (isSaved) Mint else Primary,
+                        contentColor = if (isSaved) Ink else Color.White,
+                    ),
                 modifier = Modifier.fillMaxWidth().height(46.dp),
             ) {
                 Icon(

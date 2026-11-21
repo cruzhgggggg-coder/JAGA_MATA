@@ -69,13 +69,11 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.jagamata.app.R
-import com.jagamata.app.ui.components.BottomNavItem
 import com.jagamata.app.ui.components.BottomNavBar
+import com.jagamata.app.ui.components.BottomNavItem
 import com.jagamata.app.ui.components.JagaCard
 import com.jagamata.app.ui.components.KikoExpression
 import com.jagamata.app.ui.components.KikoImage
-import java.util.Calendar
-import kotlinx.coroutines.launch
 import com.jagamata.app.ui.theme.Background
 import com.jagamata.app.ui.theme.BlueTint
 import com.jagamata.app.ui.theme.BlueTintDeep
@@ -92,6 +90,8 @@ import com.jagamata.app.ui.theme.Sunny
 import com.jagamata.app.ui.theme.Surface
 import com.jagamata.app.ui.theme.SurfaceAlt
 import com.jagamata.app.ui.theme.ZoneSafe
+import kotlinx.coroutines.launch
+import java.util.Calendar
 
 /**
  * Item tab bottom nav desain (Beranda · Pantau · Hadiah · Orang Tua).
@@ -334,6 +334,7 @@ private fun kikoEarPath(
     mirror: Boolean,
 ): Path {
     fun x(v: Float): Float = (if (mirror) 108f - v else v) * k
+
     fun y(v: Float): Float = v * k
     return Path().apply {
         moveTo(x(20.4f), y(23.847f))
@@ -589,26 +590,28 @@ private fun HeroCard() {
     val scope = rememberCoroutineScope()
 
     // Sapaan kontekstual berdasarkan waktu lokal (Blueprint §4.3)
-    val defaultGreeting = remember {
-        val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
-        when (hour) {
-            in 5..11 -> "Selamat pagi! ☀️ Kiko siap jaga matamu hari ini!"
-            in 12..17 -> "Selamat siang! 🌤️ Jaga jarak mata minimal 30 cm ya!"
-            in 18..21 -> "Selamat malam! 🌙 Pastikan lampu ruanganmu menyala terang!"
-            else -> "Sudah larut malam! 😴 Jangan lupa istirahatkan matamu ya!"
+    val defaultGreeting =
+        remember {
+            val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+            when (hour) {
+                in 5..11 -> "Selamat pagi! ☀️ Kiko siap jaga matamu hari ini!"
+                in 12..17 -> "Selamat siang! 🌤️ Jaga jarak mata minimal 30 cm ya!"
+                in 18..21 -> "Selamat malam! 🌙 Pastikan lampu ruanganmu menyala terang!"
+                else -> "Sudah larut malam! 😴 Jangan lupa istirahatkan matamu ya!"
+            }
         }
-    }
 
-    val quotes = remember(defaultGreeting) {
-        listOf(
-            defaultGreeting,
-            "Jarak layar aman minimal 30 cm ya! 👀",
-            "Ruangan terang bikin mata tidak cepat lelah! 💡",
-            "Duduk tegak, jangan terlalu menunduk! 👍",
-            "Ingat aturan 20-20-20: istirahat sejenak! ⏳",
-            "Mata sehat bikin belajar & main makin asyik! ✨",
-        )
-    }
+    val quotes =
+        remember(defaultGreeting) {
+            listOf(
+                defaultGreeting,
+                "Jarak layar aman minimal 30 cm ya! 👀",
+                "Ruangan terang bikin mata tidak cepat lelah! 💡",
+                "Duduk tegak, jangan terlalu menunduk! 👍",
+                "Ingat aturan 20-20-20: istirahat sejenak! ⏳",
+                "Mata sehat bikin belajar & main makin asyik! ✨",
+            )
+        }
 
     var quoteIndex by remember { mutableStateOf(0) }
 
@@ -617,10 +620,11 @@ private fun HeroCard() {
     val floatY by infiniteTransition.animateFloat(
         initialValue = -3f,
         targetValue = 3f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1400, easing = EaseInOutSine),
-            repeatMode = RepeatMode.Reverse,
-        ),
+        animationSpec =
+            infiniteRepeatable(
+                animation = tween(1400, easing = EaseInOutSine),
+                repeatMode = RepeatMode.Reverse,
+            ),
         label = "float_y",
     )
 
@@ -629,10 +633,11 @@ private fun HeroCard() {
     LaunchedEffect(Unit) {
         scaleAnim.animateTo(
             targetValue = 1f,
-            animationSpec = spring(
-                dampingRatio = Spring.DampingRatioMediumBouncy,
-                stiffness = Spring.StiffnessLow,
-            ),
+            animationSpec =
+                spring(
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    stiffness = Spring.StiffnessLow,
+                ),
         )
     }
 

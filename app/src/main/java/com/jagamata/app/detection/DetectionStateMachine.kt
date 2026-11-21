@@ -27,12 +27,13 @@ class DetectionStateMachine(
         pitchThresholdDeg: Float? = null,
         luxThreshold: Float? = null,
     ) {
-        config = config.copy(
-            closeEnterCm = closeEnterCm ?: config.closeEnterCm,
-            closeExitCm = closeExitCm ?: config.closeExitCm,
-            pitchThresholdDeg = pitchThresholdDeg ?: config.pitchThresholdDeg,
-            luxThreshold = luxThreshold ?: config.luxThreshold,
-        )
+        config =
+            config.copy(
+                closeEnterCm = closeEnterCm ?: config.closeEnterCm,
+                closeExitCm = closeExitCm ?: config.closeExitCm,
+                pitchThresholdDeg = pitchThresholdDeg ?: config.pitchThresholdDeg,
+                luxThreshold = luxThreshold ?: config.luxThreshold,
+            )
     }
 
     data class Config(

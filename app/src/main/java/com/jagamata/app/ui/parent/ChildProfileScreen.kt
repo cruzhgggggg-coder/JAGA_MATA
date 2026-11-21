@@ -54,7 +54,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.jagamata.app.R
 import com.jagamata.app.data.SettingsRepository
-import kotlinx.coroutines.launch
 import com.jagamata.app.ui.components.JagaCard
 import com.jagamata.app.ui.components.KikoExpression
 import com.jagamata.app.ui.components.KikoImage
@@ -70,6 +69,7 @@ import com.jagamata.app.ui.theme.PrimaryDark
 import com.jagamata.app.ui.theme.Sunny
 import com.jagamata.app.ui.theme.Surface
 import com.jagamata.app.ui.theme.SurfaceAlt
+import kotlinx.coroutines.launch
 
 /**
  * 08 Profil Anak — kartu profil, target harian, pengaturan sensitif.

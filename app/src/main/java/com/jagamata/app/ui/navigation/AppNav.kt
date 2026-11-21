@@ -3,9 +3,9 @@ package com.jagamata.app.ui.navigation
 import android.Manifest
 import android.content.pm.PackageManager
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import androidx.navigation.NavHostController
@@ -18,7 +18,6 @@ import com.jagamata.app.ui.child.BerandaScreen
 import com.jagamata.app.ui.child.BreakScreen
 import com.jagamata.app.ui.common.OverlayDenied
 import com.jagamata.app.ui.debug.DebugGallery
-import com.jagamata.app.ui.debug.DesignPlaceholder
 import com.jagamata.app.ui.live.PantauLiveScreen
 import com.jagamata.app.ui.onboarding.CalibrationScreen
 import com.jagamata.app.ui.onboarding.OnboardingFlow

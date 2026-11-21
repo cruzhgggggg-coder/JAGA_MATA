@@ -93,8 +93,7 @@ class OverlayService : android.app.Service() {
         showOverlay(level)
     }
 
-    private fun canDrawOverlays(): Boolean =
-        Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(this)
+    private fun canDrawOverlays(): Boolean = Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(this)
 
     private fun showOverlay(level: RiskLevel) {
         removeOverlay()
@@ -137,10 +136,11 @@ class OverlayService : android.app.Service() {
                     subtitle?.text = getString(R.string.alarm_subtitle)
 
                     // Tombol tutup eksplisit agar HP TIDAK PERNAH terkunci
-                    val dismissAction = View.OnClickListener {
-                        userDismissedUntilMs = System.currentTimeMillis() + DISMISS_COOLDOWN_MS
-                        removeOverlay()
-                    }
+                    val dismissAction =
+                        View.OnClickListener {
+                            userDismissedUntilMs = System.currentTimeMillis() + DISMISS_COOLDOWN_MS
+                            removeOverlay()
+                        }
                     btnDismiss?.setOnClickListener(dismissAction)
                     v.setOnClickListener(dismissAction)
 
@@ -167,10 +167,11 @@ class OverlayService : android.app.Service() {
 
             // Auto-dismiss safety timer: maksimal 5 detik agar tidak pernah menutupi HP secara permanen
             autoDismissRunnable?.let { mainHandler.removeCallbacks(it) }
-            val runnable = Runnable {
-                userDismissedUntilMs = System.currentTimeMillis() + DISMISS_COOLDOWN_MS
-                removeOverlay()
-            }
+            val runnable =
+                Runnable {
+                    userDismissedUntilMs = System.currentTimeMillis() + DISMISS_COOLDOWN_MS
+                    removeOverlay()
+                }
             autoDismissRunnable = runnable
             mainHandler.postDelayed(runnable, AUTO_DISMISS_TIMEOUT_MS)
         }.onFailure { Log.e(TAG, "Gagal menampilkan overlay: ${it.message}") }
