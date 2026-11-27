@@ -55,7 +55,7 @@
     <string name="s13_cancel">Batal</string>
     <string name="s13_bubble">PIN ini menjaga pengaturan tetap di tangan orang tua.</string>
     <string name="s13_title">Masuk Mode Orang Tua</string>
-    <string name="s13_pin_hint">Masukkan PIN 4 digit: %1$s · Anak cukup \ntahan 3 detik.</string>
+    <string name="s13_pin_hint">Masukkan PIN 4 digit Anda · Anak cukup \ntahan 3 detik.</string>
     <string name="s13_submit">Buka</string>
 
     <!-- Bottom nav labels (Batch C screens) -->

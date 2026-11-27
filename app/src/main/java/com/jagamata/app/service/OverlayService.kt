@@ -72,7 +72,9 @@ class OverlayService : android.app.Service() {
         }
 
         val now = System.currentTimeMillis()
-        if (now < userDismissedUntilMs) {
+        // Cooldown hanya berlaku setelah dismiss MANUAL (tombol tutup). Auto-dismiss tidak
+        // boleh mengarminginya, dan level BLOCKED tidak pernah ditekan — keselamatan anak.
+        if (level != RiskLevel.BLOCKED && now < userDismissedUntilMs) {
             // Sedang dalam masa jeda setelah pengguna menekan tutup (cooldown)
             return
         }
@@ -177,7 +179,8 @@ class OverlayService : android.app.Service() {
             autoDismissRunnable?.let { mainHandler.removeCallbacks(it) }
             val runnable =
                 Runnable {
-                    userDismissedUntilMs = System.currentTimeMillis() + DISMISS_COOLDOWN_MS
+                    // Auto-dismiss keselamatan TIDAK memicu cooldown — hanya dismiss
+                    // manual yang boleh menahan level berikutnya.
                     removeOverlay()
                 }
             autoDismissRunnable = runnable
@@ -203,9 +206,14 @@ class OverlayService : android.app.Service() {
                     @Suppress("DEPRECATION")
                     getSystemService(VIBRATOR_SERVICE) as? Vibrator
                 }
-            vibrator?.vibrate(
-                VibrationEffect.createOneShot(durationMs, VibrationEffect.DEFAULT_AMPLITUDE),
-            )
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                vibrator?.vibrate(
+                    VibrationEffect.createOneShot(durationMs, VibrationEffect.DEFAULT_AMPLITUDE),
+                )
+            } else {
+                @Suppress("DEPRECATION")
+                vibrator?.vibrate(durationMs)
+            }
         }
     }
 

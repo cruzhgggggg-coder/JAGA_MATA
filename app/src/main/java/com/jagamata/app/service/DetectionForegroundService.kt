@@ -12,6 +12,8 @@ import android.util.Log
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
@@ -53,9 +55,17 @@ class DetectionForegroundService : LifecycleService() {
     private val analysisExecutor = Executors.newSingleThreadExecutor()
     private var lastFrameTimeMs: Long = 0L
     private val isAnalyzing = java.util.concurrent.atomic.AtomicBoolean(false)
+    private var initialized = false
 
     override fun onCreate() {
         super.onCreate()
+        if (!hasCameraPermission()) {
+            // FGS bertipe kamera tanpa izin memicu crash-loop
+            // (ForegroundServiceDidNotStartInTimeException) — berhenti sebelum init apa pun.
+            notifyCameraPermissionNeeded()
+            stopSelf()
+            return
+        }
         database = AppDatabase.getInstance(this)
         settings = SettingsRepository(this)
         aggregator = CycleAggregator()
@@ -108,12 +118,55 @@ class DetectionForegroundService : LifecycleService() {
         startId: Int,
     ): Int {
         super.onStartCommand(intent, flags, startId)
+        if (!hasCameraPermission()) {
+            notifyCameraPermissionNeeded()
+            stopSelf()
+            return Service.START_NOT_STICKY
+        }
+        if (!this::detector.isInitialized) {
+            // onCreate berhenti dini — state belum dibuat, jangan lanjut.
+            stopSelf()
+            return Service.START_NOT_STICKY
+        }
         startForegroundWithNotification()
+        if (initialized) {
+            // Idempoten: intent start() berulang tidak boleh me-re-init detector
+            // (bocor landmarker) atau membuat MinuteTicker ganda.
+            return Service.START_STICKY
+        }
+        initialized = true
         detector.initialize()
         lightMonitor.start()
         startCamera()
         startTicker()
         return Service.START_STICKY
+    }
+
+    private fun hasCameraPermission(): Boolean =
+        ContextCompat.checkSelfPermission(this, android.Manifest.permission.CAMERA) ==
+            android.content.pm.PackageManager.PERMISSION_GRANTED
+
+    private fun notifyCameraPermissionNeeded() {
+        NotificationHelper.ensureChannel(this)
+        val pending =
+            PendingIntent.getActivity(
+                this,
+                0,
+                Intent(this, MainActivity::class.java),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
+        val notification =
+            NotificationCompat.Builder(this, NotificationHelper.CHANNEL_ID)
+                .setSmallIcon(R.drawable.ic_launcher_foreground)
+                .setContentTitle("Butuh izin kamera")
+                .setContentText("JagaMata butuh izin kamera untuk memantau kesehatan mata. Buka aplikasi untuk memberikan izin kembali.")
+                .setContentIntent(pending)
+                .setAutoCancel(true)
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .build()
+        runCatching {
+            NotificationManagerCompat.from(this).notify(NOTIF_ID_PERMISSION, notification)
+        }
     }
 
     private fun startForegroundWithNotification() {
@@ -203,6 +256,7 @@ class DetectionForegroundService : LifecycleService() {
                     MinuteTicker.TICK_INTERVAL_MS
                 }
             val every = if (lightMode) MinuteTicker.LIGHT_MODE_TICKS_PER_CYCLE else 1
+            ticker?.stop()
             val newTicker =
                 MinuteTicker(
                     scope = lifecycleScope,
@@ -225,56 +279,61 @@ class DetectionForegroundService : LifecycleService() {
     }
 
     private suspend fun persistCycle(summary: com.jagamata.app.detection.CycleSummary) {
-        val dayEpoch = summary.startedAtMs / DAY_MS
-        database.snapshotDao().insert(
-            CheckSnapshot(
-                timestampMs = summary.startedAtMs,
-                cycleDurationMs = summary.cycleDurationMs,
-                sampleCount = summary.sampleCount,
-                noFaceCount = summary.noFaceCount,
-                minDistanceCm = summary.minDistanceCm,
-                avgDistanceCm = summary.avgDistanceCm,
-                maxDistanceCm = summary.maxDistanceCm,
-                avgLux = summary.avgLux,
-                maxPitchDeg = summary.maxPitchDeg,
-                violations = summary.violationsCsv(),
-                dayEpoch = dayEpoch,
-            ),
-        )
-        if (summary.hasViolation) {
-            summary.violations.forEach { type ->
-                database.violationDao().insert(
-                    ViolationLog(
-                        timestampMs = summary.startedAtMs,
-                        type = type.name,
-                        distanceCm = summary.avgDistanceCm,
-                        lux = summary.avgLux,
-                        pitchDeg = summary.maxPitchDeg,
-                    ),
-                )
-            }
-            val title = getString(R.string.notif_title, summary.violationsCsv())
-            val body =
-                when (summary.violations.first()) {
-                    com.jagamata.app.detection.ViolationType.TOO_CLOSE ->
-                        getString(R.string.notif_body, summary.minDistanceCm ?: 0f)
-                    com.jagamata.app.detection.ViolationType.TOO_DARK ->
-                        getString(R.string.notif_body_dark, summary.avgLux ?: 0f)
-                    com.jagamata.app.detection.ViolationType.BAD_POSTURE ->
-                        getString(R.string.notif_body_posture, summary.maxPitchDeg ?: 0f)
+        try {
+            val dayEpoch = summary.startedAtMs / DAY_MS
+            database.snapshotDao().insert(
+                CheckSnapshot(
+                    timestampMs = summary.startedAtMs,
+                    cycleDurationMs = summary.cycleDurationMs,
+                    sampleCount = summary.sampleCount,
+                    noFaceCount = summary.noFaceCount,
+                    minDistanceCm = summary.minDistanceCm,
+                    avgDistanceCm = summary.avgDistanceCm,
+                    maxDistanceCm = summary.maxDistanceCm,
+                    avgLux = summary.avgLux,
+                    maxPitchDeg = summary.maxPitchDeg,
+                    violations = summary.violationsCsv(),
+                    dayEpoch = dayEpoch,
+                ),
+            )
+            if (summary.hasViolation) {
+                summary.violations.forEach { type ->
+                    database.violationDao().insert(
+                        ViolationLog(
+                            timestampMs = summary.startedAtMs,
+                            type = type.name,
+                            distanceCm = summary.avgDistanceCm,
+                            lux = summary.avgLux,
+                            pitchDeg = summary.maxPitchDeg,
+                        ),
+                    )
                 }
-            val isCrucial =
-                summary.violations.contains(com.jagamata.app.detection.ViolationType.TOO_CLOSE) &&
-                    (summary.minDistanceCm ?: 30f) < 25f
-            NotificationHelper.throttledAlert(this, title, body, isCrucial = isCrucial)
+                val title = getString(R.string.notif_title, summary.violationsCsv())
+                val body =
+                    when (summary.violations.first()) {
+                        com.jagamata.app.detection.ViolationType.TOO_CLOSE ->
+                            getString(R.string.notif_body, summary.minDistanceCm ?: 0f)
+                        com.jagamata.app.detection.ViolationType.TOO_DARK ->
+                            getString(R.string.notif_body_dark, summary.avgLux ?: 0f)
+                        com.jagamata.app.detection.ViolationType.BAD_POSTURE ->
+                            getString(R.string.notif_body_posture, summary.maxPitchDeg ?: 0f)
+                    }
+                val isCrucial =
+                    summary.violations.contains(com.jagamata.app.detection.ViolationType.TOO_CLOSE) &&
+                        (summary.minDistanceCm ?: 30f) < 25f
+                NotificationHelper.throttledAlert(this, title, body, isCrucial = isCrucial)
+            }
+            _lastCycle.value = summary
+        } catch (t: Throwable) {
+            // Satu kegagalan DB (mis. SQLiteFullException) tidak boleh membunuh ticker siklus.
+            Log.e(TAG, "persistCycle gagal: ${t.message}", t)
         }
-        _lastCycle.value = summary
     }
 
     override fun onDestroy() {
         ticker?.stop()
-        detector.close()
-        lightMonitor.stop()
+        if (this::detector.isInitialized) detector.close()
+        if (this::lightMonitor.isInitialized) lightMonitor.stop()
         cameraProvider?.unbindAll()
         analysisExecutor.shutdown()
         _isRunning.value = false
@@ -292,6 +351,7 @@ class DetectionForegroundService : LifecycleService() {
         private const val TAG = "DetectionFgService"
         private const val DAY_MS = 86_400_000L
         private const val FRAME_INTERVAL_MS = 200L // 5 FPS (Blueprint §3.1 & §5.2)
+        private const val NOTIF_ID_PERMISSION = 1003
 
         private val _isRunning = MutableStateFlow(false)
         val isRunning: StateFlow<Boolean> = _isRunning

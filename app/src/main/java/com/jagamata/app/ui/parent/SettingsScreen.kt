@@ -426,6 +426,7 @@ fun SettingsScreen(
     if (showChangePinDialog) {
         ChangePinDialog(
             onDismiss = { showChangePinDialog = false },
+            onVerifyCurrent = { settingsRepo.verifyParentPin(it) },
             onSavePin = { newPin ->
                 viewModel.setParentPin(newPin)
                 Toast.makeText(context, "PIN Orang Tua berhasil diubah!", Toast.LENGTH_SHORT).show()
@@ -491,11 +492,15 @@ fun SettingsScreen(
 @Composable
 private fun ChangePinDialog(
     onDismiss: () -> Unit,
+    onVerifyCurrent: suspend (String) -> Boolean,
     onSavePin: (String) -> Unit,
 ) {
+    var currentPin by remember { mutableStateOf("") }
     var pin by remember { mutableStateOf("") }
     var confirmPin by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var verifying by remember { mutableStateOf(false) }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -510,9 +515,23 @@ private fun ChangePinDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
-                    text = "PIN 4-digit standar (Default: 1234). Masukkan 4 angka PIN baru Anda.",
+                    text = "Verifikasi PIN lama, lalu tentukan PIN baru 4 digit.",
                     style = MaterialTheme.typography.bodySmall,
                     color = Ink.copy(alpha = 0.72f),
+                )
+                OutlinedTextField(
+                    value = currentPin,
+                    onValueChange = {
+                        if (it.length <= 4 && it.all { c -> c.isDigit() }) {
+                            currentPin = it
+                            errorMessage = null
+                        }
+                    },
+                    label = { Text("PIN Lama (4 digit)") },
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
                 )
                 OutlinedTextField(
                     value = pin,
@@ -554,15 +573,38 @@ private fun ChangePinDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    if (pin.length != 4) {
-                        errorMessage = "PIN harus terdiri dari 4 digit angka."
-                    } else if (pin != confirmPin) {
-                        errorMessage = "Konfirmasi PIN tidak cocok."
-                    } else {
-                        onSavePin(pin)
-                        onDismiss()
+                    when {
+                        currentPin.length != 4 -> {
+                            errorMessage = "PIN lama harus terdiri dari 4 digit angka."
+                        }
+                        pin.length != 4 -> {
+                            errorMessage = "PIN baru harus terdiri dari 4 digit angka."
+                        }
+                        pin != confirmPin -> {
+                            errorMessage = "Konfirmasi PIN tidak cocok."
+                        }
+                        pin == currentPin -> {
+                            errorMessage = "PIN baru tidak boleh sama dengan PIN lama."
+                        }
+                        pin == SettingsRepository.DEFAULT_PIN -> {
+                            errorMessage = "PIN baru tidak boleh 1234. Pilih PIN yang lebih sulit ditebak."
+                        }
+                        else -> {
+                            verifying = true
+                            scope.launch {
+                                val ok = onVerifyCurrent(currentPin)
+                                verifying = false
+                                if (ok) {
+                                    onSavePin(pin)
+                                    onDismiss()
+                                } else {
+                                    errorMessage = "PIN lama salah. Periksa kembali."
+                                }
+                            }
+                        }
                     }
                 },
+                enabled = !verifying,
                 colors = ButtonDefaults.buttonColors(containerColor = Primary),
             ) {
                 Text("Simpan PIN", color = Color.White)

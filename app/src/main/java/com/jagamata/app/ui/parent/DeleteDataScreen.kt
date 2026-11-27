@@ -29,6 +29,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -45,6 +46,7 @@ import com.jagamata.app.ui.theme.Ink
 import com.jagamata.app.ui.theme.InkSoft
 import com.jagamata.app.ui.theme.Mint
 import com.jagamata.app.ui.theme.SurfaceAlt
+import kotlinx.coroutines.launch
 
 /**
  * Hapus Semua Data (PRD US-14): menghapus seluruh tabel Room + DataStore,
@@ -52,11 +54,12 @@ import com.jagamata.app.ui.theme.SurfaceAlt
  */
 @Composable
 fun DeleteDataScreen(
-    onDeleteAll: () -> Unit,
+    onDeleteAll: suspend () -> Unit,
     onDone: () -> Unit,
 ) {
     var showConfirm by remember { mutableStateOf(false) }
     var deleted by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
     Column(
         modifier =
@@ -155,8 +158,10 @@ fun DeleteDataScreen(
                 TextButton(
                     onClick = {
                         showConfirm = false
-                        deleted = true
-                        onDeleteAll()
+                        scope.launch {
+                            onDeleteAll()
+                            deleted = true
+                        }
                     },
                 ) {
                     Text(stringResource(R.string.privacy_delete_confirm))

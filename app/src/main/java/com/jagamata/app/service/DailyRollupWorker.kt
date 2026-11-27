@@ -22,6 +22,8 @@ class DailyRollupWorker(
         val database = AppDatabase.getInstance(applicationContext)
         val now = System.currentTimeMillis()
 
+        // Worker berjalan ~00:05, sehingga "hari ini" baru berisi ~5 menit data.
+        // Jendela agregasi harus hari KEMARIN penuh: kemarin 00:00 s/d hari ini 00:00 waktu lokal.
         val cal =
             Calendar.getInstance().apply {
                 timeInMillis = now
@@ -30,14 +32,19 @@ class DailyRollupWorker(
                 set(Calendar.SECOND, 0)
                 set(Calendar.MILLISECOND, 0)
             }
-        val dayStart = cal.timeInMillis
+        val dayEnd = cal.timeInMillis // hari ini 00:00 lokal (eksklusif)
+        val yesterdayCal =
+            Calendar.getInstance().apply {
+                timeInMillis = dayEnd
+                add(Calendar.DAY_OF_YEAR, -1)
+            }
+        val dayStart = yesterdayCal.timeInMillis // kemarin 00:00 lokal
         val dayEpoch = dayStart / DAY_MS
-        val dayEnd = dayStart + DAY_MS
 
         val aggregate = database.dailyDao().aggregateCycles(dayStart, dayEnd)
         val darkMinutes =
             database.snapshotDao().getSince(dayStart)
-                .count { (it.avgLux ?: Float.MAX_VALUE) < DARK_LUX }
+                .count { it.timestampMs < dayEnd && (it.avgLux ?: Float.MAX_VALUE) < DARK_LUX }
 
         database.dailyDao().upsert(
             com.jagamata.app.data.entity.DailyStats(

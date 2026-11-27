@@ -81,19 +81,10 @@ fun WeeklyReportScreen(onBack: () -> Unit) {
 
     LaunchedEffect(Unit) {
         val db = AppDatabase.getInstance(context)
-        val stats = db.dailyDao().getAll()
-        dailyList =
-            if (stats.isNotEmpty()) {
-                stats.takeLast(7)
-            } else {
-                // Data awal edukatif bila belum ada riwayat siklus
-                listOf(
-                    DailyStats(dayEpoch = 1, totalCycles = 15, closeViolations = 2, darkMinutes = 0, postureViolations = 1),
-                    DailyStats(dayEpoch = 2, totalCycles = 22, closeViolations = 1, darkMinutes = 1, postureViolations = 0),
-                    DailyStats(dayEpoch = 3, totalCycles = 30, closeViolations = 0, darkMinutes = 0, postureViolations = 1),
-                )
-            }
+        dailyList = db.dailyDao().getAll().takeLast(7)
     }
+
+    val hasEnoughData = dailyList.isNotEmpty()
 
     val summary =
         remember(dailyList) {
@@ -144,28 +135,44 @@ fun WeeklyReportScreen(onBack: () -> Unit) {
             }
         }
 
-        // Kartu Ringkasan Utama
-        JagaCard(contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp)) {
-            Text(
-                text = "Kepatuhan Skrining Mata",
-                style = MaterialTheme.typography.titleLarge,
-                color = Ink,
-            )
-            Spacer(modifier = Modifier.height(10.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                StatBadge(title = "Total Sesi", value = "${summary.totalCycles}", color = Primary)
-                StatBadge(
-                    title = "Terlalu Dekat",
-                    value = "${summary.totalCloseViolations}x",
-                    color = if (summary.totalCloseViolations > 5) Coral else Mint,
+        // Kartu Ringkasan Utama (atau pesan "belum cukup data" bila belum ada riwayat)
+        if (hasEnoughData) {
+            JagaCard(contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp)) {
+                Text(
+                    text = "Kepatuhan Skrining Mata",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = Ink,
                 )
-                StatBadge(
-                    title = "Ruang Gelap",
-                    value = "${summary.totalDarkMinutes} mnt",
-                    color = if (summary.totalDarkMinutes > 20) Sunny else Mint,
+                Spacer(modifier = Modifier.height(10.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    StatBadge(title = "Total Sesi", value = "${summary.totalCycles}", color = Primary)
+                    StatBadge(
+                        title = "Terlalu Dekat",
+                        value = "${summary.totalCloseViolations}x",
+                        color = if (summary.totalCloseViolations > 5) Coral else Mint,
+                    )
+                    StatBadge(
+                        title = "Ruang Gelap",
+                        value = "${summary.totalDarkMinutes} mnt",
+                        color = if (summary.totalDarkMinutes > 20) Sunny else Mint,
+                    )
+                }
+            }
+        } else {
+            JagaCard(contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp)) {
+                Text(
+                    text = "Kepatuhan Skrining Mata",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = Ink,
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    text = stringResource(R.string.report_empty),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Ink.copy(alpha = 0.85f),
                 )
             }
         }
@@ -207,9 +214,10 @@ fun WeeklyReportScreen(onBack: () -> Unit) {
             }
         }
 
-        // Tombol Ekspor PDF
+        // Tombol Ekspor PDF (nonaktif bila belum ada data — tidak pernah melaporkan angka karangan)
         Button(
             onClick = { shareReportPdf(context, summary, childName, childAge) },
+            enabled = hasEnoughData,
             modifier = Modifier.fillMaxWidth().height(52.dp),
             colors = ButtonDefaults.buttonColors(containerColor = Primary),
             shape = RoundedCornerShape(26.dp),
@@ -227,9 +235,10 @@ fun WeeklyReportScreen(onBack: () -> Unit) {
             )
         }
 
-        // Tombol Ekspor WhatsApp (Gambar)
+        // Tombol Ekspor WhatsApp (Gambar) (nonaktif bila belum ada data)
         Button(
             onClick = { shareReportPng(context, summary) },
+            enabled = hasEnoughData,
             modifier = Modifier.fillMaxWidth().height(52.dp),
             colors = ButtonDefaults.buttonColors(containerColor = Mint),
             shape = RoundedCornerShape(26.dp),

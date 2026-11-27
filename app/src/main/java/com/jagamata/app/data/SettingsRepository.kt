@@ -62,8 +62,13 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setParentPin(pin: String) {
         val salt = System.currentTimeMillis().toString()
-        write(KEY_PIN_SALT, salt)
-        write(KEY_PIN_HASH, hashPin(pin, salt))
+        val hash = hashPin(pin, salt)
+        // Salt + hash harus satu transaksi: dua write terpisah bisa menyisakan
+        // salt baru + hash lama jika proses mati di tengah (PIN tidak bisa diverifikasi).
+        context.dataStore.edit {
+            it[KEY_PIN_SALT] = salt
+            it[KEY_PIN_HASH] = hash
+        }
     }
 
     suspend fun verifyParentPin(pin: String): Boolean {

@@ -38,6 +38,10 @@ interface DailyDao {
 
     @Query("DELETE FROM daily_stats")
     suspend fun deleteAll()
+
+    // Tabel app_settings tidak punya DAO sendiri; dipakai Hapus Semua Data.
+    @Query("DELETE FROM app_settings")
+    suspend fun deleteAppSettings()
 }
 
 data class CycleAggregate(

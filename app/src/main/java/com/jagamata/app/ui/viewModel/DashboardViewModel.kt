@@ -27,6 +27,7 @@ class DashboardViewModel(
         val lastCycle: CycleSummary? = null,
         val riskLevel: RiskLevel = RiskLevel.OK,
         val dailyStats: List<DailyStats> = emptyList(),
+        val dailyAvgDistanceCm: Map<Long, Float> = emptyMap(),
         val isMonitoring: Boolean = false,
     )
 
@@ -63,6 +64,11 @@ class DashboardViewModel(
                     weeklyDarkMinutes = snapshots.count { (it.avgLux ?: Float.MAX_VALUE) < 150f },
                     weeklyPostureViolations = snapshots.count { it.violations.contains("BAD_POSTURE") },
                     dailyStats = daily,
+                    dailyAvgDistanceCm =
+                        snapshots
+                            .filter { it.avgDistanceCm != null }
+                            .groupBy { it.dayEpoch }
+                            .mapValues { (_, rows) -> rows.mapNotNull { it.avgDistanceCm }.average().toFloat() },
                 )
         }
     }

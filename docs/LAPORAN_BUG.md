@@ -5,9 +5,11 @@
 **Hasil runtime:** **0 crash** — app selamat dari seluruh skenario stress (logcat hanya berisi noise sistem emulator, tanpa `FATAL EXCEPTION`).
 **Hasil audit:** **40 temuan unik** — 1 kritis, 13 tinggi, 19 sedang, 7 rendah. Terperinci di bawah.
 
+> **UPDATE STATUS (27 Nov 2026):** Bug **B1–B15 (kritis + tinggi) sudah DIPERBAIKI** — 3 agent fix paralel + verifikasi (`compileDebugKotlin` hijau, `testDebugUnitTest` lulus, smoke test 5 layar di emulator tanpa crash). Catatan: fix B5 sempat membuat 16 unit test gagal (WorkManager belum ter-init di Robolectric saat `JagaMataApp.onCreate`) — sudah diperbaiki dengan guard `WorkManager.isInitialized()`. Bug **B16–B41 (sedang + rendah) belum diperbaiki** — daftar backlog di bawah.
+
 ---
 
-## 🔴 KRITIS (1)
+## 🔴 KRITIS (1) — ✅ SUDAH DIPERBAIKI
 
 ### B1. "Hapus Semua Data" tidak menghapus apa pun — tapi UI melaporkan sukses
 - **Lokasi:** `ui/navigation/AppNav.kt` (pemanggilan `DeleteDataScreen(onDeleteAll = {})`) + `ui/parent/PrivacyScreen.kt` (`onDeleteData: () -> Unit = {}` default) + `DeleteDataScreen.kt:159`
@@ -17,7 +19,7 @@
 
 ---
 
-## 🟠 TINGGI (13)
+## 🟠 TINGGI (13) — ✅ SUDAH DIPERBAIKI
 
 ### B2. PIN default "1234" dipajang di layar kunci + tanpa batas percobaan
 - **Lokasi:** `ui/parent/LockScreen.kt:84-90,174` · `data/SettingsRepository.kt:71`
@@ -91,7 +93,7 @@
 
 ---
 
-## 🟡 SEDANG (19)
+## 🟡 SEDANG (19) — ⏳ BACKLOG
 
 | # | Lokasi | Masalah | Fix singkat |
 |---|---|---|---|
@@ -117,7 +119,7 @@
 
 ---
 
-## 🟢 RENDAH (7)
+## 🟢 RENDAH (7) — ⏳ BACKLOG
 
 | # | Lokasi | Masalah |
 |---|---|---|

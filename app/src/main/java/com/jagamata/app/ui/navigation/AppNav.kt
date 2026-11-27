@@ -14,6 +14,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.jagamata.app.data.AppDatabase
 import com.jagamata.app.data.SettingsRepository
 import kotlinx.coroutines.launch
 import com.jagamata.app.service.DetectionForegroundService
@@ -108,7 +109,10 @@ fun AppNav(
             WeeklyReportScreen(onBack = { navController.popBackStack() })
         }
         composable(Routes.PRIVACY) {
-            PrivacyScreen(onBack = { navController.popBackStack() })
+            PrivacyScreen(
+                onBack = { navController.popBackStack() },
+                onDeleteData = { navController.navigate(Routes.DELETE_DATA) },
+            )
         }
 
         // ——— Layar desain FigCraft (17 frame) ———
@@ -240,8 +244,17 @@ fun AppNav(
             )
         }
         composable(Routes.DELETE_DATA) {
+            val context = LocalContext.current
+            val settingsRepo = remember { SettingsRepository(context) }
             DeleteDataScreen(
-                onDeleteAll = {},
+                onDeleteAll = {
+                    val db = AppDatabase.getInstance(context)
+                    db.snapshotDao().deleteAll()
+                    db.violationDao().deleteAll()
+                    db.dailyDao().deleteAll()
+                    db.dailyDao().deleteAppSettings()
+                    settingsRepo.clearAll()
+                },
                 onDone = { navController.popBackStack() },
             )
         }

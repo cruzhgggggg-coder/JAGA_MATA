@@ -58,6 +58,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.jagamata.app.R
+import com.jagamata.app.data.entity.DailyStats
 import com.jagamata.app.detection.RiskLevel
 import com.jagamata.app.ui.components.BottomNavBar
 import com.jagamata.app.ui.components.JagaCard
@@ -87,11 +88,11 @@ import java.util.Locale
 fun DashboardScreen(
     onOpenSettings: () -> Unit,
     onOpenReport: () -> Unit,
-    viewModel: DashboardViewModel = DashboardViewModel(),
     onTab: (Int) -> Unit = {},
     onOpenChildProfile: () -> Unit = {},
     onOpenDailyStats: () -> Unit = {},
 ) {
+    val viewModel: DashboardViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
     val state by viewModel.uiState.collectAsState()
     LaunchedEffect(Unit) { viewModel.refresh() }
 
@@ -256,6 +257,7 @@ fun DashboardScreen(
 
             WeeklyReportCard(
                 state = state,
+                thresholdCm = minDistanceFloat,
                 onClick = onOpenDailyStats,
             )
             CycleCard(state = state)
@@ -305,12 +307,33 @@ fun DashboardScreen(
     }
 }
 
-/** Tren jarak harian dummy (cm) — desain 2669: rendah di S, puncak K, turun J, puncak S, turun M. */
+/** Placeholder grafik desain 2669 (cm) — hanya dipakai saat benar-benar belum ada data riil. */
 private val DummyDailyCm = listOf(48f, 52f, 50f, 54f, 51f, 55f, 53f)
+
+/**
+ * Nilai grafik 7 hari dari data riil: rata-rata jarak per hari dari snapshot bila ada,
+ * lalu estimasi dari hitungan pelanggaran terlalu dekat pada rollup harian.
+ */
+private fun buildWeeklyChartValues(
+    state: DashboardViewModel.UiState,
+    thresholdCm: Float,
+): List<Float> {
+    val statsByDay = state.dailyStats.associateBy { it.dayEpoch }
+    val epochs = (statsByDay.keys + state.dailyAvgDistanceCm.keys).sorted().takeLast(7)
+    return epochs.mapNotNull { epoch ->
+        state.dailyAvgDistanceCm[epoch]
+            ?: statsByDay[epoch]?.let { estimateDayDistanceCm(it, thresholdCm) }
+    }
+}
+
+/** Rollup harian hanya menyimpan hitungan pelanggaran; jarak diperkirakan dari ambang + margin - penalti pelanggaran. */
+private fun estimateDayDistanceCm(day: DailyStats, thresholdCm: Float): Float =
+    (thresholdCm + 5f - day.closeViolations * 2.5f).coerceIn(20f, 60f)
 
 @Composable
 private fun WeeklyReportCard(
     state: DashboardViewModel.UiState,
+    thresholdCm: Float,
     onClick: (() -> Unit)? = null,
 ) {
     val avgCm =
@@ -393,20 +416,18 @@ private fun WeeklyReportCard(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        val chartValues: List<Float> = remember(state.dailyStats, state.lastCycle) {
-            val dist = state.lastCycle?.avgDistanceCm
-            if (dist != null) {
-                listOf(dist)
-            } else {
-                emptyList()
-            }
+        val realValues: List<Float> = remember(state.dailyStats, state.dailyAvgDistanceCm, thresholdCm) {
+            buildWeeklyChartValues(state, thresholdCm)
         }
+        val chartValues: List<Float> = if (realValues.isEmpty()) DummyDailyCm else realValues
+        val showEmptyState = realValues.size < 2
 
         // Grafik garis 7 hari + label ambang
         Box {
             WeeklyLineChart(
                 values = chartValues,
-                thresholdCm = 50f,
+                thresholdCm = thresholdCm,
+                emptyState = showEmptyState,
                 modifier =
                     Modifier
                         .fillMaxWidth()
@@ -450,6 +471,7 @@ private fun WeeklyLineChart(
     values: List<Float>,
     thresholdCm: Float,
     modifier: Modifier = Modifier,
+    emptyState: Boolean = values.size < 2,
 ) {
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         Canvas(modifier = Modifier.fillMaxSize()) {
@@ -506,7 +528,7 @@ private fun WeeklyLineChart(
                 }
             }
         }
-        if (values.isEmpty()) {
+        if (emptyState) {
             Text(
                 text = "Belum ada riwayat aktivitas pekan ini",
                 style = MaterialTheme.typography.bodySmall,
