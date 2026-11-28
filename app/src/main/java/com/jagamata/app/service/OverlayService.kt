@@ -124,6 +124,14 @@ class OverlayService : android.app.Service() {
             when (level) {
                 RiskLevel.WARNING -> {
                     val v = inflater.inflate(R.layout.overlay_warning, null, false)
+                    // M23: teks banner diformat dari ambang jarak aktif — bukan
+                    // hardcoded "30 cm" di layout.
+                    val warningTitle = v.findViewById<TextView>(R.id.warning_title)
+                    warningTitle?.text =
+                        getString(
+                            R.string.overlay_warning_text,
+                            DetectionForegroundService.activeThresholds.closeEnterCm.toInt(),
+                        )
                     val p =
                         WindowManager.LayoutParams(
                             WindowManager.LayoutParams.MATCH_PARENT,

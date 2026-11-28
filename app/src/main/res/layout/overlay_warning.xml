@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="56dp"
     android:background="#FFFFD166"
@@ -14,6 +15,7 @@
         android:contentDescription="@string/app_name"
         android:src="@drawable/ic_launcher_foreground" />
 
+    <!-- Teks diisi OverlayService dari ambang jarak aktif (M23) — jangan hardcoded di sini. -->
     <TextView
         android:id="@+id/warning_title"
         android:layout_width="0dp"
@@ -23,5 +25,5 @@
         android:textColor="#3D3000"
         android:textSize="14sp"
         android:textStyle="bold"
-        android:text="Waspada: Jaga jarak layar minimal 30 cm ya!" />
+        tools:text="Waspada: Jaga jarak layar minimal 30 cm ya!" />
 </LinearLayout>

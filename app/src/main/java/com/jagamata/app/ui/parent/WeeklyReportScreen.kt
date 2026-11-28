@@ -52,6 +52,7 @@ import com.jagamata.app.R
 import com.jagamata.app.data.AppDatabase
 import com.jagamata.app.data.SettingsRepository
 import com.jagamata.app.data.entity.DailyStats
+import com.jagamata.app.data.localDayEpoch
 import com.jagamata.app.report.ReportGenerator
 import com.jagamata.app.ui.components.JagaCard
 import com.jagamata.app.ui.theme.Background
@@ -76,12 +77,19 @@ fun WeeklyReportScreen(onBack: () -> Unit) {
     val settings = remember { SettingsRepository(context) }
     val childName by settings.childName.collectAsState(initial = "Sahabat")
     val childAge by settings.childAge.collectAsState(initial = 8)
+    // M13: ambang PDF harus dari nilai AKTIF SettingsRepository, bukan hardcoded.
+    val closeThresholdCm by settings.closeThresholdCm.collectAsState(initial = SettingsRepository.DEFAULT_CLOSE_CM)
+    val luxThreshold by settings.luxThreshold.collectAsState(initial = SettingsRepository.DEFAULT_LUX)
 
     var dailyList by remember { mutableStateOf<List<DailyStats>>(emptyList()) }
 
     LaunchedEffect(Unit) {
         val db = AppDatabase.getInstance(context)
-        dailyList = db.dailyDao().getAll().takeLast(7)
+        // M11: "7 hari terakhir" = 7 tanggal kalender lokal terakhir (celah =
+        // tanpa baris), bukan 7 baris terakhir — hari tanpa rollup tidak
+        // menggeser jendela, dan hari ini ikut tercakup bila barisnya ada.
+        val todayKey = localDayEpoch(System.currentTimeMillis())
+        dailyList = db.dailyDao().getSince(todayKey - 6)
     }
 
     val hasEnoughData = dailyList.isNotEmpty()
@@ -216,7 +224,7 @@ fun WeeklyReportScreen(onBack: () -> Unit) {
 
         // Tombol Ekspor PDF (nonaktif bila belum ada data — tidak pernah melaporkan angka karangan)
         Button(
-            onClick = { shareReportPdf(context, summary, childName, childAge) },
+            onClick = { shareReportPdf(context, summary, childName, childAge, closeThresholdCm, luxThreshold) },
             enabled = hasEnoughData,
             modifier = Modifier.fillMaxWidth().height(52.dp),
             colors = ButtonDefaults.buttonColors(containerColor = Primary),
@@ -300,23 +308,34 @@ private fun StatBadge(
     }
 }
 
-/** Bagikan dokumen PDF resmi ke WhatsApp / Dokter Mata / Printer. */
+/** Bagikan dokumen PDF ke WhatsApp / arsip ortu / diskusi dengan tenaga kesehatan. */
 private fun shareReportPdf(
     context: Context,
     summary: ReportGenerator.ReportSummary,
     childName: String,
     childAge: Int,
+    closeThresholdCm: Float,
+    luxThreshold: Float,
 ) {
-    val file = ReportGenerator.renderPdf(context, summary, childName, childAge)
+    val file =
+        ReportGenerator.renderPdf(
+            context = context,
+            summary = summary,
+            childName = childName,
+            childAge = childAge,
+            closeThresholdCm = closeThresholdCm,
+            luxThreshold = luxThreshold,
+        )
     val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
     val intent =
         Intent(Intent.ACTION_SEND).apply {
             type = "application/pdf"
             putExtra(Intent.EXTRA_STREAM, uri)
-            putExtra(Intent.EXTRA_SUBJECT, "Laporan Kesehatan Mata Anak — JagaMata ($childName)")
+            putExtra(Intent.EXTRA_SUBJECT, "Laporan Kebiasaan Layar Anak — JagaMata ($childName)")
             putExtra(
                 Intent.EXTRA_TEXT,
-                "Halo Dokter / Bapak/Ibu,\nBerikut terlampir dokumen resmi Laporan Kesehatan Mata & Skrining Kebiasaan Layar untuk ananda $childName dari aplikasi JagaMata.",
+                "Halo Bapak/Ibu,\nBerikut terlampir ringkasan kebiasaan layar ananda $childName dari aplikasi JagaMata. " +
+                    "Bukan alat diagnosis — data pengukuran informatif, bukan medis.",
             )
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }

@@ -41,7 +41,7 @@
     <string name="s09_report_avg_label">Jarak rata-rata 7 hari</string>
     <string name="s09_report_status_good">Baik</string>
     <string name="s09_report_delta">jarak optimal layar</string>
-    <string name="s09_report_threshold">50 cm</string>
+    <string name="s09_report_threshold">%1$d cm</string>
     <string name="s09_cycle_active">⏱ Siklus 1 menit — aktif</string>
     <string name="s09_cycle_line">Siklus 1 menit · Aman</string>
     <string name="s09_cycle_meta">1.440 pemeriksaan/hari · log 30 hari</string>

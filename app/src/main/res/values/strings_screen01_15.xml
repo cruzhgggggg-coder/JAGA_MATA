@@ -17,11 +17,10 @@
     <string name="ob2_title">Aturan 20-20-20</string>
     <string name="ob2_desc">Setiap 20 menit, lihat benda sejauh 6 meter\nselama 20 detik. Matamu jadi segar lagi!</string>
 
-    <!-- 01c Onboarding 3 — Jaga jarak 50 cm -->
-    <string name="ob3_badge_value">50 cm</string>
+    <!-- 01c Onboarding 3 — Jaga jarak (angka dari ambang aktif, M23) -->
     <string name="ob3_badge_label">jarak aman</string>
-    <string name="ob3_title">Jaga jarak 50 cm</string>
-    <string name="ob3_desc">Kiko memakai kacamata siaga. Kalau wajahmu\nlebih dekat dari 50 cm ke layar, Kiko akan\nmengingatkanmu.</string>
+    <string name="ob3_title">Jaga jarak %1$d cm</string>
+    <string name="ob3_desc">Kiko memakai kacamata siaga. Kalau wajahmu\nlebih dekat dari %1$d cm ke layar, Kiko akan\nmengingatkanmu.</string>
 
     <!-- Onboarding shared -->
     <string name="ob_next">Lanjut</string>

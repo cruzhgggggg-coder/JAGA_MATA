@@ -423,6 +423,8 @@ fun JagaStatCard(
     value: String,
     progress: Float,
     modifier: Modifier = Modifier,
+    statusText: String = stringResource(R.string.s02_status_aman),
+    statusColor: Color = ZoneSafe,
 ) {
     JagaCard(
         modifier = modifier,
@@ -474,8 +476,8 @@ fun JagaStatCard(
         }
         Spacer(modifier = Modifier.height(10.dp))
         CheckedChip(
-            text = stringResource(R.string.s02_status_aman),
-            containerColor = ZoneSafe,
+            text = statusText,
+            containerColor = statusColor,
         )
     }
 }
@@ -494,21 +496,43 @@ fun BerandaScreen(
     val context = LocalContext.current
     val settings = remember { com.jagamata.app.data.SettingsRepository(context) }
     val childName by settings.childName.collectAsState(initial = "Sahabat")
+    val closeCm by settings.closeThresholdCm.collectAsState(initial = 30f)
 
     var avgDistanceCm by remember { mutableIntStateOf(0) }
     var playTimeMinutes by remember { mutableIntStateOf(0) }
     var streakDays by remember { mutableIntStateOf(0) }
 
+    // M10: satu rumus statistik dengan jendela eksplisit (bukan getAll() sepanjang masa).
+    // M9: streak = hari berturut-turut dengan siklus valid (>0 sampel) saja.
     LaunchedEffect(Unit) {
         val db = com.jagamata.app.data.AppDatabase.getInstance(context)
-        val snapshots = db.snapshotDao().getAll()
-        val daily = db.dailyDao().getAll()
-        if (snapshots.isNotEmpty()) {
-            val validDistances = snapshots.mapNotNull { it.avgDistanceCm }.filter { it > 0 }
-            avgDistanceCm = if (validDistances.isNotEmpty()) validDistances.average().toInt() else 0
-            playTimeMinutes = snapshots.size
+        val stats = com.jagamata.app.data.StatsRepository(db)
+        avgDistanceCm = stats.avgDistanceCmToday()?.toInt() ?: 0
+        playTimeMinutes = stats.playTimeMinutesToday()
+        streakDays = stats.consecutiveActiveDays()
+    }
+
+    // M22: chip "Aman" = status nyata dari rata-rata jarak hari ini vs zona ambang aktif.
+    val safeCm = closeCm + com.jagamata.app.detection.Thresholds.SAFE_ZONE_MARGIN_CM
+    val statusText: String
+    val statusColor: Color
+    when {
+        avgDistanceCm <= 0 -> {
+            statusText = stringResource(R.string.status_no_data)
+            statusColor = SurfaceAlt
         }
-        streakDays = daily.size + if (snapshots.isNotEmpty()) 1 else 0
+        avgDistanceCm < closeCm -> {
+            statusText = stringResource(R.string.zone_danger)
+            statusColor = Coral
+        }
+        avgDistanceCm < safeCm -> {
+            statusText = stringResource(R.string.zone_warn)
+            statusColor = Sunny
+        }
+        else -> {
+            statusText = stringResource(R.string.zone_safe)
+            statusColor = ZoneSafe
+        }
     }
 
     Box(
@@ -526,12 +550,14 @@ fun BerandaScreen(
         ) {
             BerandaHeader(childName = childName)
             Spacer(modifier = Modifier.height(16.dp))
-            HeroCard()
+            HeroCard(closeCm = closeCm)
             Spacer(modifier = Modifier.height(16.dp))
             Box(modifier = Modifier.clickable(onClick = onOpenDailyStats)) {
                 StatCardRow(
                     avgDistanceCm = avgDistanceCm,
                     playTimeMinutes = playTimeMinutes,
+                    statusText = statusText,
+                    statusColor = statusColor,
                 )
             }
             Spacer(modifier = Modifier.height(16.dp))
@@ -612,26 +638,31 @@ private fun BerandaHeader(childName: String) {
 
 /** Kartu hero 02: gradasi biru + Kiko + gelembung ucapan (353�154.4). */
 @Composable
-private fun HeroCard() {
+private fun HeroCard(closeCm: Float = 30f) {
     val scope = rememberCoroutineScope()
+
+    // M23: teks "minimal … cm" diformat dari ambang jarak aktif, bukan hardcoded.
+    val closeCmInt = closeCm.toInt()
+    val noonGreeting = stringResource(R.string.greeting_noon_distance, closeCmInt)
+    val distanceQuote = stringResource(R.string.quote_distance_min, closeCmInt)
 
     // Sapaan kontekstual berdasarkan waktu lokal (Blueprint §4.3)
     val defaultGreeting =
-        remember {
+        remember(noonGreeting) {
             val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
             when (hour) {
                 in 5..11 -> "Selamat pagi! ☀️ Kiko siap jaga matamu hari ini!"
-                in 12..17 -> "Selamat siang! 🌤️ Jaga jarak mata minimal 30 cm ya!"
+                in 12..17 -> noonGreeting
                 in 18..21 -> "Selamat malam! 🌙 Pastikan lampu ruanganmu menyala terang!"
                 else -> "Sudah larut malam! 😴 Jangan lupa istirahatkan matamu ya!"
             }
         }
 
     val quotes =
-        remember(defaultGreeting) {
+        remember(defaultGreeting, distanceQuote) {
             listOf(
                 defaultGreeting,
-                "Jarak layar aman minimal 30 cm ya! 👀",
+                distanceQuote,
                 "Ruangan terang bikin mata tidak cepat lelah! 💡",
                 "Duduk tegak, jangan terlalu menunduk! 👍",
                 "Ingat aturan 20-20-20: istirahat sejenak! ⏳",
@@ -792,6 +823,8 @@ private fun HeroCard() {
 private fun StatCardRow(
     avgDistanceCm: Int = 0,
     playTimeMinutes: Int = 0,
+    statusText: String = stringResource(R.string.s02_status_aman),
+    statusColor: Color = ZoneSafe,
 ) {
     val distanceText = if (avgDistanceCm > 0) "$avgDistanceCm cm" else "0 cm"
     val distanceProgress = if (avgDistanceCm > 0) (avgDistanceCm / 60f).coerceIn(0.1f, 1f) else 0f
@@ -803,6 +836,8 @@ private fun StatCardRow(
             label = stringResource(R.string.s02_stat_distance),
             value = distanceText,
             progress = distanceProgress,
+            statusText = statusText,
+            statusColor = statusColor,
             modifier = Modifier.weight(1f),
         )
         Spacer(modifier = Modifier.width(13.dp))
@@ -810,6 +845,8 @@ private fun StatCardRow(
             label = stringResource(R.string.s02_stat_time),
             value = timeText,
             progress = timeProgress,
+            statusText = statusText,
+            statusColor = statusColor,
             modifier = Modifier.weight(1f),
         )
     }

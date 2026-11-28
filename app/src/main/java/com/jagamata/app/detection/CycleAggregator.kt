@@ -5,12 +5,23 @@ package com.jagamata.app.detection
  * Menghitung min/avg/max jarak, avg lux, max pitch, jumlah sample,
  * jumlah tanpa wajah, dan daftar violations. [clear] dipanggil setelah evaluate.
  *
+ * Ambang/zona diambil dari satu sumber [Thresholds] (T9 + M25) — bukan
+ * konstanta internal. Sebuah siklus dihitung sebagai pelanggaran hanya bila
+ * ≥ [VIOLATION_MIN_PERCENT]% sampel valid melanggar (bukan 1 sampel saja).
+ *
  * Thread-safety (M17): `samples` di-`add` dari thread MediaPipe dan
  * di-`evaluate`/`clear` dari thread ticker - semua akses dikunci `@Synchronized`
  * pada instance ini agar tidak terjadi ConcurrentModificationException.
+ * [thresholds] ditulis dari collector Flow di main thread dan dibaca di dalam
+ * sinkronisasi yang sama.
  */
-class CycleAggregator {
+class CycleAggregator(
+    initialThresholds: Thresholds = Thresholds.DEFAULT,
+) {
     private val samples = mutableListOf<DetectionResult>()
+
+    @set:Synchronized
+    var thresholds: Thresholds = initialThresholds
 
     @Synchronized
     fun add(result: DetectionResult) {
@@ -45,21 +56,25 @@ class CycleAggregator {
         startedAtMs: Long,
         cycleDurationMs: Long,
     ): CycleSummary {
+        val t = thresholds
         val snapshot = samples.toList()
         val distances = snapshot.mapNotNull { it.distanceCm }
         val luxValues = snapshot.mapNotNull { it.lux }
         val pitches = snapshot.mapNotNull { it.pitchDeg }
 
+        // Pelanggaran = proporsi sampel valid (T9): ≥30% harus melanggar.
+        val closeViolating = distances.count { it < t.closeEnterCm }
+        // M7: gelap hanya dihitung pada sampel yang memuat wajah + lux terukur —
+        // ponsel telungkup / kamera tertutup di malam hari bukan pelanggaran.
+        val darkValid = snapshot.count { it.hasFace() && it.lux != null }
+        val darkViolating = snapshot.count { it.hasFace() && (it.lux ?: Float.MAX_VALUE) < t.lux }
+        val postureViolating = pitches.count { it > t.pitchDeg }
+
         val violations =
             buildList {
-                if (distances.any { it < CLOSE_CM }) add(ViolationType.TOO_CLOSE)
-                // M7: gelap hanya dihitung bila ada wajah terdeteksi pada sampel
-                // yang sama - ponsel telungkup / kamera tertutup di malam hari
-                // bukan pelanggaran.
-                if (snapshot.any { it.hasFace() && (it.lux ?: Float.MAX_VALUE) < DARK_LUX }) {
-                    add(ViolationType.TOO_DARK)
-                }
-                if (pitches.any { it > POSTURE_DEG }) add(ViolationType.BAD_POSTURE)
+                if (isViolation(distances.size, closeViolating)) add(ViolationType.TOO_CLOSE)
+                if (isViolation(darkValid, darkViolating)) add(ViolationType.TOO_DARK)
+                if (isViolation(pitches.size, postureViolating)) add(ViolationType.BAD_POSTURE)
             }
 
         return CycleSummary(
@@ -77,9 +92,17 @@ class CycleAggregator {
     }
 
     companion object {
-        const val CLOSE_CM = 30f
-        const val DARK_LUX = 150f
-        const val POSTURE_DEG = 30f
+        /**
+         * Ambang proporsi pelanggaran per siklus (T9): 1 sampel nakal di antara
+         * 10 sampel baik bukan pelanggaran siklus.
+         */
+        const val VIOLATION_MIN_PERCENT = 30
+
+        /** True bila ≥[VIOLATION_MIN_PERCENT]% dari [validCount] sampel melanggar. */
+        fun isViolation(
+            validCount: Int,
+            violatingCount: Int,
+        ): Boolean = validCount > 0 && violatingCount * 100 >= validCount * VIOLATION_MIN_PERCENT
     }
 }
 

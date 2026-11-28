@@ -14,6 +14,9 @@ package com.jagamata.app.detection
  * Catatan: syarat keluar BLOCKED memakai angka §5.4 (>35 cm / 2 dtk); syarat
  * state OK memakai zona Aman ≥50 cm (§2.23) supaya banner WARNING benar-benar
  * tampil di rentang 30–50 cm. Terdokumentasi di ASSUMPTION LOG.
+ *
+ * Ambang/zona tidak hardcoded: `closeExit`/`safeZoneCm` diturunkan dari ambang
+ * jarak pengguna lewat [Thresholds] (T9 + M25) — default 30/35/50 = desain.
  */
 class DetectionStateMachine(
     config: Config = Config(),
@@ -33,6 +36,23 @@ class DetectionStateMachine(
                 closeExitCm = closeExitCm ?: config.closeExitCm,
                 pitchThresholdDeg = pitchThresholdDeg ?: config.pitchThresholdDeg,
                 luxThreshold = luxThreshold ?: config.luxThreshold,
+            )
+    }
+
+    /**
+     * Terapkan seluruh ambang/zona dari satu sumber [Thresholds] (T9 + M25):
+     * `closeExit`/`safeZoneCm` ikut turun dari ambang jarak pengguna
+     * (exit = close+5, safe = close+20 — lihat [Thresholds.fromClose]),
+     * sehingga tidak ada zona kedua yang terpisah.
+     */
+    fun updateThresholds(thresholds: Thresholds) {
+        config =
+            config.copy(
+                closeEnterCm = thresholds.closeEnterCm,
+                closeExitCm = thresholds.closeExitCm,
+                safeZoneCm = thresholds.safeZoneCm,
+                pitchThresholdDeg = thresholds.pitchDeg,
+                luxThreshold = thresholds.lux,
             )
     }
 

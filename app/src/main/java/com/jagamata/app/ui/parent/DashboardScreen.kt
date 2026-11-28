@@ -56,7 +56,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.jagamata.app.R
-import com.jagamata.app.data.entity.DailyStats
 import com.jagamata.app.detection.RiskLevel
 import com.jagamata.app.ui.components.BottomNavBar
 import com.jagamata.app.ui.components.JagaCard
@@ -95,15 +94,18 @@ fun DashboardScreen(
 ) {
     val viewModel: DashboardViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
     val state by viewModel.uiState.collectAsState()
-    LaunchedEffect(Unit) { viewModel.refresh() }
 
     val context = androidx.compose.ui.platform.LocalContext.current
     val settings = remember { com.jagamata.app.data.SettingsRepository(context) }
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     val minDistanceFloat by settings.closeThresholdCm.collectAsState(initial = 30f)
+    val luxThresholdFloat by settings.luxThreshold.collectAsState(initial = 150f)
     var stagedDistance by remember(minDistanceFloat) { mutableIntStateOf(minDistanceFloat.toInt()) }
     var isSavedFeedback by remember { mutableStateOf(false) }
     var showDistanceDialog by remember { mutableStateOf(false) }
+
+    // M10/T9: muat statistik dengan ambang lux aktif (jendela 7 hari kalender).
+    LaunchedEffect(luxThresholdFloat) { viewModel.refresh(luxThresholdFloat) }
 
     if (showDistanceDialog) {
         var tempCm by remember { mutableFloatStateOf(minDistanceFloat) }
@@ -309,39 +311,15 @@ fun DashboardScreen(
     }
 }
 
-/** Placeholder grafik desain 2669 (cm) — hanya dipakai saat benar-benar belum ada data riil. */
-private val DummyDailyCm = listOf(48f, 52f, 50f, 54f, 51f, 55f, 53f)
-
-/**
- * Nilai grafik 7 hari dari data riil: rata-rata jarak per hari dari snapshot bila ada,
- * lalu estimasi dari hitungan pelanggaran terlalu dekat pada rollup harian.
- */
-private fun buildWeeklyChartValues(
-    state: DashboardViewModel.UiState,
-    thresholdCm: Float,
-): List<Float> {
-    val statsByDay = state.dailyStats.associateBy { it.dayEpoch }
-    val epochs = (statsByDay.keys + state.dailyAvgDistanceCm.keys).sorted().takeLast(7)
-    return epochs.mapNotNull { epoch ->
-        state.dailyAvgDistanceCm[epoch]
-            ?: statsByDay[epoch]?.let { estimateDayDistanceCm(it, thresholdCm) }
-    }
-}
-
-/** Rollup harian hanya menyimpan hitungan pelanggaran; jarak diperkirakan dari ambang + margin - penalti pelanggaran. */
-private fun estimateDayDistanceCm(
-    day: DailyStats,
-    thresholdCm: Float,
-): Float = (thresholdCm + 5f - day.closeViolations * 2.5f).coerceIn(20f, 60f)
-
 @Composable
 private fun WeeklyReportCard(
     state: DashboardViewModel.UiState,
     thresholdCm: Float,
     onClick: (() -> Unit)? = null,
 ) {
+    // M10: angka besar = rata-rata jarak 7 hari kalender (bukan siklus terakhir).
     val avgCm =
-        state.lastCycle?.avgDistanceCm?.let { String.format(Locale.US, "%.0f cm", it) }
+        state.avgDistance7DaysCm?.let { String.format(Locale.US, "%.0f cm", it) }
             ?: "-- cm"
     val statusLabel =
         if (state.lastCycle == null) {
@@ -420,14 +398,12 @@ private fun WeeklyReportCard(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        val realValues: List<Float> =
-            remember(state.dailyStats, state.dailyAvgDistanceCm, thresholdCm) {
-                buildWeeklyChartValues(state, thresholdCm)
-            }
-        val chartValues: List<Float> = if (realValues.isEmpty()) DummyDailyCm else realValues
-        val showEmptyState = realValues.size < 2
+        // T14: data riil saja — hari tanpa snapshot = celah (null), tanpa
+        // DummyDailyCm dan tanpa estimasi jarak dari hitungan pelanggaran.
+        val chartValues: List<Float?> = state.weeklyDistanceSeries
+        val showEmptyState = chartValues.count { it != null } < 2
 
-        // Grafik garis 7 hari + label ambang
+        // Grafik garis 7 hari + label ambang aktif
         Box {
             WeeklyLineChart(
                 values = chartValues,
@@ -439,7 +415,7 @@ private fun WeeklyReportCard(
                         .height(90.dp),
             )
             Text(
-                text = stringResource(R.string.s09_report_threshold),
+                text = stringResource(R.string.s09_report_threshold, thresholdCm.toInt()),
                 style = MaterialTheme.typography.labelSmall,
                 color = Ink.copy(alpha = 0.72f),
                 modifier =
@@ -454,7 +430,10 @@ private fun WeeklyReportCard(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            listOf("S", "S", "R", "K", "J", "S", "M").forEach { d ->
+            // T14: label hari dari tanggal sebenarnya (inisial Indonesia), bukan
+            // string statis "S S R K J S M".
+            val dayLabels = state.weeklyDayLabels.ifEmpty { List(7) { "" } }
+            dayLabels.forEach { d ->
                 Text(
                     text = d,
                     style = MaterialTheme.typography.labelSmall,
@@ -468,15 +447,16 @@ private fun WeeklyReportCard(
 }
 
 /**
- * Grafik garis mingguan: kurva halus biru #4A86E8 + titik ring + garis ambang putus-putus.
- * Sumbu nilai [46,56] cm; 50 cm ≈ posisi garis ambang desain.
+ * Grafik garis mingguan: kurva halus biru #4A86E8 + titik ring + garis ambang
+ * putus-putus (sumbu 20–60 cm). [values] = 7 titik harian; null = hari tanpa
+ * data → garis DIPUTUS di celah (T14), bukan diisi angka karangan.
  */
 @Composable
 private fun WeeklyLineChart(
-    values: List<Float>,
+    values: List<Float?>,
     thresholdCm: Float,
     modifier: Modifier = Modifier,
-    emptyState: Boolean = values.size < 2,
+    emptyState: Boolean = values.count { it != null } < 2,
 ) {
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         Canvas(modifier = Modifier.fillMaxSize()) {
@@ -504,26 +484,42 @@ private fun WeeklyLineChart(
                 x += dash * 2
             }
 
-            // Kurva data halus jika ada data riil
             val n = values.size
             if (n > 1) {
                 val stepX = w / (n - 1)
-                val path = Path()
-                path.moveTo(0f, yOf(values[0]))
-                for (i in 1 until n) {
-                    val x0 = (i - 1) * stepX
-                    val x1 = i * stepX
-                    val y0 = yOf(values[i - 1])
-                    val y1 = yOf(values[i])
-                    path.cubicTo(x0 + stepX * 0.5f, y0, x1 - stepX * 0.5f, y1, x1, y1)
-                }
-                drawPath(path, color = Primary, style = Stroke(width = 3f))
 
-                // Titik ring; titik terakhir di-highlight (fill + ring putih)
-                values.forEachIndexed { i, v ->
-                    val px = i * stepX
+                // Kurva per run berturut-turut berisi data — celah (null) memutus garis.
+                var i = 0
+                while (i < n) {
+                    if (values[i] == null) {
+                        i++
+                        continue
+                    }
+                    val runStart = i
+                    var runEnd = i
+                    while (runEnd + 1 < n && values[runEnd + 1] != null) runEnd++
+                    if (runEnd > runStart) {
+                        val path = Path()
+                        path.moveTo(runStart * stepX, yOf(values[runStart]!!))
+                        for (j in runStart + 1..runEnd) {
+                            val x0 = (j - 1) * stepX
+                            val x1 = j * stepX
+                            val y0 = yOf(values[j - 1]!!)
+                            val y1 = yOf(values[j]!!)
+                            path.cubicTo(x0 + stepX * 0.5f, y0, x1 - stepX * 0.5f, y1, x1, y1)
+                        }
+                        drawPath(path, color = Primary, style = Stroke(width = 3f))
+                    }
+                    i = runEnd + 1
+                }
+
+                // Titik ring untuk hari berisi data; titik terakhir di-highlight.
+                val lastNonNull = values.indexOfLast { it != null }
+                values.forEachIndexed { idx, v ->
+                    if (v == null) return@forEachIndexed
+                    val px = idx * stepX
                     val py = yOf(v)
-                    if (i == values.lastIndex) {
+                    if (idx == lastNonNull) {
                         drawCircle(color = Primary, radius = 7f, center = Offset(px, py))
                         drawCircle(color = Surface, radius = 5.5f, center = Offset(px, py), style = Stroke(width = 3f))
                     } else {

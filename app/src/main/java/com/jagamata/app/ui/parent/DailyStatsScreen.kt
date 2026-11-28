@@ -24,8 +24,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -37,6 +39,10 @@ import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.jagamata.app.R
+import com.jagamata.app.data.SettingsRepository
+import com.jagamata.app.data.StatsRepository
+import com.jagamata.app.data.localDayLabel
+import com.jagamata.app.detection.Thresholds
 import com.jagamata.app.ui.child.DesignSparkle
 import com.jagamata.app.ui.child.jagaBottomNavItems
 import com.jagamata.app.ui.components.BottomNavBar
@@ -51,15 +57,13 @@ import com.jagamata.app.ui.theme.Sunny
 import com.jagamata.app.ui.theme.Surface
 import com.jagamata.app.ui.theme.SurfaceAlt
 
-/** Tinggi batang grafik per jam (dp) — urutan 08..20 sesuai desain. */
-private val barHeights = listOf(92f, 70f, 106f, 40f, 88f, 62f, 98f)
-
-/** Warna batang per jam: Aman / Waspada / Aman / Bahaya / Aman / Waspada / Aman. */
-private val barColors = listOf(Mint, Sunny, Mint, Coral, Mint, Sunny, Mint)
-
 /**
  * Layar 06 — Statistik Harian.
  * Tab aktif Pantau (index 1) mengikuti PNG desain.
+ *
+ * T13: grafik per jam, tanggal, chip zona, dan kalimat insight semuanya
+ * dihitung dari data hari ini (snapshot + ambang aktif) — bukan string statis.
+ * Layout/token desain dipertahankan.
  */
 @Composable
 fun DailyStatsScreen(
@@ -68,16 +72,46 @@ fun DailyStatsScreen(
     initialTab: Int = 1,
 ) {
     val context = LocalContext.current
+    val settings = remember { SettingsRepository(context) }
+    val closeCm by settings.closeThresholdCm.collectAsState(initial = 30f)
+
     var avgDistanceCm by remember { mutableIntStateOf(0) }
     var safeDurationMinutes by remember { mutableIntStateOf(0) }
+    var safeSharePercent by remember { mutableStateOf<Int?>(null) }
+    var hourlyAvg by remember { mutableStateOf<Map<Int, Float>>(emptyMap()) }
 
+    val todayLabel = remember { localDayLabel(System.currentTimeMillis()) }
+
+    // M10 + T13: semua angka dari jendela "hari ini" via StatsRepository.
     LaunchedEffect(Unit) {
         val db = com.jagamata.app.data.AppDatabase.getInstance(context)
-        val snapshots = db.snapshotDao().getAll()
-        if (snapshots.isNotEmpty()) {
-            val valid = snapshots.mapNotNull { it.avgDistanceCm }.filter { it > 0 }
-            avgDistanceCm = if (valid.isNotEmpty()) valid.average().toInt() else 0
-            safeDurationMinutes = snapshots.count { it.violations.isNullOrEmpty() }
+        val stats = StatsRepository(db)
+        avgDistanceCm = stats.avgDistanceCmToday()?.toInt() ?: 0
+        safeDurationMinutes = stats.safeMinutesToday()
+        safeSharePercent = stats.safeSharePercentToday()
+        hourlyAvg = stats.hourlyAvgDistanceToday()
+    }
+
+    // M23/T13: chip zona dari rata-rata jarak hari ini vs zona ambang aktif.
+    val safeCm = closeCm + Thresholds.SAFE_ZONE_MARGIN_CM
+    val statusText: String
+    val statusColor: Color
+    when {
+        avgDistanceCm <= 0 -> {
+            statusText = stringResource(R.string.status_no_data)
+            statusColor = SurfaceAlt
+        }
+        avgDistanceCm < closeCm -> {
+            statusText = stringResource(R.string.zone_danger)
+            statusColor = Coral
+        }
+        avgDistanceCm < safeCm -> {
+            statusText = stringResource(R.string.zone_warn)
+            statusColor = Sunny
+        }
+        else -> {
+            statusText = stringResource(R.string.zone_safe)
+            statusColor = Mint
         }
     }
 
@@ -94,16 +128,18 @@ fun DailyStatsScreen(
                     .statusBarsPadding()
                     .padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 100.dp),
         ) {
-            StatsHeader()
+            StatsHeader(dateLabel = todayLabel)
             Spacer(modifier = Modifier.height(14.dp))
-            ChartCard()
+            ChartCard(hourlyAvg = hourlyAvg, closeCm = closeCm, safeCm = safeCm)
             Spacer(modifier = Modifier.height(14.dp))
             StatCardRow(
                 avgDistanceCm = avgDistanceCm,
                 safeDurationMinutes = safeDurationMinutes,
+                statusText = statusText,
+                statusColor = statusColor,
             )
             Spacer(modifier = Modifier.height(14.dp))
-            InsightCard()
+            InsightCard(safeSharePercent = safeSharePercent)
             Spacer(modifier = Modifier.weight(1f))
         }
         BottomNavBar(
@@ -115,9 +151,9 @@ fun DailyStatsScreen(
     }
 }
 
-/** Header 06: judul + tanggal + 2 kilau kuning. */
+/** Header 06: judul + tanggal hari ini (dari LocalDate.now, bukan statis) + 2 kilau kuning. */
 @Composable
-private fun StatsHeader() {
+private fun StatsHeader(dateLabel: String) {
     Box(modifier = Modifier.fillMaxWidth()) {
         Column {
             Text(
@@ -126,7 +162,7 @@ private fun StatsHeader() {
                 color = Ink,
             )
             Text(
-                text = stringResource(R.string.s06_date),
+                text = dateLabel,
                 style = MaterialTheme.typography.bodySmall,
                 color = Ink.copy(alpha = 0.72f),
             )
@@ -148,9 +184,37 @@ private fun StatsHeader() {
     }
 }
 
+/** Satu batang grafik per-jam: tinggi & warna dihitung dari data + zona ambang. */
+private data class HourBar(
+    val label: String,
+    val avgCm: Float?,
+)
+
+/**
+ * Batang jam → tinggi (dp) & warna zona. Tanpa data = batang stub tipis
+ * berwarna Divider (celah jujur, bukan angka karangan).
+ */
+private fun barHeightDp(avgCm: Float?): Float = if (avgCm == null) 8f else (24f + (avgCm.coerceIn(0f, 60f) / 60f) * 82f)
+
+private fun barColor(
+    avgCm: Float?,
+    closeCm: Float,
+    safeCm: Float,
+): Color =
+    when {
+        avgCm == null -> Divider
+        avgCm < closeCm -> Coral
+        avgCm < safeCm -> Sunny
+        else -> Mint
+    }
+
 /** Kartu grafik batang "Jarak per jam" dengan legenda zona. */
 @Composable
-private fun ChartCard() {
+private fun ChartCard(
+    hourlyAvg: Map<Int, Float>,
+    closeCm: Float,
+    safeCm: Float,
+) {
     Column(
         modifier =
             Modifier
@@ -171,7 +235,7 @@ private fun ChartCard() {
             LegendItem(stringResource(R.string.s06_legend_bahaya), Coral)
         }
         Spacer(modifier = Modifier.height(16.dp))
-        BarChart()
+        BarChart(hourlyAvg = hourlyAvg, closeCm = closeCm, safeCm = safeCm)
     }
 }
 
@@ -196,27 +260,44 @@ private fun LegendItem(
     }
 }
 
-/** Bar chart 7 batang (08–20) dengan tinggi & warna zona sesuai desain. */
+/**
+ * Bar chart 7 batang (label 08..20 dari desain). Tiap batang = rata-rata jarak
+ * snapshot hari itu pada bucket 2 jam [label, label+2) — zona warna dari
+ * ambang aktif; hari/bucket tanpa data = batang stub (T13).
+ */
 @Composable
-private fun BarChart() {
-    val hours = stringArrayResource(R.array.s06_hours)
+private fun BarChart(
+    hourlyAvg: Map<Int, Float>,
+    closeCm: Float,
+    safeCm: Float,
+) {
+    val hourLabels = stringArrayResource(R.array.s06_hours)
+    val bars =
+        remember(hourLabels, hourlyAvg, closeCm, safeCm) {
+            hourLabels.map { label ->
+                val startHour = label.toIntOrNull() ?: return@map HourBar(label, null)
+                val samples =
+                    (startHour until startHour + 2).mapNotNull { hourlyAvg[it] }
+                HourBar(label, samples.takeIf { it.isNotEmpty() }?.average()?.toFloat())
+            }
+        }
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.Bottom,
     ) {
-        hours.forEachIndexed { i, hour ->
+        bars.forEach { bar ->
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Box(
                     modifier =
                         Modifier
                             .width(24.dp)
-                            .height(barHeights[i].dp)
-                            .background(barColors[i], RoundedCornerShape(12.dp)),
+                            .height(barHeightDp(bar.avgCm).dp)
+                            .background(barColor(bar.avgCm, closeCm, safeCm), RoundedCornerShape(12.dp)),
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    text = hour,
+                    text = bar.label,
                     style = MaterialTheme.typography.labelSmall,
                     color = Ink.copy(alpha = 0.72f),
                 )
@@ -225,11 +306,13 @@ private fun BarChart() {
     }
 }
 
-/** Dua kartu statistik (Jarak rata-rata & Durasi aman). */
+/** Dua kartu statistik (Jarak rata-rata & Durasi aman) — jendela hari ini (M10). */
 @Composable
 private fun StatCardRow(
     avgDistanceCm: Int = 0,
     safeDurationMinutes: Int = 0,
+    statusText: String = stringResource(R.string.zone_safe),
+    statusColor: Color = Mint,
 ) {
     val distanceText = if (avgDistanceCm > 0) "$avgDistanceCm cm" else "0 cm"
     val distanceProgress = if (avgDistanceCm > 0) (avgDistanceCm / 60f).coerceIn(0.1f, 1f) else 0f
@@ -244,12 +327,16 @@ private fun StatCardRow(
             label = stringResource(R.string.s06_stat_distance),
             value = distanceText,
             progress = distanceProgress,
+            statusText = statusText,
+            statusColor = statusColor,
             modifier = Modifier.weight(1f),
         )
         StatCard(
             label = stringResource(R.string.s06_stat_duration),
             value = durationText,
             progress = durationProgress,
+            statusText = statusText,
+            statusColor = statusColor,
             modifier = Modifier.weight(1f),
         )
     }
@@ -260,6 +347,8 @@ private fun StatCard(
     label: String,
     value: String,
     progress: Float,
+    statusText: String,
+    statusColor: Color,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -316,17 +405,20 @@ private fun StatCard(
             )
         }
         Spacer(modifier = Modifier.height(10.dp))
-        AmanChip()
+        ZoneStatusChip(text = statusText, containerColor = statusColor)
     }
 }
 
-/** Chip hijau "✓ Aman". */
+/** Chip status zona (desain: "✓ Aman") — warna & teks dari data hari ini. */
 @Composable
-private fun AmanChip() {
+private fun ZoneStatusChip(
+    text: String,
+    containerColor: Color,
+) {
     Row(
         modifier =
             Modifier
-                .background(Mint, RoundedCornerShape(11.dp))
+                .background(containerColor, RoundedCornerShape(11.dp))
                 .padding(horizontal = 10.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -338,16 +430,31 @@ private fun AmanChip() {
         )
         Spacer(modifier = Modifier.width(4.dp))
         Text(
-            text = stringResource(R.string.s06_status_aman),
+            text = text,
             style = MaterialTheme.typography.labelSmall,
             color = Ink,
         )
     }
 }
 
-/** Kartu insight "Mata kamu sehat!" + Kiko. */
+/**
+ * Kartu insight — kalimat dihitung dari data hari ini (T13):
+ * persentase siklus tanpa pelanggaran; tanpa data → pesan kosong yang jujur.
+ */
 @Composable
-private fun InsightCard() {
+private fun InsightCard(safeSharePercent: Int?) {
+    val (title, body) =
+        when {
+            safeSharePercent == null ->
+                stringResource(R.string.daily_insight_title_empty) to
+                    stringResource(R.string.daily_insight_empty)
+            safeSharePercent >= 80 ->
+                stringResource(R.string.s06_health_title) to
+                    stringResource(R.string.daily_insight_safe, safeSharePercent)
+            else ->
+                stringResource(R.string.daily_insight_title_warn) to
+                    stringResource(R.string.daily_insight_warn, safeSharePercent)
+        }
     Row(
         modifier =
             Modifier
@@ -358,18 +465,18 @@ private fun InsightCard() {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         KikoImage(
-            expression = KikoExpression.SENANG,
+            expression = if (safeSharePercent != null && safeSharePercent >= 80) KikoExpression.SENANG else KikoExpression.NETRAL,
             modifier = Modifier.size(width = 85.dp, height = 90.dp),
         )
         Spacer(modifier = Modifier.width(10.dp))
         Column {
             Text(
-                text = stringResource(R.string.s06_health_title),
+                text = title,
                 style = MaterialTheme.typography.titleLarge,
                 color = Ink,
             )
             Text(
-                text = stringResource(R.string.s06_health_body),
+                text = body,
                 style = MaterialTheme.typography.bodyMedium,
                 color = Ink.copy(alpha = 0.72f),
             )

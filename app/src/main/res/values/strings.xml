@@ -186,4 +186,19 @@
     <string name="cm_value">%1$.0f cm</string>
     <string name="lux_value">%1$.0f lux</string>
     <string name="degree_value">%1$.0f°</string>
+
+    <!-- Status data kosong (M22/T13) -->
+    <string name="status_no_data">Belum ada data</string>
+
+    <!-- Teks ambang diformat dari nilai ambang aktif (M23) -->
+    <string name="overlay_warning_text">Waspada: Jaga jarak layar minimal %1$d cm ya!</string>
+    <string name="quote_distance_min">Jarak layar aman minimal %1$d cm ya! 👀</string>
+    <string name="greeting_noon_distance">Selamat siang! 🌤️ Jaga jarak mata minimal %1$d cm ya!</string>
+
+    <!-- Insight Statistik Hari Ini dihitung dari data (T13) -->
+    <string name="daily_insight_title_empty">Belum ada data hari ini</string>
+    <string name="daily_insight_title_warn">Yuk jaga jarak hari ini!</string>
+    <string name="daily_insight_safe">%1$d%% waktumu hari ini ada di jarak \naman. Hebat, pertahankan!</string>
+    <string name="daily_insight_warn">Baru %1$d%% waktumu hari ini di jarak \naman. Ajak anak mundur sedikit, ya.</string>
+    <string name="daily_insight_empty">Mulai pemantauan dulu supaya \nstatistiknya terisi, ya!</string>
 </resources>

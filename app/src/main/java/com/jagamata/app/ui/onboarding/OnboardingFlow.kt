@@ -31,6 +31,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -160,6 +161,8 @@ fun OnboardingFlow(onDone: () -> Unit) {
     val context = LocalContext.current
     val settingsRepo = remember { SettingsRepository(context) }
     val scope = rememberCoroutineScope()
+    // M23: teks jarak onboarding diformat dari ambang aktif (default 30 cm).
+    val closeCm by settingsRepo.closeThresholdCm.collectAsState(initial = SettingsRepository.DEFAULT_CLOSE_CM)
 
     // Re-entry saat setup belum lengkap (mis. hanya kalibrasi yang kurang):
     // PIN sudah ada → langsung tutup onboarding; sisanya dijalur IZIN → KALIBRASI.
@@ -175,7 +178,7 @@ fun OnboardingFlow(onDone: () -> Unit) {
     when (pageIndex) {
         0 -> OnboardingPage1(onNext = { pageIndex = 1 }, onSkip = { pageIndex = 3 })
         1 -> OnboardingPage2(onNext = { pageIndex = 2 }, onSkip = { pageIndex = 3 })
-        2 -> OnboardingPage3(onNext = { pageIndex = 3 }, onSkip = { pageIndex = 3 })
+        2 -> OnboardingPage3(onNext = { pageIndex = 3 }, onSkip = { pageIndex = 3 }, closeCm = closeCm)
         3 ->
             AgeSelectScreen(
                 onSelect = { bucket ->
@@ -569,11 +572,12 @@ private fun StatCard(
 private fun OnboardingPage3(
     onNext: () -> Unit,
     onSkip: () -> Unit,
+    closeCm: Float = SettingsRepository.DEFAULT_CLOSE_CM,
 ) {
     OnboardingScaffold(
         activeDot = 2,
-        title = stringResource(R.string.ob3_title),
-        desc = stringResource(R.string.ob3_desc),
+        title = stringResource(R.string.ob3_title, closeCm.toInt()),
+        desc = stringResource(R.string.ob3_desc, closeCm.toInt()),
         ctaText = stringResource(R.string.ob_start),
         onNext = onNext,
         onSkip = onSkip,
@@ -609,7 +613,7 @@ private fun OnboardingPage3(
             }
             Spacer(Modifier.width(8.dp))
             Text(
-                text = stringResource(R.string.ob3_badge_value),
+                text = stringResource(R.string.cm_value, closeCm),
                 style = MaterialTheme.typography.displayMedium,
                 color = Ink,
                 maxLines = 1,

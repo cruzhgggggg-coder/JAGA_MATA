@@ -33,6 +33,7 @@ import com.jagamata.app.data.AppDatabase
 import com.jagamata.app.data.SettingsRepository
 import com.jagamata.app.data.entity.CheckSnapshot
 import com.jagamata.app.data.entity.ViolationLog
+import com.jagamata.app.data.localDayEpoch
 import com.jagamata.app.detection.CycleAggregator
 import com.jagamata.app.detection.DetectionResult
 import com.jagamata.app.detection.DetectionStateMachine
@@ -41,6 +42,7 @@ import com.jagamata.app.detection.MinuteTicker
 import com.jagamata.app.detection.ModelPitchBackend
 import com.jagamata.app.detection.PitchBackendFactory
 import com.jagamata.app.detection.RiskLevel
+import com.jagamata.app.detection.Thresholds
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -48,6 +50,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.concurrent.Executors
@@ -145,22 +148,18 @@ class DetectionForegroundService : LifecycleService() {
             }
         }
         lifecycleScope.launch {
-            settings.closeThresholdCm.collect { threshold ->
-                stateMachine.updateThresholds(
-                    closeEnterCm = threshold,
-                    closeExitCm = threshold + 5f,
-                )
-            }
-        }
-        lifecycleScope.launch {
-            settings.luxThreshold.collect { lux ->
-                stateMachine.updateThresholds(luxThreshold = lux)
-            }
-        }
-        lifecycleScope.launch {
-            settings.pitchThresholdDeg.collect { pitch ->
-                stateMachine.updateThresholds(pitchThresholdDeg = pitch)
-            }
+            // T9 + M25: satu sumber ambang/zona — state machine dan agregator
+            // menerima objek Thresholds yang sama dari Flow pengaturan.
+            combine(
+                settings.closeThresholdCm,
+                settings.luxThreshold,
+                settings.pitchThresholdDeg,
+            ) { close, lux, pitch -> Thresholds.fromClose(close, lux, pitch) }
+                .collect { thresholds ->
+                    activeThresholds = thresholds
+                    stateMachine.updateThresholds(thresholds)
+                    aggregator.thresholds = thresholds
+                }
         }
         lifecycleScope.launch {
             settings.childAge.collect { age ->
@@ -451,7 +450,9 @@ class DetectionForegroundService : LifecycleService() {
                 Log.i(TAG, "Siklus dilewati (tanpa wajah terdeteksi): ${summary.sampleCount} sampel")
                 return
             }
-            val dayEpoch = summary.startedAtMs / DAY_MS
+            // M8: kunci hari lokal (bukan ms/86.400.000 UTC) — 00:00–07:00 WIB
+            // tidak lagi jatuh ke hari sebelumnya.
+            val dayEpoch = localDayEpoch(summary.startedAtMs)
             database.snapshotDao().insert(
                 CheckSnapshot(
                     timestampMs = summary.startedAtMs,
@@ -513,9 +514,12 @@ class DetectionForegroundService : LifecycleService() {
                 com.jagamata.app.detection.ViolationType.BAD_POSTURE ->
                     getString(R.string.notif_body_posture, summary.maxPitchDeg ?: 0f)
             }
+        // Ambang "crucial" diturunkan dari ambang jarak aktif (T9): margin 5 cm
+        // di bawah ambang — default 30 cm → <25 cm, sama persis dengan aturan lama.
+        val closeEnter = activeThresholds.closeEnterCm
         val isCrucial =
             summary.violations.contains(com.jagamata.app.detection.ViolationType.TOO_CLOSE) &&
-                (summary.minDistanceCm ?: 30f) < 25f
+                (summary.minDistanceCm ?: closeEnter) < closeEnter - CRUCIAL_MARGIN_CM
         if (NotificationHelper.throttledAlert(this, title, body, isCrucial = isCrucial)) {
             lastAlertedViolationKey = key
             lastViolationAlertAtMs = now
@@ -554,12 +558,23 @@ class DetectionForegroundService : LifecycleService() {
 
     companion object {
         private const val TAG = "DetectionFgService"
-        private const val DAY_MS = 86_400_000L
         private const val FRAME_INTERVAL_MS = 200L // 5 FPS (Blueprint §3.1 & §5.2)
         private const val NOTIF_ID_PERMISSION = 1003
 
         /** Re-alert pelanggaran berkelanjutan maksimal tiap 5 menit (bukan tiap siklus). */
         private const val ONGOING_VIOLATION_REALERT_MS = 300_000L
+
+        /** Margin "crucial" notifikasi di bawah ambang jarak aktif (default 30→25 cm). */
+        private const val CRUCIAL_MARGIN_CM = 5f
+
+        /**
+         * Ambang/zona aktif (T9) — dipakai notifikasi pelanggaran dan binding
+         * teks overlay (M23). Diperbarui collector Flow selama service hidup;
+         * default = ambang desain (sama dengan [SettingsRepository] default).
+         */
+        @Volatile
+        var activeThresholds: Thresholds = Thresholds.DEFAULT
+            private set
 
         /** Notifikasi "butuh izin kamera" maksimal tiap 5 menit. */
         private const val PERM_NOTIF_INTERVAL_MS = 300_000L
