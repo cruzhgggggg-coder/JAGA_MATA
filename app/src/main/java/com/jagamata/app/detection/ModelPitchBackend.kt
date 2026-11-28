@@ -201,7 +201,15 @@ class ModelPitchBackend(
             }
         }
 
-        /** Skala landmark ternormalisasi [0,1] ke koordinat piksel frame. */
+        /**
+         * Skala landmark ternormalisasi [0,1] ke koordinat piksel frame.
+         *
+         * D17: kotak TIDAK di-clamp ke tepi frame. Tinggi/lebar wajah harus
+         * tetap utuh untuk estimasi jarak walau wajah sebagian keluar frame —
+         * clamp memangkas sisi yang keluar sehingga tinggi mengecil dan jarak
+         * terbaca terlalu jauh. Clamping hanya dilakukan [cropFace] saat
+         * memotong bitmap (di luar frame tidak punya piksel).
+         */
         fun toPixelBox(
             points: List<LandmarkPoint>,
             frameWidth: Int,
@@ -219,10 +227,10 @@ class ModelPitchBackend(
                 if (p.y > maxY) maxY = p.y
             }
             return Rect(
-                (minX * frameWidth).toInt().coerceIn(0, frameWidth),
-                (minY * frameHeight).toInt().coerceIn(0, frameHeight),
-                (maxX * frameWidth).toInt().coerceIn(0, frameWidth),
-                (maxY * frameHeight).toInt().coerceIn(0, frameHeight),
+                (minX * frameWidth).toInt(),
+                (minY * frameHeight).toInt(),
+                (maxX * frameWidth).toInt(),
+                (maxY * frameHeight).toInt(),
             )
         }
     }

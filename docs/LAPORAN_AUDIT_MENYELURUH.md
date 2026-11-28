@@ -338,8 +338,15 @@ Verifikasi putaran 2 tidak menolak satu pun temuan utama. Tiga sub-klaim dikorek
 | **M6** | ✅ FIXED (28 Nov) | `ModelPitchBackend` fallback ke `LandmarkPitchBackend` saat crop null / model gagal dimuat (bukan null permanen) + test |
 | **M7** | ✅ FIXED (28 Nov) | Pelanggaran gelap hanya dihitung bila ada wajah (ponsel telungkup ≠ pelanggaran malam) |
 | **M17** | ✅ FIXED (28 Nov) | `CycleAggregator` thread-safe (`@Synchronized` add/evaluate/clear) + test konkurensi |
-| T4, T5, T6 | ⏳ berikutnya | Re-lock sesi, PIN untuk jeda, gerbang kalibrasi (wave berikutnya) |
-| T9, T12–T15, M1–M2, M5, M8–M16 (sisa), M18–M27, rendah | ⏳ antrean | Sinkronisasi ambang, rotasi kamera, hapus data dummy, item pra-rilis |
+| **T4** | ✅ FIXED (28 Nov) | Route guard sentral `ParentRouteGuard` (termasuk entry back-stack ter-restore & deep-link notifikasi); process death → reset ke Beranda; TTL background 5 mnt tetap |
+| **T5** | ✅ FIXED (28 Nov) | Jeda kini wajib PIN (hold 3 dtk → KUNCI → PauseGate); status "Pemantauan aktif/Dijeda sejak HH:mm/Berhenti" di Dashboard; `monitoringDesired` persist + `BootReceiver` (API 34+ → notifikasi pengingat, bukan start FGS) |
+| **T6** | ✅ FIXED (28 Nov) | Kalibrasi ulang melewati gerbang PIN (first-run: `focalPx` belum ada = lolos); tanpa auto-start (CTA eksplisit); batas focal wajar 350–900 px & deviasi ≤30% |
+| **T12** | ✅ FIXED (28 Nov) | `OrientationEventListener` → `imageAnalysis.targetRotation` (landscape benar) |
+| **M2** | ✅ FIXED (28 Nov) | `setNumFaces(3)` + pilih bbox terbesar (wajah terdekat); ML Kit via `pickLargestBox` |
+| **M18** | ✅ FIXED (28 Nov) | Pipeline berhenti saat `SCREEN_OFF` (flag gate); siklus tanpa wajah/sampel tidak ditulis ke snapshot |
+| **M20** | ✅ FIXED (28 Nov) | Observasi `cameraState` → `cameraHealthy` StateFlow + rebind backoff 3×2 dtk (siap dikonsumsi UI) |
+| **D17, D21** | ✅ FIXED (28 Nov) | Bbox tak di-clamp untuk estimasi tinggi; pairing frame async + recycle alias-check |
+| T9, T13, T14, T15, M1, M5, M8–M11, M13–M16, M19, M21–M27 sisa, rendah | ⏳ antrean | Sinkronisasi ambang (T9/M25), dayEpoch lokal (M8), hapus data dummy (T13/T14/M22), item pra-rilis (T15/M13/M14) |
 
 ---
 *Detail bukti per temuan (file:baris, trace, skrip replika) tersedia di berkas kerja audit: `A_keamanan.md`, `B_deteksi.md`, `C_service.md`, `D_data.md`, `E_ui.md` (putaran 1) dan `V1_keamanan_ui.md`, `V2_deteksi_service.md`, `V3_data_sinkron.md` (putaran 2).*

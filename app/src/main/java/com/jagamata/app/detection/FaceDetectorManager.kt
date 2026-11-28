@@ -18,10 +18,14 @@ import java.util.concurrent.atomic.AtomicBoolean
 /**
  * Manajer deteksi wajah (PRD §5.1, DEV-13, fallback F1).
  *
- * Utama: MediaPipe FaceLandmarker (LIVE_STREAM, 1 wajah, model
+ * Utama: MediaPipe FaceLandmarker (LIVE_STREAM, hingga 3 wajah, model
  * `assets/face_landmarker.task`). Bila model gagal dimuat -> fallback
  * ML Kit Face Detection ("degraded mode": deteksi jarak + cahaya tetap jalan,
  * pitch dihitung dari crop wajah lewat [PitchBackend] bila model tersedia).
+ *
+ * M2: bila beberapa wajah ada dalam frame, dipilih wajah dengan bounding box
+ * terbesar (terdekat ke kamera) agar wajah orang tua/latar tidak menutupi anak.
+ * API callback tetap satu hasil per frame.
  */
 class FaceDetectorManager(
     private val context: Context,
@@ -41,6 +45,17 @@ class FaceDetectorManager(
     /** Frame terakhir — dipakai untuk crop wajah ke backend pitch (PRD §5.5). */
     @Volatile
     private var lastFrame: Bitmap? = null
+
+    /**
+     * D21: frame yang sedang dikirim ke deteksi async, dipasangkan dengan
+     * timestampnya agar callback bisa mengambil frame yang BENAR (bukan
+     * `lastFrame` yang bisa sudah tertimpa frame lain).
+     */
+    @Volatile
+    private var pendingFrame: Bitmap? = null
+
+    @Volatile
+    private var pendingFrameTs: Long = -1L
 
     @Volatile
     private var lastFrameWidth: Int = 480
@@ -92,7 +107,9 @@ class FaceDetectorManager(
                             .build(),
                     )
                     .setRunningMode(RunningMode.LIVE_STREAM)
-                    .setNumFaces(1)
+                    // M2: deteksi hingga 3 wajah, lalu pilih yang terdekat
+                    // (bbox terbesar) — bukan wajah pertama hasil deteksi.
+                    .setNumFaces(3)
                     .setOutputFaceBlendshapes(false)
                     .setOutputFacialTransformationMatrixes(false)
                     .setResultListener { result, _ -> handleMediaPipeResult(result) }
@@ -165,6 +182,10 @@ class FaceDetectorManager(
             DetectorBackend.MEDIAPIPE -> {
                 try {
                     val mpImage = BitmapImageBuilder(bitmap).build()
+                    // D21: pasangkan frame dengan timestamp yang dikirim ke
+                    // detectAsync supaya callback async mendapat frame yang sama.
+                    pendingFrame = bitmap
+                    pendingFrameTs = monotonicTs
                     landmarker?.detectAsync(mpImage, monotonicTs)
                 } catch (t: Throwable) {
                     Log.e(TAG, "detectAsync gagal: ${t.message}")
@@ -181,8 +202,13 @@ class FaceDetectorManager(
 
     private fun handleMediaPipeResult(result: com.google.mediapipe.tasks.vision.facelandmarker.FaceLandmarkerResult) {
         try {
-            val landmarks = result.faceLandmarks().firstOrNull()
-            if (landmarks == null) {
+            val faces =
+                result.faceLandmarks().map { face ->
+                    face.map { LandmarkPoint(it.x(), it.y(), it.z()) }
+                }
+            // M2: pilih wajah terdekat (bbox terbesar) bila ada beberapa wajah.
+            val points = pickClosestFace(faces)
+            if (points == null) {
                 onResult(
                     DetectionResult(
                         timestampMs = result.timestampMs(),
@@ -191,8 +217,15 @@ class FaceDetectorManager(
                 )
                 return
             }
-            val points = landmarks.map { LandmarkPoint(it.x(), it.y(), it.z()) }
-            val frame = lastFrame
+            // D21: kunci referensi frame sekali di awal callback ke sebuah lokal —
+            // pasangan (frame, timestamp) bila cocok dengan hasil ini, jika tidak
+            // fallback ke frame terakhir yang diketahui.
+            val frame =
+                if (pendingFrameTs == result.timestampMs()) {
+                    pendingFrame
+                } else {
+                    lastFrame
+                }
             val fw = frame?.width ?: lastFrameWidth
             val fh = frame?.height ?: lastFrameHeight
             // Landmark MediaPipe ternormalisasi [0,1] → skala ke piksel frame.
@@ -204,7 +237,9 @@ class FaceDetectorManager(
                 try {
                     pitchBackend.pitchDeg(points, crop)?.takeIf { it.isFinite() }
                 } finally {
-                    crop?.recycle()
+                    // D21: jangan recycle bila crop adalah frame itu sendiri
+                    // (createBitmap mengembalikan instance yang sama untuk subset penuh).
+                    if (crop != null && crop !== frame) crop.recycle()
                 }
             val faceHeight = faceHeightPx.takeIf { it > 0f }
             val faceWidth = faceWidthPx.takeIf { it > 0f }
@@ -232,8 +267,11 @@ class FaceDetectorManager(
         val input = InputImage.fromBitmap(bitmap, 0)
         detector.process(input)
             .addOnSuccessListener { faces ->
-                val face = faces.firstOrNull()
-                if (face == null) {
+                // M2: pilih wajah terdekat (bounding box terbesar) bila ada
+                // beberapa wajah dalam frame (ML Kit mendeteksi multi-wajah
+                // otomatis — tidak ada opsi maxFaces di FaceDetectorOptions).
+                val box = pickLargestBox(faces.map { it.boundingBox })
+                if (box == null) {
                     onResult(
                         DetectionResult(
                             timestampMs = timestampMs,
@@ -242,13 +280,13 @@ class FaceDetectorManager(
                     )
                     return@addOnSuccessListener
                 }
-                val box: Rect = face.boundingBox
-                val crop = bitmap.let { ModelPitchBackend.cropFace(it, box) }
+                val crop = ModelPitchBackend.cropFace(bitmap, box)
                 val pitch =
                     try {
                         pitchBackend.pitchDeg(emptyList(), crop)?.takeIf { it.isFinite() }
                     } finally {
-                        crop?.recycle()
+                        // D21: jangan recycle bila crop adalah frame itu sendiri.
+                        if (crop != null && crop !== bitmap) crop.recycle()
                     }
                 val faceHeight = box.height().toFloat().takeIf { it > 0f }
                 val faceWidth = box.width().toFloat().takeIf { it > 0f }
@@ -272,6 +310,8 @@ class FaceDetectorManager(
     fun close() {
         closed.set(true)
         lastFrame = null
+        pendingFrame = null
+        pendingFrameTs = -1L
         try {
             landmarker?.close()
         } catch (_: Throwable) {
@@ -315,6 +355,33 @@ class FaceDetectorManager(
                 if (p.y > maxY) maxY = p.y
             }
             return Rect(minX.toInt(), minY.toInt(), maxX.toInt(), maxY.toInt())
+        }
+
+        /**
+         * M2: pilih wajah terdekat di antara kandidat — yaitu wajah dengan
+         * bounding box berluas terbesar. [faces] = daftar landmark per wajah.
+         * Null bila tidak ada kandidat. Tetap satu hasil per frame (API callback
+         * tidak berubah).
+         */
+        fun pickClosestFace(faces: List<List<LandmarkPoint>>): List<LandmarkPoint>? = faces.maxByOrNull { landmarkBoxArea(it) }
+
+        /** M2: pilih kotak terbesar (terdekat) dari daftar bounding box. */
+        fun pickLargestBox(boxes: List<Rect>): Rect? = boxes.maxByOrNull { it.width().toLong() * it.height().toLong() }
+
+        /** Luas bbox landmark pada skala ternormalisasi (cukup untuk perbandingan). */
+        internal fun landmarkBoxArea(points: List<LandmarkPoint>): Float {
+            if (points.isEmpty()) return 0f
+            var minX = Float.MAX_VALUE
+            var minY = Float.MAX_VALUE
+            var maxX = -Float.MAX_VALUE
+            var maxY = -Float.MAX_VALUE
+            for (p in points) {
+                if (p.x < minX) minX = p.x
+                if (p.y < minY) minY = p.y
+                if (p.x > maxX) maxX = p.x
+                if (p.y > maxY) maxY = p.y
+            }
+            return (maxX - minX) * (maxY - minY)
         }
     }
 }
