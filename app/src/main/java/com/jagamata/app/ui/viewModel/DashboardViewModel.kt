@@ -30,6 +30,8 @@ class DashboardViewModel(
         val dailyAvgDistanceCm: Map<Long, Float> = emptyMap(),
         val pausedSessionsToday: Int = 0,
         val isMonitoring: Boolean = false,
+        /** T5: waktu jeda dimulai (epoch ms); 0 = tidak sedang dijeda. */
+        val pausedSinceEpochMs: Long = 0L,
     )
 
     private val _uiState = MutableStateFlow(UiState())
@@ -48,7 +50,18 @@ class DashboardViewModel(
         }
         viewModelScope.launch {
             DetectionForegroundService.isRunning.collect { running ->
-                _uiState.value = _uiState.value.copy(isMonitoring = running)
+                _uiState.value =
+                    _uiState.value.copy(
+                        isMonitoring = running,
+                        pausedSinceEpochMs =
+                            if (running) 0L else DetectionForegroundService.pausedSinceEpochMs.value,
+                    )
+            }
+        }
+        // T5: status jeda ikut berubah tanpa fluktuasi isRunning (mis. jeda dicatat).
+        viewModelScope.launch {
+            DetectionForegroundService.pausedSinceEpochMs.collect { since ->
+                _uiState.value = _uiState.value.copy(pausedSinceEpochMs = since)
             }
         }
         refresh()

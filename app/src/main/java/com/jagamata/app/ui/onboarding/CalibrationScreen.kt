@@ -89,7 +89,17 @@ fun CalibrationScreen(
     onNext: () -> Unit,
     distanceCm: Float? = null,
     onBack: () -> Unit = {},
+    focalReject: com.jagamata.app.ui.viewModel.CalibrationBounds.Reject? = null,
 ) {
+    // T6c: pesan ulangi bila hasil kalibrasi ditolak batas wajar.
+    val rejectMessage =
+        when (focalReject) {
+            com.jagamata.app.ui.viewModel.CalibrationBounds.Reject.OUT_OF_RANGE ->
+                stringResource(R.string.calib_focal_out_of_range)
+            com.jagamata.app.ui.viewModel.CalibrationBounds.Reject.DEVIATION ->
+                stringResource(R.string.calib_focal_deviation)
+            null -> null
+        }
     Column(
         modifier =
             Modifier
@@ -103,7 +113,7 @@ fun CalibrationScreen(
         Spacer(modifier = Modifier.height(14.dp))
         CalibrationStageCard(distanceCm = distanceCm)
         Spacer(modifier = Modifier.height(14.dp))
-        GaugeCard(distanceCm = distanceCm, isCalibrated = isCalibrated)
+        GaugeCard(distanceCm = distanceCm, isCalibrated = isCalibrated, rejectMessage = rejectMessage)
         Spacer(modifier = Modifier.height(18.dp))
         ProgressCard(
             faceHeightPx = faceHeightPx,
@@ -347,6 +357,7 @@ private fun BoxScope.MeasurementDial(distanceCm: Float? = null) {
 private fun GaugeCard(
     distanceCm: Float? = null,
     isCalibrated: Boolean = false,
+    rejectMessage: String? = null,
 ) {
     val displayDist =
         distanceCm?.let { String.format(Locale.US, "%.0f cm", it) }
@@ -386,7 +397,7 @@ private fun GaugeCard(
             )
         }
         Spacer(modifier = Modifier.height(16.dp))
-        StableBanner(isCalibrated = isCalibrated)
+        StableBanner(isCalibrated = isCalibrated, rejectMessage = rejectMessage)
         Spacer(modifier = Modifier.height(10.dp))
         StepRow()
         Spacer(modifier = Modifier.height(12.dp))
@@ -461,12 +472,16 @@ private fun GaugeCanvas(distanceCm: Float? = null) {
 }
 
 @Composable
-private fun StableBanner(isCalibrated: Boolean = false) {
+private fun StableBanner(
+    isCalibrated: Boolean = false,
+    rejectMessage: String? = null,
+) {
     val (text, bg) =
-        if (isCalibrated) {
-            stringResource(R.string.s12_stable) to Mint
-        } else {
-            "Pegang stabil 30 cm selama 1,5 detik" to SurfaceAlt
+        when {
+            // T6c: hasil ditolak batas wajar — minta ulangi.
+            rejectMessage != null -> rejectMessage to Coral
+            isCalibrated -> stringResource(R.string.s12_stable) to Mint
+            else -> "Pegang stabil 30 cm selama 1,5 detik" to SurfaceAlt
         }
     Row(
         modifier = Modifier.fillMaxWidth(),

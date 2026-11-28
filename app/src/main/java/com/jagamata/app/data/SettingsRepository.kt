@@ -50,6 +50,9 @@ class SettingsRepository(private val context: Context) {
     val childGrade: Flow<String> = read(KEY_CHILD_GRADE, "Kelas 3 SD")
     val dailyLimitMinutes: Flow<Int> = read(KEY_DAILY_LIMIT_MINUTES, 60)
 
+    /** T5: keinginan memantau — dipersist agar BOOT_COMPLETED bisa melanjutkan pemantauan. */
+    val monitoringDesired: Flow<Boolean> = read(KEY_MONITORING_DESIRED, false)
+
     suspend fun setCloseThresholdCm(value: Float) = write(KEY_CLOSE_CM, value)
 
     suspend fun setLuxThreshold(value: Float) = write(KEY_LUX, value)
@@ -73,6 +76,8 @@ class SettingsRepository(private val context: Context) {
     suspend fun setChildGrade(value: String) = write(KEY_CHILD_GRADE, value)
 
     suspend fun setDailyLimitMinutes(value: Int) = write(KEY_DAILY_LIMIT_MINUTES, value)
+
+    suspend fun setMonitoringDesired(value: Boolean) = write(KEY_MONITORING_DESIRED, value)
 
     suspend fun setParentPin(pin: String) {
         val salt = System.currentTimeMillis().toString()
@@ -208,6 +213,7 @@ class SettingsRepository(private val context: Context) {
         private val KEY_CHILD_AGE = intPreferencesKey("child_age")
         private val KEY_CHILD_GRADE = stringPreferencesKey("child_grade")
         private val KEY_DAILY_LIMIT_MINUTES = intPreferencesKey("daily_limit_minutes")
+        private val KEY_MONITORING_DESIRED = booleanPreferencesKey("monitoring_desired")
 
         /**
          * Lockout eksponensial (T3): kegagalan ke-5 → 1 menit, ke-6 → 5 menit,

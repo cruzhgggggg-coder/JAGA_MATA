@@ -22,11 +22,24 @@ class ParentGate {
     var lastBackgroundAtMs: Long = 0L
 
     /**
+     * T6: true bila hasil kalibrasi sudah pernah tersimpan. Kalibrasi berikutnya
+     * berarti kalibrasi-ulang yang bisa membutakan deteksi jarak — wajib PIN.
+     * Kalibrasi pertama (setup, focal belum ada) tidak digerbangkan.
+     */
+    var hasSavedFocal: Boolean = false
+
+    /**
+     * Apakah [route] wajib melewati PIN saat sesi terkunci. Mencakup rute mode
+     * ortu di [GATED_ROUTES] plus [Routes.KALIBRASI] (kalibrasi-ulang, T6).
+     */
+    fun requiresGate(route: String): Boolean = route in GATED_ROUTES || (route == Routes.KALIBRASI && hasSavedFocal)
+
+    /**
      * Mengembalikan route yang benar-benar dituju: [route] saat boleh, atau
      * [Routes.KUNCI] sambil menyimpan [pending] untuk rute sensitif yang masih terkunci.
      */
     fun tryNavigate(route: String): String {
-        if (!unlocked && route in GATED_ROUTES) {
+        if (!unlocked && requiresGate(route)) {
             pending = route
             return Routes.KUNCI
         }

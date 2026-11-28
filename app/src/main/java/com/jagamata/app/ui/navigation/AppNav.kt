@@ -14,8 +14,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import androidx.navigation.NavHostController
+import androidx.navigation.NavOptionsBuilder
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.jagamata.app.BuildConfig
 import com.jagamata.app.MainActivity
@@ -68,29 +70,108 @@ fun NavHostController.openTab(index: Int) {
 }
 
 /**
- * Navigasi ter-gerbang (DEV-37): rute sensitif ([ParentGate.GATED_ROUTES]) hanya bisa
+ * Navigasi ter-gerbang (DEV-37): rute sensitif ([ParentGate.requiresGate]) hanya bisa
  * dibuka langsung saat [ParentSession.unlocked]; selain itu tujuan disimpan di [pending]
  * dan pengguna diarahkan ke [Routes.KUNCI] lebih dulu. Rute non-sensitif lolos apa adanya.
+ * [options] hanya dipakai untuk navigasi langsung (tanpa pengalihan gerbang).
  */
 private fun NavHostController.navigateGated(
     route: String,
     pending: MutableState<String?>,
+    options: (NavOptionsBuilder.() -> Unit)? = null,
 ) {
     val target = ParentSession.tryNavigate(route)
     // target != route = dialihkan ke KUNCI (route == KUNCI sendiri bukan pengalihan).
     if (target != route) {
         pending.value = route
+        navigate(target)
+    } else if (options != null) {
+        navigate(target, options)
+    } else {
+        navigate(target)
     }
-    navigate(target)
+}
+
+/**
+ * Penjaga rute terpusat (T4 + T6). Memeriksa tujuan yang sedang tampil — termasuk
+ * entri back stack yang di-restore setelah process death dan tujuan dari deep link —
+ * dan menggantinya dengan [Routes.KUNCI] (+ pending = tujuan asli) bila sesi terkunci
+ * sementara tujuannya butuh PIN. Juga menangani relock saat kembali dari latar-belakang
+ * (status unlock berubah tanpa navigasi baru).
+ */
+@Composable
+private fun ParentRouteGuard(
+    navController: NavHostController,
+    pending: MutableState<String?>,
+) {
+    val unlocked = ParentSession.unlocked
+    val currentEntry by navController.currentBackStackEntryAsState()
+    val route = currentEntry?.destination?.route
+    LaunchedEffect(route, unlocked) {
+        // Baca tujuan saat eksekusi (bukan snapshot saat composition) agar reset
+        // back stack yang berjalan di frame yang sama tidak digagalkan guard.
+        val current = navController.currentBackStackEntry?.destination?.route
+        if (current == null || current == Routes.KUNCI) return@LaunchedEffect
+        if (unlocked || !ParentSession.requiresGate(current)) return@LaunchedEffect
+        pending.value = current
+        navController.navigate(Routes.KUNCI) {
+            // Ganti entri sensitif: batal dari KUNCI tidak kembali ke layar terkunci.
+            popUpTo(current) { inclusive = true }
+            launchSingleTop = true
+        }
+    }
 }
 
 @Composable
 fun AppNav(
     navController: NavHostController = rememberNavController(),
     startDestination: String = Routes.SPLASH,
+    resetBackStackToBeranda: Boolean = false,
 ) {
     // Tujuan tertunda saat gerbang PIN menahan rute sensitif (DEV-37).
     val pending = ParentSession.pendingState
+    val appContext = LocalContext.current.applicationContext
+
+    // Sesi jeda (DEV-36) di level AppNav — satu instance agar KUNCI bisa
+    // mengeksekusi jeda tertunda setelah PIN (T5) dan timer auto-resume tetap hidup.
+    val pauseManager =
+        remember {
+            val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+            PauseSessionManager(
+                scope = appScope,
+                recordPause = { log ->
+                    appScope.launch {
+                        AppDatabase.getInstance(appContext).violationDao().insert(log)
+                    }
+                },
+                notifyParent = {
+                    NotificationHelper.throttledAlert(
+                        appContext,
+                        appContext.getString(R.string.pause_notify_title),
+                        appContext.getString(R.string.pause_notify_body),
+                        isCrucial = false,
+                    )
+                },
+                // T5: jeda = service berhenti sementara (monitoringDesired tetap true).
+                stopMonitoring = { DetectionForegroundService.pauseMonitoring(appContext) },
+                startMonitoring = { DetectionForegroundService.start(appContext) },
+            )
+        }
+
+    // T4: setelah process death tanpa sesi ortu, buang back stack yang di-restore
+    // dan mulai dari BERANDA. pending ikut dikosongkan agar unlock berikutnya netral.
+    if (resetBackStackToBeranda) {
+        LaunchedEffect(navController) {
+            pending.value = null
+            navController.navigate(Routes.BERANDA) {
+                popUpTo(navController.graph.id) { inclusive = true }
+                launchSingleTop = true
+            }
+        }
+    }
+
+    ParentRouteGuard(navController = navController, pending = pending)
+
     NavHost(navController = navController, startDestination = startDestination) {
         composable(Routes.SPLASH) {
             val context = LocalContext.current
@@ -156,7 +237,8 @@ fun AppNav(
             SettingsScreen(
                 onBack = { navController.popBackStack() },
                 onOpenPrivacy = { navController.navigate(Routes.PRIVACY) },
-                onOpenCalibration = { navController.navigate(Routes.KALIBRASI) },
+                // T6: kalibrasi ulang lewat gerbang PIN (sesi sudah terbuka = lolos langsung).
+                onOpenCalibration = { navController.navigateGated(Routes.KALIBRASI, pending) },
                 onOpenChildProfile = { navController.navigate(Routes.PROFIL_ANAK) },
                 onOpenPermissions = { navController.navigate(Routes.IZIN) },
             )
@@ -192,42 +274,28 @@ fun AppNav(
         }
         composable(Routes.PANTAU_LIVE) {
             val context = LocalContext.current
-            val pauseManager =
-                remember {
-                    val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-                    PauseSessionManager(
-                        scope = appScope,
-                        recordPause = { log ->
-                            appScope.launch {
-                                AppDatabase.getInstance(context.applicationContext)
-                                    .violationDao().insert(log)
-                            }
-                        },
-                        notifyParent = {
-                            NotificationHelper.throttledAlert(
-                                context.applicationContext,
-                                context.getString(R.string.pause_notify_title),
-                                context.getString(R.string.pause_notify_body),
-                                isCrucial = false,
-                            )
-                        },
-                        stopMonitoring = { DetectionForegroundService.stop(context) },
-                        startMonitoring = { DetectionForegroundService.start(context) },
-                    )
-                }
             PantauLiveScreen(
                 onTab = { navController.openTab(it) },
                 onPauseToggle = {
-                    if (DetectionForegroundService.isRunning.value) {
-                        pauseManager.pause()
-                    } else {
-                        val hasCamera =
-                            ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
-                                PackageManager.PERMISSION_GRANTED
-                        if (!hasCamera) {
-                            navController.navigate(Routes.IZIN)
-                        } else {
-                            pauseManager.resume()
+                    // T5: hold-3-detik selesai → keputusan gerbang jeda.
+                    when (
+                        ParentSession.pauseToggleDecision(
+                            isRunning = DetectionForegroundService.isRunning.value,
+                        )
+                    ) {
+                        PauseDecision.PAUSE_NOW -> pauseManager.pause()
+                        PauseDecision.REQUEST_PIN -> navController.navigate(Routes.KUNCI)
+                        PauseDecision.RESUME_NOW -> {
+                            val hasCamera =
+                                ContextCompat.checkSelfPermission(
+                                    context,
+                                    Manifest.permission.CAMERA,
+                                ) == PackageManager.PERMISSION_GRANTED
+                            if (!hasCamera) {
+                                navController.navigate(Routes.IZIN)
+                            } else {
+                                pauseManager.resume()
+                            }
                         }
                     }
                 },
@@ -255,7 +323,9 @@ fun AppNav(
         composable(Routes.IZIN) {
             PermissionWizardScreen(
                 onNext = {
-                    navController.navigate(Routes.KALIBRASI) {
+                    // T6: kalibrasi ulang (focal sudah tersimpan) wajib PIN; kalibrasi
+                    // pertama saat setup lolos tanpa gerbang.
+                    navController.navigateGated(Routes.KALIBRASI, pending) {
                         popUpTo(Routes.IZIN) { inclusive = true }
                     }
                 },
@@ -275,7 +345,7 @@ fun AppNav(
                 if (hasCamera && !DetectionForegroundService.isRunning.value) {
                     DetectionForegroundService.start(context)
                 }
-                viewModel.startCalibration()
+                // T6: kalibrasi TIDAK auto-start — tunggu CTA eksplisit di CalibrationScreen.
             }
 
             CalibrationScreen(
@@ -283,6 +353,7 @@ fun AppNav(
                 distanceCm = state.distanceCm,
                 progress = state.progress,
                 isCalibrated = state.isCalibrated,
+                focalReject = state.focalReject,
                 onStart = { viewModel.startCalibration() },
                 onRetry = { viewModel.retryCalibration() },
                 onNext = {
@@ -315,6 +386,8 @@ fun AppNav(
                 onUnlocked = {
                     // DEV-37: buka sesi, lalu lanjutkan ke tujuan yang tertunda bila ada.
                     ParentSession.unlocked = true
+                    // T5: jeda yang menunggu PIN dieksekusi setelah unlock.
+                    val shouldPause = ParentSession.consumePendingPause()
                     val target = pending.value.also { pending.value = null }
                     if (target != null) {
                         navController.popBackStack()
@@ -326,8 +399,13 @@ fun AppNav(
                             popUpTo(Routes.KUNCI) { inclusive = true }
                         }
                     }
+                    if (shouldPause && DetectionForegroundService.isRunning.value) {
+                        pauseManager.pause()
+                    }
                 },
                 onCancel = {
+                    // T5: batal dari layar kunci membatalkan permintaan jeda tertunda.
+                    ParentSession.cancelPendingPause()
                     navController.popBackStack()
                 },
                 // T3: counter & lockout persisten — sama dengan dialog Ubah PIN (A11).

@@ -151,9 +151,22 @@
     <string name="detection_pitch">Postur: %1$.0f°</string>
 
     <!-- Pause session -->
-    <string name="pause_hold_hint">Tahan 3 detik untuk jeda</string>
+    <string name="pause_hold_hint">Tahan 3 detik, lalu masukkan PIN untuk jeda</string>
     <string name="pause_notify_title">Pemantauan Dijeda</string>
     <string name="pause_notify_body">Anak menjeda pemantauan. Akan hidup otomatis dalam 5 menit.</string>
+
+    <!-- Status pemantauan di Dashboard (T5) -->
+    <string name="monitoring_status_active">Pemantauan aktif</string>
+    <string name="monitoring_status_paused">Dijeda sejak %1$s</string>
+    <string name="monitoring_status_stopped">Berhenti</string>
+
+    <!-- Pengingat setelah boot bila pemantauan belum bisa dijalankan otomatis (T5) -->
+    <string name="boot_reminder_title">Pemantauan JagaMata belum berjalan</string>
+    <string name="boot_reminder_body">HP baru menyala ulang. Buka JagaMata untuk memulai pemantauan lagi.</string>
+
+    <!-- Kalibrasi: penolakan hasil di luar batas wajar (T6) -->
+    <string name="calib_focal_out_of_range">Hasil kalibrasi di luar rentang wajar (350–900 px). Pastikan HP di 30 cm dari wajah, lalu ulangi.</string>
+    <string name="calib_focal_deviation">Hasil kalibrasi terlalu berbeda dari sebelumnya. Pastikan HP di 30 cm dari wajah, lalu ulangi.</string>
 
     <!-- Notification -->
     <string name="notif_channel_name">Peringatan JagaMata</string>

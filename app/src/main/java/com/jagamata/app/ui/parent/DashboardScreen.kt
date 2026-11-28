@@ -63,7 +63,9 @@ import com.jagamata.app.ui.components.JagaCard
 import com.jagamata.app.ui.components.KikoExpression
 import com.jagamata.app.ui.components.KikoImage
 import com.jagamata.app.ui.components.Sparkle
+import com.jagamata.app.ui.components.ZoneChip
 import com.jagamata.app.ui.theme.Background
+import com.jagamata.app.ui.theme.Coral
 import com.jagamata.app.ui.theme.Cream
 import com.jagamata.app.ui.theme.Ink
 import com.jagamata.app.ui.theme.Mint
@@ -553,6 +555,8 @@ private fun CycleCard(state: DashboardViewModel.UiState) {
             color = Ink,
         )
         Spacer(modifier = Modifier.height(8.dp))
+        MonitoringStatusLine(state = state)
+        Spacer(modifier = Modifier.height(8.dp))
         val dist =
             state.lastCycle?.avgDistanceCm?.let { String.format(Locale.US, "%.0f cm", it) }
                 ?: "-- cm"
@@ -592,6 +596,29 @@ private fun CycleCard(state: DashboardViewModel.UiState) {
         )
     }
 }
+
+/**
+ * T5: baris status pemantauan sesungguhnya — "Pemantauan aktif" / "Dijeda sejak HH:mm" /
+ * "Berhenti", dari [DetectionForegroundService.isRunning] + waktu jeda. Menggantikan
+ * klaim statis "Siklus 1 menit — aktif" (audit V-S2).
+ */
+@Composable
+private fun MonitoringStatusLine(state: DashboardViewModel.UiState) {
+    val (text, color) =
+        when {
+            state.isMonitoring -> stringResource(R.string.monitoring_status_active) to Mint
+            state.pausedSinceEpochMs > 0L ->
+                stringResource(
+                    R.string.monitoring_status_paused,
+                    hhmm(state.pausedSinceEpochMs),
+                ) to Sunny
+            else -> stringResource(R.string.monitoring_status_stopped) to Coral
+        }
+    ZoneChip(text = text, containerColor = color)
+}
+
+/** Format HH:mm lokal untuk stempel waktu status. */
+private fun hhmm(epochMs: Long): String = java.text.SimpleDateFormat("HH:mm", Locale.getDefault()).format(java.util.Date(epochMs))
 
 /** Transparansi jeda sesi hari ini (DEV-38) — selalu tampil, netral/positif bila nol. */
 @Composable

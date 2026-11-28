@@ -10,6 +10,7 @@ import androidx.compose.runtime.mutableStateOf
  */
 object ParentSession {
     private val gate = ParentGate()
+    private val pauseGate = PauseGate()
     private val unlockedState = mutableStateOf(gate.unlocked)
 
     /**
@@ -29,6 +30,30 @@ object ParentSession {
         set(value) {
             gate.lastBackgroundAtMs = value
         }
+
+    /**
+     * T6: true bila focal kalibrasi sudah pernah tersimpan — kalibrasi berikutnya
+     * (kalibrasi-ulang) wajib PIN. Di-set dari collector DataStore di MainActivity.
+     */
+    var hasSavedFocal: Boolean
+        get() = gate.hasSavedFocal
+        set(value) {
+            gate.hasSavedFocal = value
+        }
+
+    /** Apakah [route] wajib melewati PIN saat terkunci (lihat [ParentGate.requiresGate]). */
+    fun requiresGate(route: String): Boolean = gate.requiresGate(route)
+
+    /** Keputusan tombol jeda/lanjut (T5) — lihat [PauseGate.onToggle]. */
+    fun pauseToggleDecision(isRunning: Boolean): PauseDecision = pauseGate.onToggle(isRunning, unlocked)
+
+    /** Setelah PIN sukses: true bila permintaan jeda tertunda harus dieksekusi (T5). */
+    fun consumePendingPause(): Boolean = pauseGate.consumePendingPause()
+
+    /** Membatalkan permintaan jeda tertunda (T5) — mis. layar kunci ditinggalkan. */
+    fun cancelPendingPause() {
+        pauseGate.cancelPendingPause()
+    }
 
     /**
      * Handle Compose untuk tujuan yang tertunda — satu storage dengan [ParentGate.pending]

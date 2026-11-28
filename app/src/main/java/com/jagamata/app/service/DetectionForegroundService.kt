@@ -3,20 +3,28 @@ package com.jagamata.app.service
 import android.app.Notification
 import android.app.PendingIntent
 import android.app.Service
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import android.os.SystemClock
 import android.util.Log
+import android.view.OrientationEventListener
+import android.view.WindowManager
+import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
+import androidx.camera.core.CameraState
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleService
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.Observer
 import androidx.lifecycle.lifecycleScope
 import com.jagamata.app.BuildConfig
 import com.jagamata.app.MainActivity
@@ -33,6 +41,11 @@ import com.jagamata.app.detection.MinuteTicker
 import com.jagamata.app.detection.ModelPitchBackend
 import com.jagamata.app.detection.PitchBackendFactory
 import com.jagamata.app.detection.RiskLevel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
@@ -55,6 +68,43 @@ class DetectionForegroundService : LifecycleService() {
     private var cameraProvider: ProcessCameraProvider? = null
     private val analysisExecutor = Executors.newSingleThreadExecutor()
     private var lastFrameTimeMs: Long = 0L
+
+    /** Use case analisis yang sedang terikat (dipakai listener rotasi, T12). */
+    private var imageAnalysis: ImageAnalysis? = null
+
+    /** T12: memperbarui [ImageAnalysis.targetRotation] saat orientasi berubah. */
+    private var orientationListener: OrientationEventListener? = null
+
+    /** M18: gate analisis per frame — false saat layar mati/terkunci. */
+    private val analysisEnabled = java.util.concurrent.atomic.AtomicBoolean(true)
+
+    /** M18: receiver konteks (bukan manifest) untuk SCREEN_OFF/SCREEN_ON. */
+    private val screenReceiver =
+        object : BroadcastReceiver() {
+            override fun onReceive(
+                context: Context,
+                intent: Intent,
+            ) {
+                when (intent.action) {
+                    Intent.ACTION_SCREEN_OFF -> {
+                        analysisEnabled.set(false)
+                        Log.i(TAG, "Layar mati — analisis kamera dijeda (M18)")
+                    }
+                    Intent.ACTION_SCREEN_ON -> {
+                        analysisEnabled.set(true)
+                        Log.i(TAG, "Layar menyala — analisis kamera dilanjut (M18)")
+                    }
+                }
+            }
+        }
+
+    /** M20: observer state kamera (LiveData di CameraX 1.3.4). */
+    private var cameraStateObserver: Observer<CameraState>? = null
+    private var observedCameraState: LiveData<CameraState>? = null
+
+    /** M20: job retry bind kamera dengan backoff kecil. */
+    private var rebindJob: Job? = null
+    private var rebindAttempts = 0
 
     /** Referensi backend model pitch agar interpreter bisa di-close (M6). */
     private var modelPitchBackend: ModelPitchBackend? = null
@@ -120,6 +170,10 @@ class DetectionForegroundService : LifecycleService() {
         if (sessionStartEpochMs == 0L) {
             sessionStartEpochMs = System.currentTimeMillis()
         }
+        registerScreenReceiver()
+        registerOrientationListener()
+        // M20: sesi baru dimulai dalam kondisi sehat sampai terbukti sebaliknya.
+        _cameraHealthy.value = true
         _isRunning.value = true
     }
 
@@ -227,7 +281,15 @@ class DetectionForegroundService : LifecycleService() {
                         .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                         .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_YUV_420_888)
                         .build()
+                // T12: rotasi target analisis mengikuti rotasi display saat ini,
+                // bukan rotasi saat service dibuat (frame landscape jadi miring 90°).
+                analysis.targetRotation = currentDisplayRotation()
                 analysis.setAnalyzer(analysisExecutor) { proxy ->
+                    // M18: layar mati/terkunci → frame dibuang sebelum pipeline.
+                    if (!analysisEnabled.get()) {
+                        proxy.close()
+                        return@setAnalyzer
+                    }
                     // M4: waktu monoton (elapsedRealtime) untuk timeline deteksi/throttle -
                     // System.currentTimeMillis bisa mundur dan membekukan debounce.
                     val ts = SystemClock.elapsedRealtime()
@@ -244,6 +306,7 @@ class DetectionForegroundService : LifecycleService() {
                         isAnalyzing.set(false)
                     }
                 }
+                imageAnalysis = analysis
                 provider.unbindAll()
                 val selector =
                     if (provider.hasCamera(CameraSelector.DEFAULT_FRONT_CAMERA)) {
@@ -251,16 +314,100 @@ class DetectionForegroundService : LifecycleService() {
                     } else {
                         CameraSelector.DEFAULT_BACK_CAMERA
                     }
-                provider.bindToLifecycle(
-                    this,
-                    selector,
-                    analysis,
-                )
+                val camera =
+                    provider.bindToLifecycle(
+                        this,
+                        selector,
+                        analysis,
+                    )
+                observeCameraState(camera)
                 Log.i(TAG, "Kamera berhasil diikat ke foreground service ($selector)")
             } catch (t: Throwable) {
                 Log.e(TAG, "Kamera gagal diikat: ${t.message}")
+                _cameraHealthy.value = false
+                scheduleCameraRebind()
             }
         }, ContextCompat.getMainExecutor(this))
+    }
+
+    private fun currentDisplayRotation(): Int =
+        @Suppress("DEPRECATION")
+        (getSystemService(Context.WINDOW_SERVICE) as WindowManager).defaultDisplay.rotation
+
+    /**
+     * T12: picu pembacaan rotasi display saat perangkat berotasi dan
+     * perbarui `targetRotation` analisis. Ringan: hanya menulis saat berubah.
+     */
+    private fun registerOrientationListener() {
+        val listener =
+            object : OrientationEventListener(this) {
+                override fun onOrientationChanged(orientation: Int) {
+                    if (orientation == OrientationEventListener.ORIENTATION_UNKNOWN) return
+                    val analysis = imageAnalysis ?: return
+                    val rotation = currentDisplayRotation()
+                    if (analysis.targetRotation != rotation) {
+                        analysis.targetRotation = rotation
+                        Log.i(TAG, "targetRotation analisis kamera -> $rotation")
+                    }
+                }
+            }
+        if (listener.canDetectOrientation()) {
+            listener.enable()
+            orientationListener = listener
+        }
+    }
+
+    /** M18: daftarkan receiver SCREEN_OFF/SCREEN_ON secara konteks (tanpa manifest). */
+    private fun registerScreenReceiver() {
+        val filter =
+            IntentFilter().apply {
+                addAction(Intent.ACTION_SCREEN_OFF)
+                addAction(Intent.ACTION_SCREEN_ON)
+            }
+        ContextCompat.registerReceiver(this, screenReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
+    }
+
+    /**
+     * M20: pantau state kamera — saat error (kamera diambil app lain, konfigurasi
+     * gagal, dll.) status diekspos lewat [cameraHealthy] dan bind dicoba ulang.
+     */
+    private fun observeCameraState(camera: Camera) {
+        // Hapus observer lama dulu: rebind bisa menghasilkan instance Camera yang
+        // LiveData-nya sudah membawa state lama (sticky) — tanpa ini observer menumpuk.
+        cameraStateObserver?.let { obs -> observedCameraState?.removeObserver(obs) }
+        val observer =
+            Observer<CameraState> { state ->
+                val error = state.error
+                if (error != null) {
+                    Log.e(TAG, "CameraState ${state.type} error code=${error.code}: ${error.cause?.message}")
+                    _cameraHealthy.value = false
+                    scheduleCameraRebind()
+                } else if (state.type == CameraState.Type.OPEN) {
+                    _cameraHealthy.value = true
+                    rebindAttempts = 0
+                }
+            }
+        cameraStateObserver = observer
+        observedCameraState = camera.cameraInfo.cameraState
+        camera.cameraInfo.cameraState.observe(this, observer)
+    }
+
+    /** M20: retry bind dengan backoff kecil (3x, jeda 2 detik). */
+    private fun scheduleCameraRebind() {
+        if (rebindJob?.isActive == true) return
+        if (rebindAttempts >= CAMERA_REBIND_MAX_ATTEMPTS) {
+            Log.e(TAG, "Rebind kamera menyerah setelah $rebindAttempts percobaan")
+            return
+        }
+        rebindAttempts++
+        val attempt = rebindAttempts
+        rebindJob =
+            lifecycleScope.launch {
+                delay(CAMERA_REBIND_BACKOFF_MS)
+                if (!initialized) return@launch
+                Log.i(TAG, "Rebind kamera (percobaan $attempt/$CAMERA_REBIND_MAX_ATTEMPTS)")
+                startCamera()
+            }
     }
 
     private fun startTicker() {
@@ -297,6 +444,13 @@ class DetectionForegroundService : LifecycleService() {
 
     private suspend fun persistCycle(summary: com.jagamata.app.detection.CycleSummary) {
         try {
+            // M18: siklus tanpa satu pun wajah (termasuk siklus kosong saat layar
+            // mati / kamera dijeda) tidak disimpan — "menit kosong" bukan siklus
+            // (juga menutup celah farming lencana via kamera tertutup, M24).
+            if (shouldSkipCycle(summary.sampleCount, summary.noFaceCount)) {
+                Log.i(TAG, "Siklus dilewati (tanpa wajah terdeteksi): ${summary.sampleCount} sampel")
+                return
+            }
             val dayEpoch = summary.startedAtMs / DAY_MS
             database.snapshotDao().insert(
                 CheckSnapshot(
@@ -375,6 +529,16 @@ class DetectionForegroundService : LifecycleService() {
         modelPitchBackend?.close()
         modelPitchBackend = null
         if (this::lightMonitor.isInitialized) lightMonitor.stop()
+        // T12/M18/M20: lepas listener rotasi, receiver layar, dan observer kamera.
+        orientationListener?.disable()
+        orientationListener = null
+        runCatching { unregisterReceiver(screenReceiver) }
+        rebindJob?.cancel()
+        rebindJob = null
+        cameraStateObserver?.let { obs -> observedCameraState?.removeObserver(obs) }
+        cameraStateObserver = null
+        observedCameraState = null
+        imageAnalysis = null
         cameraProvider?.unbindAll()
         analysisExecutor.shutdown()
         _isRunning.value = false
@@ -400,11 +564,56 @@ class DetectionForegroundService : LifecycleService() {
         /** Notifikasi "butuh izin kamera" maksimal tiap 5 menit. */
         private const val PERM_NOTIF_INTERVAL_MS = 300_000L
 
+        /** M20: jumlah percobaan rebind kamera setelah error (mis. diambil app lain). */
+        private const val CAMERA_REBIND_MAX_ATTEMPTS = 3
+
+        /** M20: jeda antar percobaan rebind kamera. */
+        private const val CAMERA_REBIND_BACKOFF_MS = 2_000L
+
+        /**
+         * M18: siklus yang tidak memuat satu pun wajah — termasuk siklus kosong
+         * (0 sampel, mis. saat layar mati) — tidak boleh disimpan sebagai baris
+         * snapshot. `noFaceCount >= sampleCount` mencakup kasus 0 == 0.
+         */
+        fun shouldSkipCycle(
+            sampleCount: Int,
+            noFaceCount: Int,
+        ): Boolean = sampleCount <= 0 || noFaceCount >= sampleCount
+
         @Volatile
         private var lastPermNotifAtMs: Long = 0L
 
         private val _isRunning = MutableStateFlow(false)
         val isRunning: StateFlow<Boolean> = _isRunning
+
+        // ——— T5: status keinginan memantau ———
+
+        /**
+         * T5: keinginan memantau — true saat pemantauan harus berjalan (termasuk
+         * saat jeda singkat yang akan auto-resume, DEV-36). Di-mirror ke DataStore
+         * ([SettingsRepository.monitoringDesired]) supaya BOOT_COMPLETED bisa
+         * melanjutkan setelah proses mati.
+         */
+        @Volatile
+        var monitoringDesired: Boolean = false
+            private set
+
+        private val _pausedSinceEpochMs = MutableStateFlow(0L)
+
+        /** T5: waktu jeda dimulai (epoch ms); 0 = tidak sedang dijeda. Dipakai Dashboard. */
+        val pausedSinceEpochMs: StateFlow<Long> = _pausedSinceEpochMs
+
+        private val persistScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+        private fun persistMonitoringDesired(
+            context: Context,
+            desired: Boolean,
+        ) {
+            val app = context.applicationContext
+            persistScope.launch {
+                runCatching { SettingsRepository(app).setMonitoringDesired(desired) }
+            }
+        }
 
         @Volatile
         var sessionStartEpochMs: Long = 0L
@@ -418,14 +627,38 @@ class DetectionForegroundService : LifecycleService() {
         private val _lastCycle = MutableStateFlow<com.jagamata.app.detection.CycleSummary?>(null)
         val lastCycle: StateFlow<com.jagamata.app.detection.CycleSummary?> = _lastCycle
 
+        private val _cameraHealthy = MutableStateFlow(true)
+
+        /**
+         * M20: kesehatan kamera untuk status UI. `false` = kamera error / diambil
+         * aplikasi lain sehingga deteksi berhenti diam-diam. Sengaja diekspos
+         * tanpa konsumen UI dulu (gelombang status Dashboard).
+         */
+        val cameraHealthy: StateFlow<Boolean> = _cameraHealthy
+
         val sequence = AtomicLong(0)
 
         fun start(context: Context) {
+            monitoringDesired = true
+            _pausedSinceEpochMs.value = 0L
+            persistMonitoringDesired(context, true)
             val intent = Intent(context, DetectionForegroundService::class.java)
             ContextCompat.startForegroundService(context, intent)
         }
 
         fun stop(context: Context) {
+            monitoringDesired = false
+            _pausedSinceEpochMs.value = 0L
+            persistMonitoringDesired(context, false)
+            context.stopService(Intent(context, DetectionForegroundService::class.java))
+        }
+
+        /**
+         * T5: jeda singkat — service dihentikan sementara tetapi keinginan memantau
+         * tetap true (auto-resume DEV-36 / restart via BootReceiver).
+         */
+        fun pauseMonitoring(context: Context) {
+            _pausedSinceEpochMs.value = System.currentTimeMillis()
             context.stopService(Intent(context, DetectionForegroundService::class.java))
         }
 
