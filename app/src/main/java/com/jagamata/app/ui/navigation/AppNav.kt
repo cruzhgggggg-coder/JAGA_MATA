@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -14,10 +15,12 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.jagamata.app.R
 import com.jagamata.app.data.AppDatabase
 import com.jagamata.app.data.SettingsRepository
-import kotlinx.coroutines.launch
 import com.jagamata.app.service.DetectionForegroundService
+import com.jagamata.app.service.NotificationHelper
+import com.jagamata.app.service.PauseSessionManager
 import com.jagamata.app.ui.child.AlarmBlocked
 import com.jagamata.app.ui.child.BerandaScreen
 import com.jagamata.app.ui.child.BreakScreen
@@ -37,20 +40,43 @@ import com.jagamata.app.ui.parent.PrivacyScreen
 import com.jagamata.app.ui.parent.RewardsScreen
 import com.jagamata.app.ui.parent.SettingsScreen
 import com.jagamata.app.ui.parent.WeeklyReportScreen
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
-/** Navigasi tab bottom nav: 0 Beranda · 1 Pantau · 2 Hadiah · 3 Orang Tua (via Kunci PIN). */
+/** Navigasi tab bottom nav: 0 Beranda · 1 Pantau · 2 Hadiah · 3 Orang Tua (via gerbang PIN, DEV-37). */
 fun NavHostController.openTab(index: Int) {
     val route =
         when (index) {
             0 -> Routes.BERANDA
             1 -> Routes.PANTAU_LIVE
             2 -> Routes.HADIAH
-            else -> Routes.KUNCI
+            else -> Routes.DASHBOARD
         }
-    navigate(route) {
+    // Tab 0/1/2 lolos apa adanya (rute non-sensitif); hanya DASHBOARD yang bisa
+    // diarahkan ke KUNCI saat sesi masih terkunci.
+    navigate(ParentSession.tryNavigate(route)) {
         popUpTo(Routes.BERANDA) { inclusive = false }
         launchSingleTop = true
     }
+}
+
+/**
+ * Navigasi ter-gerbang (DEV-37): rute sensitif ([ParentGate.GATED_ROUTES]) hanya bisa
+ * dibuka langsung saat [ParentSession.unlocked]; selain itu tujuan disimpan di [pending]
+ * dan pengguna diarahkan ke [Routes.KUNCI] lebih dulu. Rute non-sensitif lolos apa adanya.
+ */
+private fun NavHostController.navigateGated(
+    route: String,
+    pending: MutableState<String?>,
+) {
+    val target = ParentSession.tryNavigate(route)
+    // target != route = dialihkan ke KUNCI (route == KUNCI sendiri bukan pengalihan).
+    if (target != route) {
+        pending.value = route
+    }
+    navigate(target)
 }
 
 @Composable
@@ -58,6 +84,8 @@ fun AppNav(
     navController: NavHostController = rememberNavController(),
     startDestination: String = Routes.SPLASH,
 ) {
+    // Tujuan tertunda saat gerbang PIN menahan rute sensitif (DEV-37).
+    val pending = ParentSession.pendingState
     NavHost(navController = navController, startDestination = startDestination) {
         composable(Routes.SPLASH) {
             val context = LocalContext.current
@@ -89,7 +117,7 @@ fun AppNav(
         }
         composable(Routes.DASHBOARD) {
             DashboardScreen(
-                onOpenSettings = { navController.navigate(Routes.SETTINGS) },
+                onOpenSettings = { navController.navigateGated(Routes.SETTINGS, pending) },
                 onOpenReport = { navController.navigate(Routes.REPORT) },
                 onOpenChildProfile = { navController.navigate(Routes.PROFIL_ANAK) },
                 onOpenDailyStats = { navController.navigate(Routes.STATISTIK) },
@@ -111,7 +139,7 @@ fun AppNav(
         composable(Routes.PRIVACY) {
             PrivacyScreen(
                 onBack = { navController.popBackStack() },
-                onDeleteData = { navController.navigate(Routes.DELETE_DATA) },
+                onDeleteData = { navController.navigateGated(Routes.DELETE_DATA, pending) },
             )
         }
 
@@ -136,11 +164,34 @@ fun AppNav(
         }
         composable(Routes.PANTAU_LIVE) {
             val context = LocalContext.current
+            val pauseManager =
+                remember {
+                    val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+                    PauseSessionManager(
+                        scope = appScope,
+                        recordPause = { log ->
+                            appScope.launch {
+                                AppDatabase.getInstance(context.applicationContext)
+                                    .violationDao().insert(log)
+                            }
+                        },
+                        notifyParent = {
+                            NotificationHelper.throttledAlert(
+                                context.applicationContext,
+                                context.getString(R.string.pause_notify_title),
+                                context.getString(R.string.pause_notify_body),
+                                isCrucial = false,
+                            )
+                        },
+                        stopMonitoring = { DetectionForegroundService.stop(context) },
+                        startMonitoring = { DetectionForegroundService.start(context) },
+                    )
+                }
             PantauLiveScreen(
                 onTab = { navController.openTab(it) },
                 onPauseToggle = {
                     if (DetectionForegroundService.isRunning.value) {
-                        DetectionForegroundService.stop(context)
+                        pauseManager.pause()
                     } else {
                         val hasCamera =
                             ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
@@ -148,7 +199,7 @@ fun AppNav(
                         if (!hasCamera) {
                             navController.navigate(Routes.IZIN)
                         } else {
-                            DetectionForegroundService.start(context)
+                            pauseManager.resume()
                         }
                     }
                 },
@@ -170,7 +221,7 @@ fun AppNav(
         composable(Routes.PROFIL_ANAK) {
             ChildProfileScreen(
                 onBack = { navController.popBackStack() },
-                onOpenSettings = { navController.navigate(Routes.SETTINGS) },
+                onOpenSettings = { navController.navigateGated(Routes.SETTINGS, pending) },
             )
         }
         composable(Routes.IZIN) {
@@ -234,8 +285,18 @@ fun AppNav(
                     }
                 },
                 onUnlocked = {
-                    navController.navigate(Routes.DASHBOARD) {
-                        popUpTo(Routes.BERANDA) { inclusive = false }
+                    // DEV-37: buka sesi, lalu lanjutkan ke tujuan yang tertunda bila ada.
+                    ParentSession.unlocked = true
+                    val target = pending.value.also { pending.value = null }
+                    if (target != null) {
+                        navController.popBackStack()
+                        navController.navigate(target)
+                    } else if (!navController.popBackStack()) {
+                        // KUNCI berada di root back stack (mis. start destination capture):
+                        // tidak ada yang bisa di-pop — jatuhkan ke Beranda agar tidak macet.
+                        navController.navigate(Routes.BERANDA) {
+                            popUpTo(Routes.KUNCI) { inclusive = true }
+                        }
                     }
                 },
                 onCancel = {
@@ -260,7 +321,7 @@ fun AppNav(
         }
         composable(Routes.OVERLAY_DITOLAK) { OverlayDenied() }
         composable(Routes.DEBUG_GALLERY) {
-            DebugGallery(onOpen = { route -> navController.navigate(route) })
+            DebugGallery(onOpen = { route -> navController.navigateGated(route, pending) })
         }
     }
 }
