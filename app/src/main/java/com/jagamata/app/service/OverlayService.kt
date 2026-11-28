@@ -149,10 +149,11 @@ class OverlayService : android.app.Service() {
                     val dismissAction =
                         View.OnClickListener {
                             userDismissedUntilMs = System.currentTimeMillis() + DISMISS_COOLDOWN_MS
+                            onManualDismiss()
                             removeOverlay()
                         }
                     btnDismiss?.setOnClickListener(dismissAction)
-                    v.setOnClickListener(dismissAction)
+                    // Tap di area kosong TIDAK menutup overlay (audit K1) — hanya tombol.
 
                     haptic(200)
                     KikoVoiceHelper.speakWarningClose(this)
@@ -174,6 +175,7 @@ class OverlayService : android.app.Service() {
         runCatching {
             wm.addView(view, params)
             overlayView = view
+            onOverlayVisibilityChanged(true)
 
             // Auto-dismiss safety timer: maksimal 5 detik agar tidak pernah menutupi HP secara permanen
             autoDismissRunnable?.let { mainHandler.removeCallbacks(it) }
@@ -194,6 +196,7 @@ class OverlayService : android.app.Service() {
         val view = overlayView ?: return
         runCatching { windowManager?.removeView(view) }
         overlayView = null
+        onOverlayVisibilityChanged(false)
     }
 
     private fun haptic(durationMs: Long) {
@@ -228,8 +231,23 @@ class OverlayService : android.app.Service() {
         private const val AUTO_DISMISS_TIMEOUT_MS = 5_000L
         private const val DISMISS_COOLDOWN_MS = 8_000L
 
+        /** Interval kirim ulang intent saat overlay sudah tidak tampil tapi level masih sama. */
+        private const val LEVEL_RESHOW_MS = 4_000L
+
+        /** Jeda singkat setelah tombol tutup ditekan sebelum overlay boleh tampil lagi. */
+        private const val DISMISS_QUIET_MS = 3_000L
+
         @Volatile
         private var userDismissedUntilMs = 0L
+
+        @Volatile
+        private var overlayShowing = false
+
+        @Volatile
+        private var lastLevelSendAtMs = 0L
+
+        @Volatile
+        private var dismissQuietUntilMs = 0L
 
         private val lastLevel = AtomicReference(RiskLevel.OK)
 
@@ -239,9 +257,11 @@ class OverlayService : android.app.Service() {
             level: RiskLevel,
         ) {
             val prev = lastLevel.getAndSet(level)
-            // Dedupe penuh: hanya kirim intent saat level BERUBAH
-            // (sebelumnya spam startService ~5x/detik selama WARNING).
-            if (prev == level) return
+            val now = android.os.SystemClock.elapsedRealtime()
+            if (!shouldResendIntent(prev, level, overlayShowing, now, lastLevelSendAtMs, dismissQuietUntilMs)) {
+                return
+            }
+            lastLevelSendAtMs = android.os.SystemClock.elapsedRealtime()
 
             val intent =
                 Intent(context, OverlayService::class.java).apply {
@@ -251,6 +271,36 @@ class OverlayService : android.app.Service() {
                 .onFailure { Log.w(TAG, "OverlayService tidak bisa dijalankan: ${it.message}") }
         }
 
+        /**
+         * Keputusan pengiriman intent (murni, untuk unit test — regresi K1):
+         * level berubah SELALU dikirim; level sama hanya dikirim ulang untuk
+         * WARNING/BLOCKED saat overlay tidak tampil + lewat interval re-show + lewat
+         * jeda setelah dismiss manual.
+         */
+        internal fun shouldResendIntent(
+            prev: RiskLevel,
+            level: RiskLevel,
+            overlayShowing: Boolean,
+            nowMs: Long,
+            lastSendAtMs: Long,
+            quietUntilMs: Long,
+        ): Boolean {
+            if (prev != level) return true
+            val reshowable = level == RiskLevel.BLOCKED || level == RiskLevel.WARNING
+            return reshowable &&
+                !overlayShowing &&
+                nowMs - lastSendAtMs >= LEVEL_RESHOW_MS &&
+                nowMs >= quietUntilMs
+        }
+
         fun currentLevel(): RiskLevel = lastLevel.get()
+
+        internal fun onOverlayVisibilityChanged(showing: Boolean) {
+            overlayShowing = showing
+        }
+
+        internal fun onManualDismiss() {
+            dismissQuietUntilMs = android.os.SystemClock.elapsedRealtime() + DISMISS_QUIET_MS
+        }
     }
 }
