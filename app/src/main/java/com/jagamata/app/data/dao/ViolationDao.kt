@@ -13,6 +13,12 @@ interface ViolationDao {
     @Query("SELECT * FROM violation_logs WHERE timestampMs >= :sinceMs ORDER BY timestampMs ASC")
     suspend fun getSince(sinceMs: Long): List<ViolationLog>
 
+    @Query("SELECT COUNT(*) FROM violation_logs WHERE type = :type AND timestampMs >= :sinceMs")
+    suspend fun countByTypeSince(
+        type: String,
+        sinceMs: Long,
+    ): Int
+
     @Query("SELECT * FROM violation_logs ORDER BY timestampMs DESC")
     suspend fun getAll(): List<ViolationLog>
 

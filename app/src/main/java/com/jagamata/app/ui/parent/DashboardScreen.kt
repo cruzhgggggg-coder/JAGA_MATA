@@ -1,5 +1,6 @@
 package com.jagamata.app.ui.parent
 
+import android.widget.Toast
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -43,9 +44,6 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import android.widget.Toast
-import com.jagamata.app.ui.theme.PrimaryDark
-import com.jagamata.app.ui.theme.SurfaceAlt
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -70,6 +68,7 @@ import com.jagamata.app.ui.theme.Cream
 import com.jagamata.app.ui.theme.Ink
 import com.jagamata.app.ui.theme.Mint
 import com.jagamata.app.ui.theme.Primary
+import com.jagamata.app.ui.theme.PrimaryDark
 import com.jagamata.app.ui.theme.Sunny
 import com.jagamata.app.ui.theme.Surface
 import com.jagamata.app.ui.theme.SurfaceAlt
@@ -261,6 +260,7 @@ fun DashboardScreen(
                 onClick = onOpenDailyStats,
             )
             CycleCard(state = state)
+            PausedSessionsCard(pausedCount = state.pausedSessionsToday)
             TipsCard()
             ShareButton(onClick = onOpenReport)
             MinDistanceCard(
@@ -327,8 +327,10 @@ private fun buildWeeklyChartValues(
 }
 
 /** Rollup harian hanya menyimpan hitungan pelanggaran; jarak diperkirakan dari ambang + margin - penalti pelanggaran. */
-private fun estimateDayDistanceCm(day: DailyStats, thresholdCm: Float): Float =
-    (thresholdCm + 5f - day.closeViolations * 2.5f).coerceIn(20f, 60f)
+private fun estimateDayDistanceCm(
+    day: DailyStats,
+    thresholdCm: Float,
+): Float = (thresholdCm + 5f - day.closeViolations * 2.5f).coerceIn(20f, 60f)
 
 @Composable
 private fun WeeklyReportCard(
@@ -416,9 +418,10 @@ private fun WeeklyReportCard(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        val realValues: List<Float> = remember(state.dailyStats, state.dailyAvgDistanceCm, thresholdCm) {
-            buildWeeklyChartValues(state, thresholdCm)
-        }
+        val realValues: List<Float> =
+            remember(state.dailyStats, state.dailyAvgDistanceCm, thresholdCm) {
+                buildWeeklyChartValues(state, thresholdCm)
+            }
         val chartValues: List<Float> = if (realValues.isEmpty()) DummyDailyCm else realValues
         val showEmptyState = realValues.size < 2
 
@@ -587,6 +590,47 @@ private fun CycleCard(state: DashboardViewModel.UiState) {
             style = MaterialTheme.typography.bodySmall,
             color = Ink,
         )
+    }
+}
+
+/** Transparansi jeda sesi hari ini (DEV-38) — selalu tampil, netral/positif bila nol. */
+@Composable
+private fun PausedSessionsCard(pausedCount: Int) {
+    val hasPause = pausedCount > 0
+    JagaCard(
+        containerColor = if (hasPause) Cream else Surface,
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier =
+                    Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(if (hasPause) Sunny else Mint),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = "⏸",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = Ink,
+                )
+            }
+            Text(
+                text =
+                    if (hasPause) {
+                        stringResource(R.string.dashboard_paused_count, pausedCount)
+                    } else {
+                        stringResource(R.string.dashboard_paused_none)
+                    },
+                style = MaterialTheme.typography.bodyMedium,
+                color = Ink,
+            )
+        }
     }
 }
 

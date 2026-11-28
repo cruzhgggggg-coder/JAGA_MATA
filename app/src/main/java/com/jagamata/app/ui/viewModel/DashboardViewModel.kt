@@ -28,6 +28,7 @@ class DashboardViewModel(
         val riskLevel: RiskLevel = RiskLevel.OK,
         val dailyStats: List<DailyStats> = emptyList(),
         val dailyAvgDistanceCm: Map<Long, Float> = emptyMap(),
+        val pausedSessionsToday: Int = 0,
         val isMonitoring: Boolean = false,
     )
 
@@ -58,11 +59,14 @@ class DashboardViewModel(
             val since = System.currentTimeMillis() - WEEK_MS
             val snapshots = database.snapshotDao().getSince(since)
             val daily = database.dailyDao().getSince((since / DAY_MS))
+            val pausedToday =
+                database.violationDao().countByTypeSince(TYPE_PAUSED_BY_CHILD, dayStartMs())
             _uiState.value =
                 _uiState.value.copy(
                     weeklyCloseViolations = snapshots.count { it.violations.contains("TOO_CLOSE") },
                     weeklyDarkMinutes = snapshots.count { (it.avgLux ?: Float.MAX_VALUE) < 150f },
                     weeklyPostureViolations = snapshots.count { it.violations.contains("BAD_POSTURE") },
+                    pausedSessionsToday = pausedToday,
                     dailyStats = daily,
                     dailyAvgDistanceCm =
                         snapshots
@@ -76,5 +80,17 @@ class DashboardViewModel(
     companion object {
         private const val DAY_MS = 86_400_000L
         private const val WEEK_MS = 7 * DAY_MS
+        private const val TYPE_PAUSED_BY_CHILD = "PAUSED_BY_CHILD"
     }
+}
+
+/** Awal hari kalender lokal (00:00.000) untuk [nowMs] — jendela hitungan "hari ini". */
+internal fun dayStartMs(nowMs: Long = System.currentTimeMillis()): Long {
+    val cal = java.util.Calendar.getInstance()
+    cal.timeInMillis = nowMs
+    cal.set(java.util.Calendar.HOUR_OF_DAY, 0)
+    cal.set(java.util.Calendar.MINUTE, 0)
+    cal.set(java.util.Calendar.SECOND, 0)
+    cal.set(java.util.Calendar.MILLISECOND, 0)
+    return cal.timeInMillis
 }
