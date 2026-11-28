@@ -22,20 +22,27 @@ import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material.icons.outlined.Smartphone
 import androidx.compose.material.icons.outlined.Straighten
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import com.jagamata.app.R
 import com.jagamata.app.ui.components.JagaCard
 import com.jagamata.app.ui.components.JagaSwitch
 import com.jagamata.app.ui.components.PrimaryButton
+import com.jagamata.app.ui.components.SecondaryButton
 import com.jagamata.app.ui.parent.ChevronTrailing
 import com.jagamata.app.ui.parent.FooterCaption
 import com.jagamata.app.ui.parent.JagaTopBar
@@ -44,12 +51,17 @@ import com.jagamata.app.ui.parent.RowIcon
 import com.jagamata.app.ui.parent.ScreenDecorations
 import com.jagamata.app.ui.parent.SettingsRow
 import com.jagamata.app.ui.theme.Background
+import com.jagamata.app.ui.theme.Coral
 
 /**
  * Wizard izin (PRD US-01, DEV-18): kamera, overlay (SYSTEM_ALERT_WINDOW),
  * notifikasi. Izin overlay tidak bisa diminta via dialog -> diarahkan ke
  * Pengaturan, dengan recovery [com.jagamata.app.ui.common.OverlayDenied].
  * Visual mengikuti desain 3135 Izin & Akses.
+ *
+ * T8: status overlay kini ditampilkan dan "Lanjut ke Beranda" hanya aktif bila
+ * overlay diizinkan; tersedia jalur sadar-risiko "Lanjut tanpa peringatan layar".
+ * ON_RESUME memuat ulang status izin (kembali dari Pengaturan, M21 parsial).
  */
 @Composable
 fun PermissionWizardScreen(
@@ -72,6 +84,27 @@ fun PermissionWizardScreen(
     }
     var overlayGranted by remember {
         mutableStateOf(canDrawOverlays(context))
+    }
+
+    // Muat ulang status izin nyata (T8/M21) — mis. setelah kembali dari Pengaturan.
+    val refreshPermissionState = {
+        cameraGranted =
+            ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
+            PackageManager.PERMISSION_GRANTED
+        notifGranted =
+            Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
+            PackageManager.PERMISSION_GRANTED
+        overlayGranted = canDrawOverlays(context)
+    }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer =
+            LifecycleEventObserver { _, event ->
+                if (event == Lifecycle.Event.ON_RESUME) refreshPermissionState()
+            }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
     val permissionLauncher =
@@ -117,6 +150,7 @@ fun PermissionWizardScreen(
         PermissionRows(
             cameraGranted = cameraGranted,
             notifGranted = notifGranted,
+            overlayGranted = overlayGranted,
             onRequestCamera = { permissionLauncher.launch(arrayOf(Manifest.permission.CAMERA)) },
             onRequestOverlay = {
                 overlayGranted = canDrawOverlays(context)
@@ -131,11 +165,29 @@ fun PermissionWizardScreen(
         )
         FooterCaption(text = stringResource(R.string.s11_footer))
         Spacer(modifier = Modifier.height(24.dp))
-        PrimaryButton(
-            text = "Lanjut ke Beranda",
-            onClick = onNext,
-            modifier = Modifier.fillMaxWidth(),
-        )
+        if (overlayGranted) {
+            PrimaryButton(
+                text = stringResource(R.string.s11_next_home),
+                onClick = onNext,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        } else {
+            // T8: tanpa overlay, peringatan tidak tampil di atas aplikasi lain —
+            // tombol utama dikunci, tapi tidak memblokir selamanya: ada jalur
+            // sadar-risiko yang eksplisit (keputusan: soft-block, bukan hard-block).
+            Text(
+                text = stringResource(R.string.s11_overlay_warning),
+                style = MaterialTheme.typography.bodySmall,
+                color = Coral,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            SecondaryButton(
+                text = stringResource(R.string.s11_skip_without_overlay),
+                onClick = onNext,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
         Spacer(modifier = Modifier.height(32.dp))
         ScreenDecorations()
         Spacer(modifier = Modifier.height(32.dp))
@@ -146,6 +198,7 @@ fun PermissionWizardScreen(
 private fun PermissionRows(
     cameraGranted: Boolean,
     notifGranted: Boolean,
+    overlayGranted: Boolean,
     onRequestCamera: () -> Unit,
     onRequestOverlay: () -> Unit,
     onRequestNotif: () -> Unit,
@@ -167,6 +220,11 @@ private fun PermissionRows(
         SettingsRow(
             icon = { RowIcon(Icons.Outlined.Smartphone) },
             title = stringResource(R.string.s11_row_overlay),
+            // T8: status izin overlay kini terlihat di wizard.
+            value =
+                stringResource(
+                    if (overlayGranted) R.string.perm_granted else R.string.s11_overlay_missing,
+                ),
             onClick = onRequestOverlay,
             trailing = { ChevronTrailing() },
         )

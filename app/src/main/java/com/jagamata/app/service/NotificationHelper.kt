@@ -96,13 +96,16 @@ object NotificationHelper {
         nowMs: Long = System.currentTimeMillis(),
         isCrucial: Boolean = false,
     ): Boolean {
+        // T8: di Android 13+ tanpa POST_NOTIFICATIONS (atau notif dimatikan pengguna)
+        // notify() dibuang diam-diam — jangan klaim sukses & jangan konsumsi jendela throttle.
+        val notificationsEnabled = NotificationManagerCompat.from(context).areNotificationsEnabled()
         val window = if (isCrucial) THROTTLE_WINDOW_CRUCIAL_MS else THROTTLE_WINDOW_NORMAL_MS
         // Timestamp terpisah: alert biasa tidak boleh menelan alarm krusial (dan sebaliknya).
+        val lastAtMs = if (isCrucial) lastCrucialAtMs else lastNormalAtMs
+        if (!shouldDeliverAlert(notificationsEnabled, nowMs, lastAtMs, window)) return false
         if (isCrucial) {
-            if (nowMs - lastCrucialAtMs < window) return false
             lastCrucialAtMs = nowMs
         } else {
-            if (nowMs - lastNormalAtMs < window) return false
             lastNormalAtMs = nowMs
         }
 
@@ -140,3 +143,15 @@ object NotificationHelper {
         lastNormalAtMs = 0L
     }
 }
+
+/**
+ * Logika murni keputusan kirim alert (T8) — dipisah dari Android agar bisa diuji
+ * unit test: alert hanya boleh terkirim bila kanal notifikasi benar-benar aktif
+ * DAN jendela throttle untuk jalur tersebut sudah terbuka.
+ */
+fun shouldDeliverAlert(
+    notificationsEnabled: Boolean,
+    nowMs: Long,
+    lastAtMs: Long,
+    windowMs: Long,
+): Boolean = notificationsEnabled && (lastAtMs <= 0L || nowMs - lastAtMs >= windowMs)

@@ -1,4 +1,4 @@
-package com.jagamata.app.service
+﻿package com.jagamata.app.service
 
 import com.jagamata.app.detection.RiskLevel
 import org.junit.Assert.assertFalse
@@ -12,8 +12,8 @@ import org.junit.Test
 class OverlayReshowTest {
     private class Sim {
         companion object {
-            const val frameMs = 200L
-            const val autoDismissMs = 5_000L
+            const val FRAME_MS = 200L
+            const val AUTO_DISMISS_MS = 5_000L
         }
 
         var lastSendAtMs = Long.MIN_VALUE / 2
@@ -35,9 +35,9 @@ class OverlayReshowTest {
                 sends++
                 lastSendAtMs = now
                 showing = true
-                hideAtMs = now + autoDismissMs
+                hideAtMs = now + AUTO_DISMISS_MS
             }
-            if (showing) visibleMs += frameMs
+            if (showing) visibleMs += FRAME_MS
         }
     }
 
@@ -49,7 +49,7 @@ class OverlayReshowTest {
         while (now < 60_000L) {
             sim.tick(now, RiskLevel.BLOCKED, prev)
             prev = RiskLevel.BLOCKED
-            now += Sim.frameMs
+            now += Sim.FRAME_MS
         }
         val visibilityPct = sim.visibleMs * 100 / 60_000L
         assertTrue("visibilitas $visibilityPct% harus >= 90%", visibilityPct >= 90)

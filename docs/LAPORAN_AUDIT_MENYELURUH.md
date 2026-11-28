@@ -326,7 +326,20 @@ Verifikasi putaran 2 tidak menolak satu pun temuan utama. Tiga sub-klaim dikorek
 | Item | Status | Catatan |
 |---|---|---|
 | **K1** | ✅ FIXED (28 Nov) | `OverlayService.requestLevel` kini mengirim ulang untuk WARNING/BLOCKED saat overlay tidak tampil (interval 4 dtk, jeda 3 dtk setelah tombol tutup); tap area kosong tidak lagi menutup overlay; 5 unit test `OverlayReshowTest` (simulasi BLOCKED 60 dtk ⇒ visibilitas ≥ 90%) |
-| T1–T15, M1–M27, rendah | ⏳ berjalan | Dikerjakan sesuai urutan §7 |
+| **T1** | ✅ FIXED (28 Nov) | Langkah wajib "Buat PIN Orang Tua" di onboarding; fallback `DEFAULT_PIN`/1234 dihapus (hash kosong = tolak semua PIN); setelah Hapus Semua Data → wajib onboarding ulang; PIN lemah "1234" ditolak |
+| **T2** | ✅ FIXED (28 Nov) | Splash merutekan dari `onboardingDone && pinSet && focalPx > 0`; `AgeSelectScreen` di-wire ke alur (skippable); urutan: intro×3 → usia → buat PIN → izin → kalibrasi |
+| **T3** | ✅ FIXED (28 Nov) | Lockout persisten di DataStore (sisa-durasi + `elapsedRealtime`, tahan rollback jam); eksponensial 1/5/15/60 menit; berlaku juga untuk dialog Ubah PIN (A11); 10 test lockout |
+| **T7** | ✅ FIXED (28 Nov) | Wajah hilang saat alarm dekat TIDAK mematikan alarm: state ditahan grace 10 dtk (was: OK dalam 2 dtk); ditambah M3 toleransi 2 frame hilang sebelum debounce close ter-reset |
+| **T8** | ✅ FIXED (28 Nov) | Wizard menampilkan status izin overlay + "Lanjut" hanya bila overlay diizinkan (jalur sekunder "Lanjut tanpa peringatan layar" dengan peringatan keras); `throttledAlert` cek `areNotificationsEnabled()`; re-check ON_RESUME (parsial M21) |
+| **T10** | ✅ FIXED (28 Nov) | Kalibrasi & runtime kini satu rumus `DistanceEstimator.effectiveFaceHeightPx` (pitch-compensated) — test round-trip 30±1 cm pada pitch 0/10/20/25° |
+| **T11** | ✅ FIXED (28 Nov) | Jendela stabilitas kalibrasi diperbaiki (pruning `samples[1]`) — lolos di 15/24/30 fps + jitter (regresi test lengkap) |
+| **M3** | ✅ FIXED (28 Nov) | Toleransi 2 frame tanpa wajah sebelum debounce close reset (test 15–17) |
+| **M4** | ✅ FIXED (28 Nov) | Timeline deteksi/throttle memakai `SystemClock.elapsedRealtime()` (monoton) |
+| **M6** | ✅ FIXED (28 Nov) | `ModelPitchBackend` fallback ke `LandmarkPitchBackend` saat crop null / model gagal dimuat (bukan null permanen) + test |
+| **M7** | ✅ FIXED (28 Nov) | Pelanggaran gelap hanya dihitung bila ada wajah (ponsel telungkup ≠ pelanggaran malam) |
+| **M17** | ✅ FIXED (28 Nov) | `CycleAggregator` thread-safe (`@Synchronized` add/evaluate/clear) + test konkurensi |
+| T4, T5, T6 | ⏳ berikutnya | Re-lock sesi, PIN untuk jeda, gerbang kalibrasi (wave berikutnya) |
+| T9, T12–T15, M1–M2, M5, M8–M16 (sisa), M18–M27, rendah | ⏳ antrean | Sinkronisasi ambang, rotasi kamera, hapus data dummy, item pra-rilis |
 
 ---
 *Detail bukti per temuan (file:baris, trace, skrip replika) tersedia di berkas kerja audit: `A_keamanan.md`, `B_deteksi.md`, `C_service.md`, `D_data.md`, `E_ui.md` (putaran 1) dan `V1_keamanan_ui.md`, `V2_deteksi_service.md`, `V3_data_sinkron.md` (putaran 2).*

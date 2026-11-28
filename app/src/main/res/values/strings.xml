@@ -22,6 +22,22 @@
     <string name="age_8_12">8–12 tahun</string>
     <string name="age_13_plus">13 tahun ke atas</string>
 
+    <!-- Buat PIN Orang Tua (langkah wajib onboarding, T1) -->
+    <string name="pin_create_title">Buat PIN Orang Tua (4 digit)</string>
+    <string name="pin_create_desc">PIN dipakai untuk membuka pengaturan dan data orang tua. Jangan bagikan PIN ke anak.</string>
+    <string name="pin_create_field">PIN (4 digit)</string>
+    <string name="pin_create_confirm">Konfirmasi PIN</string>
+    <string name="pin_create_cta">Simpan PIN &amp; Lanjut</string>
+    <string name="pin_error_length">PIN harus terdiri dari 4 digit angka.</string>
+    <string name="pin_error_mismatch">Konfirmasi PIN tidak cocok.</string>
+    <string name="pin_error_weak">PIN terlalu mudah ditebak. Pilih PIN lain.</string>
+
+    <!-- Wizard izin: status overlay & jalur sadar-risiko (T8) -->
+    <string name="s11_next_home">Lanjut ke Beranda</string>
+    <string name="s11_overlay_missing">Belum diizinkan</string>
+    <string name="s11_overlay_warning">Tanpa izin tampil di atas aplikasi lain, peringatan tidak akan terlihat saat anak membuka aplikasi lain.</string>
+    <string name="s11_skip_without_overlay">Lanjut tanpa peringatan layar</string>
+
     <string name="perm_title">Izinkan JagaMata bekerja</string>
     <string name="perm_desc">Tiga izin ini dibutuhkan agar deteksi berjalan di latar belakang.</string>
     <string name="perm_camera">Kamera</string>

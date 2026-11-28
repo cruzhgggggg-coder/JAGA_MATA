@@ -1,18 +1,32 @@
 package com.jagamata.app.data
 
 import android.content.Context
+import android.os.SystemClock
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import java.security.MessageDigest
+
+/**
+ * Status percobaan PIN yang dipersist (T3): jumlah kegagalan beruntun dan sisa
+ * durasi lockout. [lockoutRemainingMs] memakai semantik sisa-durasi, bukan
+ * timestamp absolut — lihat [SettingsRepository.effectiveLockoutRemainingMs].
+ */
+data class PinLockoutState(
+    val failedAttempts: Int,
+    val lockoutRemainingMs: Long,
+) {
+    val isLockedOut: Boolean get() = lockoutRemainingMs > 0L
+}
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "jagamata_settings")
 
@@ -71,11 +85,80 @@ class SettingsRepository(private val context: Context) {
         }
     }
 
+    /**
+     * Verifikasi PIN orang tua. Tanpa hash tersimpan (belum dibuat, atau baru
+     * "Hapus Semua Data") SEMUA PIN ditolak — tidak ada PIN default (T1).
+     * Pembuatan PIN pertama lewat [setParentPin] yang tidak memverifikasi PIN lama.
+     */
     suspend fun verifyParentPin(pin: String): Boolean {
         val hash = parentPinHash.first()
-        if (hash.isEmpty()) return pin == DEFAULT_PIN
-        val salt = context.dataStore.data.first()[KEY_PIN_SALT] ?: return false
-        return hashPin(pin, salt) == hash
+        val salt = context.dataStore.data.first()[KEY_PIN_SALT]
+        return pinMatches(pin, salt, hash)
+    }
+
+    /** Status onboarding untuk routing splash (T2). */
+    suspend fun isOnboardingDone(): Boolean = onboardingDone.first()
+
+    /** true bila PIN orang tua sudah pernah dibuat (T2). */
+    suspend fun hasParentPin(): Boolean = parentPinHash.first().isNotEmpty()
+
+    /** Nilai focalPx hasil kalibrasi; 0 = belum dikalibrasi (T2). */
+    suspend fun currentFocalPx(): Float = focalPx.first()
+
+    /**
+     * Baca status lockout persisten (T3). Sekaligus "decrement-on-read": sisa
+     * durasi dikurangi selisih monotonic sejak penulisan lalu di-stamp ulang,
+     * sehingga sisa waktu tidak hilang antar-sesi dan tetap kebal rollback jam dinding.
+     */
+    suspend fun pinLockoutState(nowElapsedMs: Long = SystemClock.elapsedRealtime()): PinLockoutState {
+        var attempts = 0
+        var remaining = 0L
+        context.dataStore.edit { prefs ->
+            attempts = prefs[KEY_PIN_FAILED_ATTEMPTS] ?: 0
+            remaining =
+                effectiveLockoutRemainingMs(
+                    prefs[KEY_PIN_LOCKOUT_REMAINING_MS] ?: 0L,
+                    prefs[KEY_PIN_LOCKOUT_STAMP_ELAPSED_MS] ?: 0L,
+                    nowElapsedMs,
+                )
+            prefs[KEY_PIN_LOCKOUT_REMAINING_MS] = remaining
+            prefs[KEY_PIN_LOCKOUT_STAMP_ELAPSED_MS] = nowElapsedMs
+        }
+        return PinLockoutState(attempts, remaining)
+    }
+
+    /**
+     * Catat satu kegagalan verifikasi PIN (T3). Counter naik permanen (hanya
+     * direset saat sukses) dan lockout eksponensial dipasang begitu mencapai
+     * ambang [lockoutDurationMs].
+     */
+    suspend fun registerFailedPinAttempt(nowElapsedMs: Long = SystemClock.elapsedRealtime()): PinLockoutState {
+        var attempts = 0
+        var remaining = 0L
+        context.dataStore.edit { prefs ->
+            val prevRemaining =
+                effectiveLockoutRemainingMs(
+                    prefs[KEY_PIN_LOCKOUT_REMAINING_MS] ?: 0L,
+                    prefs[KEY_PIN_LOCKOUT_STAMP_ELAPSED_MS] ?: 0L,
+                    nowElapsedMs,
+                )
+            attempts = (prefs[KEY_PIN_FAILED_ATTEMPTS] ?: 0) + 1
+            prefs[KEY_PIN_FAILED_ATTEMPTS] = attempts
+            // Eskalasi jadwal tidak boleh memperpendek lockout yang masih berjalan.
+            remaining = maxOf(prevRemaining, lockoutDurationMs(attempts))
+            prefs[KEY_PIN_LOCKOUT_REMAINING_MS] = remaining
+            prefs[KEY_PIN_LOCKOUT_STAMP_ELAPSED_MS] = nowElapsedMs
+        }
+        return PinLockoutState(attempts, remaining)
+    }
+
+    /** Reset counter percobaan + lockout setelah verifikasi sukses (T3). */
+    suspend fun resetPinAttempts() {
+        context.dataStore.edit {
+            it[KEY_PIN_FAILED_ATTEMPTS] = 0
+            it[KEY_PIN_LOCKOUT_REMAINING_MS] = 0L
+            it[KEY_PIN_LOCKOUT_STAMP_ELAPSED_MS] = 0L
+        }
     }
 
     suspend fun clearAll() {
@@ -95,7 +178,6 @@ class SettingsRepository(private val context: Context) {
     }
 
     companion object {
-        const val DEFAULT_PIN = "1234"
         const val DEFAULT_CLOSE_CM = 30f
         const val DEFAULT_LUX = 150f
         const val DEFAULT_PITCH = 30f
@@ -118,11 +200,67 @@ class SettingsRepository(private val context: Context) {
         private val KEY_ONBOARDING_DONE = booleanPreferencesKey("onboarding_done")
         private val KEY_PIN_HASH = stringPreferencesKey("parent_pin_hash")
         private val KEY_PIN_SALT = stringPreferencesKey("parent_pin_salt")
+        private val KEY_PIN_FAILED_ATTEMPTS = intPreferencesKey("pin_failed_attempts")
+        private val KEY_PIN_LOCKOUT_REMAINING_MS = longPreferencesKey("pin_lockout_remaining_ms")
+        private val KEY_PIN_LOCKOUT_STAMP_ELAPSED_MS = longPreferencesKey("pin_lockout_stamp_elapsed_ms")
         private val KEY_VOICE_ENABLED = booleanPreferencesKey("kiko_voice_enabled")
         private val KEY_CHILD_NAME = stringPreferencesKey("child_name")
         private val KEY_CHILD_AGE = intPreferencesKey("child_age")
         private val KEY_CHILD_GRADE = stringPreferencesKey("child_grade")
         private val KEY_DAILY_LIMIT_MINUTES = intPreferencesKey("daily_limit_minutes")
+
+        /**
+         * Lockout eksponensial (T3): kegagalan ke-5 → 1 menit, ke-6 → 5 menit,
+         * ke-7 → 15 menit, ke-8 dan seterusnya → 60 menit. Di bawah 5 kegagalan
+         * beruntun tidak ada lockout. Counter TIDAK direset saat lockout habis —
+         * hanya verifikasi sukses yang mereset.
+         */
+        fun lockoutDurationMs(failedAttempts: Int): Long =
+            when {
+                failedAttempts >= 8 -> 60 * 60_000L
+                failedAttempts == 7 -> 15 * 60_000L
+                failedAttempts == 6 -> 5 * 60_000L
+                failedAttempts == 5 -> 1 * 60_000L
+                else -> 0L
+            }
+
+        /**
+         * Sisa lockout efektif dari semantik sisa-durasi (T3).
+         * [storedRemainingMs] = sisa durasi saat penulisan, [stampElapsedMs] =
+         * `SystemClock.elapsedRealtime()` saat penulisan. Dihitung dari selisih
+         * monotonic sehingga rollback jam dinding tidak memendekkan lockout.
+         * Bila elapsedRealtime turun (perangkat baru di-boot, delta < 0) sisa
+         * waktu tetap penuh — fail-safe, restart tidak membobol lockout;
+         * pemanggil (lihat [SettingsRepository.pinLockoutState]) men-stamp ulang
+         * sehingga hitung mundur berjalan normal dari sisa penuh tersebut.
+         */
+        fun effectiveLockoutRemainingMs(
+            storedRemainingMs: Long,
+            stampElapsedMs: Long,
+            nowElapsedMs: Long,
+        ): Long {
+            if (storedRemainingMs <= 0L) return 0L
+            val delta = nowElapsedMs - stampElapsedMs
+            return if (delta < 0L) {
+                storedRemainingMs
+            } else {
+                (storedRemainingMs - delta).coerceAtLeast(0L)
+            }
+        }
+
+        /**
+         * Keputusan verifikasi PIN murni (T1): hash kosong (PIN belum dibuat atau
+         * baru dihapus) menolak SEMUA PIN — tidak ada PIN default. Salt hilang
+         * juga menolak. Selebihnya cocokkan [hashPin] == hash.
+         */
+        fun pinMatches(
+            pin: String,
+            salt: String?,
+            hash: String,
+        ): Boolean {
+            if (hash.isEmpty() || salt == null) return false
+            return hashPin(pin, salt) == hash
+        }
 
         /** SHA-256(pin + salt) hex (US-11, implementasi minimal). */
         fun hashPin(

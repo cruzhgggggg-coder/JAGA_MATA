@@ -426,7 +426,22 @@ fun SettingsScreen(
     if (showChangePinDialog) {
         ChangePinDialog(
             onDismiss = { showChangePinDialog = false },
-            onVerifyCurrent = { settingsRepo.verifyParentPin(it) },
+            onVerifyCurrent = { candidate ->
+                // A11/T3: verifikasi PIN lama memakai counter & lockout persisten
+                // yang sama dengan layar Kunci.
+                val lock = settingsRepo.pinLockoutState()
+                when {
+                    lock.isLockedOut -> PinCheckOutcome.LOCKED
+                    settingsRepo.verifyParentPin(candidate) -> {
+                        settingsRepo.resetPinAttempts()
+                        PinCheckOutcome.OK
+                    }
+                    else -> {
+                        settingsRepo.registerFailedPinAttempt()
+                        PinCheckOutcome.WRONG
+                    }
+                }
+            },
             onSavePin = { newPin ->
                 viewModel.setParentPin(newPin)
                 Toast.makeText(context, "PIN Orang Tua berhasil diubah!", Toast.LENGTH_SHORT).show()
@@ -488,11 +503,17 @@ fun SettingsScreen(
     }
 }
 
+/** Hasil verifikasi PIN lama pada dialog Ubah PIN (A11 — dengan guard lockout). */
+private enum class PinCheckOutcome { OK, WRONG, LOCKED }
+
+/** PIN lemah yang ditolak saat membuat/mengganti PIN (bekas PIN default yang sudah dihapus, T1). */
+private const val WEAK_PIN = "1234"
+
 /** Dialog untuk mengubah PIN Orang Tua (4-digit). */
 @Composable
 private fun ChangePinDialog(
     onDismiss: () -> Unit,
-    onVerifyCurrent: suspend (String) -> Boolean,
+    onVerifyCurrent: suspend (String) -> PinCheckOutcome,
     onSavePin: (String) -> Unit,
 ) {
     var currentPin by remember { mutableStateOf("") }
@@ -522,7 +543,7 @@ private fun ChangePinDialog(
                 OutlinedTextField(
                     value = currentPin,
                     onValueChange = {
-                        if (it.length <= 4 && it.all { c -> c.isDigit() }) {
+                        if (it.length <= 4 && it.all { c -> c in '0'..'9' }) {
                             currentPin = it
                             errorMessage = null
                         }
@@ -536,7 +557,7 @@ private fun ChangePinDialog(
                 OutlinedTextField(
                     value = pin,
                     onValueChange = {
-                        if (it.length <= 4 && it.all { c -> c.isDigit() }) {
+                        if (it.length <= 4 && it.all { c -> c in '0'..'9' }) {
                             pin = it
                             errorMessage = null
                         }
@@ -550,7 +571,7 @@ private fun ChangePinDialog(
                 OutlinedTextField(
                     value = confirmPin,
                     onValueChange = {
-                        if (it.length <= 4 && it.all { c -> c.isDigit() }) {
+                        if (it.length <= 4 && it.all { c -> c in '0'..'9' }) {
                             confirmPin = it
                             errorMessage = null
                         }
@@ -586,19 +607,26 @@ private fun ChangePinDialog(
                         pin == currentPin -> {
                             errorMessage = "PIN baru tidak boleh sama dengan PIN lama."
                         }
-                        pin == SettingsRepository.DEFAULT_PIN -> {
+                        pin == WEAK_PIN -> {
                             errorMessage = "PIN baru tidak boleh 1234. Pilih PIN yang lebih sulit ditebak."
                         }
                         else -> {
                             verifying = true
                             scope.launch {
-                                val ok = onVerifyCurrent(currentPin)
+                                val outcome = onVerifyCurrent(currentPin)
                                 verifying = false
-                                if (ok) {
-                                    onSavePin(pin)
-                                    onDismiss()
-                                } else {
-                                    errorMessage = "PIN lama salah. Periksa kembali."
+                                when (outcome) {
+                                    PinCheckOutcome.OK -> {
+                                        onSavePin(pin)
+                                        onDismiss()
+                                    }
+                                    PinCheckOutcome.WRONG -> {
+                                        errorMessage = "PIN lama salah. Periksa kembali."
+                                    }
+                                    PinCheckOutcome.LOCKED -> {
+                                        errorMessage =
+                                            "Terlalu banyak percobaan. Coba lagi beberapa menit lagi."
+                                    }
                                 }
                             }
                         }

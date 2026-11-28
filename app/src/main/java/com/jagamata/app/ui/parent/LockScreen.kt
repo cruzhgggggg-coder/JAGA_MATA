@@ -1,5 +1,6 @@
 package com.jagamata.app.ui.parent
 
+import android.os.SystemClock
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
@@ -30,7 +31,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -44,6 +44,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.jagamata.app.R
+import com.jagamata.app.data.PinLockoutState
 import com.jagamata.app.ui.components.KikoExpression
 import com.jagamata.app.ui.components.KikoImage
 import com.jagamata.app.ui.components.Sparkle
@@ -61,53 +62,61 @@ import kotlinx.coroutines.launch
 /**
  * 13 Kunci Orang Tua — Layar Masuk PIN bergaya M-Banking (Keypad Angka Kustom + Titik Animasi).
  * Sesuai panduan desain FigCraft: tanpa keyboard sistem, verifikasi otomatis saat 4 digit terisi.
+ *
+ * Counter percobaan & lockout dipersist lewat [loadLockout]/[recordAttempt] (T3).
+ * Default-nya tanpa lockout (kompabilitas pemanggil lama) — AppNav menghubungkan
+ * keduanya ke [com.jagamata.app.data.SettingsRepository].
+ * [verifyPin] tetap `(String, (Boolean) -> Unit) -> Unit`.
  */
 @Composable
 fun LockScreen(
     verifyPin: (String, (Boolean) -> Unit) -> Unit,
     onUnlocked: () -> Unit,
     onCancel: () -> Unit = {},
+    loadLockout: suspend () -> PinLockoutState = { PinLockoutState(0, 0L) },
+    recordAttempt: suspend (Boolean) -> PinLockoutState = { PinLockoutState(0, 0L) },
 ) {
     var pin by remember { mutableStateOf("") }
     var isError by remember { mutableStateOf(false) }
     var verifying by remember { mutableStateOf(false) }
-    var failedAttempts by rememberSaveable { mutableStateOf(0) }
-    var lockoutCount by rememberSaveable { mutableStateOf(0) }
-    var lockoutUntilMs by rememberSaveable { mutableStateOf(0L) }
+    var failedAttempts by remember { mutableStateOf(0) }
+    // Akhir lockout dalam SystemClock.elapsedRealtime() (0 = tidak terkunci) —
+    // monotonic, kebal jam dinding yang dimundurkan anak.
+    var lockoutEndsAtElapsedMs by remember { mutableStateOf(0L) }
     var lockSecondsLeft by remember { mutableStateOf(0) }
     val scope = rememberCoroutineScope()
 
+    // Muat status kunci persisten saat layar dibuka (T3).
+    LaunchedEffect(Unit) {
+        val state = loadLockout()
+        failedAttempts = state.failedAttempts
+        lockoutEndsAtElapsedMs = lockoutEndFrom(state.lockoutRemainingMs)
+    }
+
     // Hitung mundur lockout agar pesan & keypad pulih otomatis saat waktu habis
-    LaunchedEffect(lockoutUntilMs) {
+    LaunchedEffect(lockoutEndsAtElapsedMs) {
         while (true) {
-            val remainingSec = ((lockoutUntilMs - System.currentTimeMillis()) / 1000L).toInt()
+            val remainingSec = ((lockoutEndsAtElapsedMs - SystemClock.elapsedRealtime()) / 1000L).toInt()
             lockSecondsLeft = remainingSec.coerceAtLeast(0)
-            if (remainingSec <= 0) break
+            if (lockoutEndsAtElapsedMs == 0L || remainingSec <= 0) break
             delay(1_000L)
         }
     }
 
     // Trigger verifikasi otomatis saat digit ke-4 ditekan
     LaunchedEffect(pin) {
-        if (pin.length == 4 && !verifying && System.currentTimeMillis() >= lockoutUntilMs) {
+        if (pin.length == 4 && !verifying && SystemClock.elapsedRealtime() >= lockoutEndsAtElapsedMs) {
             verifying = true
             verifyPin(pin) { ok ->
-                verifying = false
-                if (ok) {
-                    failedAttempts = 0
-                    onUnlocked()
-                } else {
-                    isError = true
-                    failedAttempts += 1
-                    if (failedAttempts >= MAX_PIN_ATTEMPTS) {
-                        lockoutCount += 1
-                        lockoutUntilMs =
-                            System.currentTimeMillis() +
-                            (LOCKOUT_BASE_MS * lockoutCount)
-                                .coerceAtMost(LOCKOUT_BASE_MS * LOCKOUT_MAX_MULTIPLIER)
-                        failedAttempts = 0
-                    }
-                    scope.launch {
+                scope.launch {
+                    val state = recordAttempt(ok)
+                    failedAttempts = state.failedAttempts
+                    lockoutEndsAtElapsedMs = lockoutEndFrom(state.lockoutRemainingMs)
+                    verifying = false
+                    if (ok) {
+                        onUnlocked()
+                    } else {
+                        isError = true
                         delay(600L)
                         pin = ""
                         isError = false
@@ -195,12 +204,18 @@ fun LockScreen(
             fontWeight = FontWeight.Bold,
         )
         Spacer(modifier = Modifier.height(6.dp))
-        val lockedOut = lockoutUntilMs > System.currentTimeMillis()
+        val lockedOut = lockoutEndsAtElapsedMs > SystemClock.elapsedRealtime()
         val subtitleText =
             when {
-                lockedOut ->
-                    "Terlalu banyak percobaan. Coba lagi dalam ${lockSecondsLeft.coerceAtLeast(1)} detik."
-                isError -> "PIN salah! Sisa percobaan: ${MAX_PIN_ATTEMPTS - failedAttempts}"
+                lockedOut -> {
+                    val remainingSec = lockSecondsLeft.coerceAtLeast(1)
+                    if (remainingSec >= 90) {
+                        "Terlalu banyak percobaan. Coba lagi dalam ${(remainingSec + 59) / 60} menit."
+                    } else {
+                        "Terlalu banyak percobaan. Coba lagi dalam $remainingSec detik."
+                    }
+                }
+                isError -> "PIN salah! Sisa percobaan: ${(MAX_PIN_ATTEMPTS - failedAttempts).coerceAtLeast(0)}"
                 else -> "Masukkan PIN 4 digit orang tua Anda."
             }
         Text(
@@ -259,7 +274,7 @@ fun LockScreen(
         // Keypad Angka Kustom M-Banking (3x4)
         NumericKeypad(
             onDigitClick = { digit ->
-                if (pin.length < 4 && !verifying && System.currentTimeMillis() >= lockoutUntilMs) {
+                if (pin.length < 4 && !verifying && SystemClock.elapsedRealtime() >= lockoutEndsAtElapsedMs) {
                     pin += digit
                     isError = false
                 }
@@ -357,6 +372,8 @@ private fun NumericKeypad(
     }
 }
 
+/** Ambang percobaan pertama sebelum lockout (dipakai untuk teks "sisa percobaan"). */
 private const val MAX_PIN_ATTEMPTS = 5
-private const val LOCKOUT_BASE_MS = 30_000L
-private const val LOCKOUT_MAX_MULTIPLIER = 5
+
+/** Sisa durasi lockout (ms) → waktu selesai dalam `SystemClock.elapsedRealtime()`. */
+private fun lockoutEndFrom(remainingMs: Long): Long = if (remainingMs > 0L) SystemClock.elapsedRealtime() + remainingMs else 0L

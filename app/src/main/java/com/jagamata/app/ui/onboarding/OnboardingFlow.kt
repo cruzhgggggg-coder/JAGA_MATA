@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.Schedule
@@ -26,10 +27,15 @@ import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.outlined.Straighten
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -41,17 +47,24 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.jagamata.app.R
+import com.jagamata.app.data.SettingsRepository
 import com.jagamata.app.ui.components.BottomCtaBar
 import com.jagamata.app.ui.components.KikoExpression
 import com.jagamata.app.ui.components.KikoImage
 import com.jagamata.app.ui.components.Sparkle
+import com.jagamata.app.ui.navigation.ParentSession
 import com.jagamata.app.ui.theme.Background
 import com.jagamata.app.ui.theme.BlueTint
 import com.jagamata.app.ui.theme.BlueTintDeep
+import com.jagamata.app.ui.theme.Coral
 import com.jagamata.app.ui.theme.Divider
 import com.jagamata.app.ui.theme.Ink
 import com.jagamata.app.ui.theme.InkSoft
@@ -61,6 +74,7 @@ import com.jagamata.app.ui.theme.Primary
 import com.jagamata.app.ui.theme.PrimaryDark
 import com.jagamata.app.ui.theme.Sunny
 import com.jagamata.app.ui.theme.Surface
+import kotlinx.coroutines.launch
 
 /*
  * Onboarding 3 langkah (desain 01a/01b/01c) — 393x852, 1px = 1dp.
@@ -134,15 +148,174 @@ internal fun SpeechBubble(
 
 // ------------------------------------------------------------- Onboarding
 
+/**
+ * Alur onboarding (T1 + T2):
+ * 0-2 intro → 3 pilih usia ([AgeSelectScreen]) → 4 buat PIN orang Tua (WAJIB).
+ * Skip pada halaman intro hanya melompat ke langkah usia — PIN tidak bisa dilewati.
+ * Selesai = PIN tersimpan + [SettingsRepository.setOnboardingDone].
+ */
 @Composable
 fun OnboardingFlow(onDone: () -> Unit) {
     var pageIndex by rememberSaveable { mutableIntStateOf(0) }
+    val context = LocalContext.current
+    val settingsRepo = remember { SettingsRepository(context) }
+    val scope = rememberCoroutineScope()
+
+    // Re-entry saat setup belum lengkap (mis. hanya kalibrasi yang kurang):
+    // PIN sudah ada → langsung tutup onboarding; sisanya dijalur IZIN → KALIBRASI.
+    // Dilewati untuk capture debug (--es screen) yang men-set ParentSession.unlocked
+    // agar halaman onboarding tetap tampil apa adanya.
+    LaunchedEffect(Unit) {
+        if (!ParentSession.unlocked && settingsRepo.hasParentPin()) {
+            settingsRepo.setOnboardingDone(true)
+            onDone()
+        }
+    }
+
     when (pageIndex) {
-        0 -> OnboardingPage1(onNext = { pageIndex = 1 }, onSkip = onDone)
-        1 -> OnboardingPage2(onNext = { pageIndex = 2 }, onSkip = onDone)
-        else -> OnboardingPage3(onNext = onDone, onSkip = onDone)
+        0 -> OnboardingPage1(onNext = { pageIndex = 1 }, onSkip = { pageIndex = 3 })
+        1 -> OnboardingPage2(onNext = { pageIndex = 2 }, onSkip = { pageIndex = 3 })
+        2 -> OnboardingPage3(onNext = { pageIndex = 3 }, onSkip = { pageIndex = 3 })
+        3 ->
+            AgeSelectScreen(
+                onSelect = { bucket ->
+                    scope.launch { settingsRepo.setChildAge(ageForBucket(bucket)) }
+                },
+                onNext = { pageIndex = 4 },
+                onSkip = { pageIndex = 4 },
+            )
+        else ->
+            CreatePinStep(
+                onCreated = { newPin ->
+                    scope.launch {
+                        settingsRepo.setParentPin(newPin)
+                        settingsRepo.setOnboardingDone(true)
+                        onDone()
+                    }
+                },
+            )
     }
 }
+
+/** Bucket usia [AgeSelectScreen] → usia representatif untuk [SettingsRepository.setChildAge]. */
+private fun ageForBucket(bucket: String): Int =
+    when (bucket) {
+        "5-7" -> 6
+        "8-12" -> 9
+        "13+" -> 13
+        else -> 8
+    }
+
+/**
+ * Langkah wajib "Buat PIN Orang Tua (4 digit)" (T1) — halaman terakhir onboarding,
+ * tidak punya tombol Lewati. Menolak PIN lemah ("1234") dan non-digit ASCII.
+ */
+@Composable
+private fun CreatePinStep(onCreated: (String) -> Unit) {
+    var pin by remember { mutableStateOf("") }
+    var confirmPin by remember { mutableStateOf("") }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    val errLength = stringResource(R.string.pin_error_length)
+    val errMismatch = stringResource(R.string.pin_error_mismatch)
+    val errWeak = stringResource(R.string.pin_error_weak)
+
+    Column(
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(Background)
+                .statusBarsPadding()
+                .navigationBarsPadding()
+                .padding(horizontal = 24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Spacer(modifier = Modifier.height(24.dp))
+        KikoImage(
+            expression = KikoExpression.NETRAL,
+            modifier = Modifier.size(96.dp),
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = stringResource(R.string.pin_create_title),
+            style = MaterialTheme.typography.headlineMedium,
+            color = Ink,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center,
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = stringResource(R.string.pin_create_desc),
+            style = MaterialTheme.typography.bodyLarge,
+            color = Ink.copy(alpha = 0.72f),
+            textAlign = TextAlign.Center,
+        )
+        Spacer(modifier = Modifier.height(24.dp))
+        PinField(
+            value = pin,
+            label = stringResource(R.string.pin_create_field),
+            onValueChange = {
+                if (it.length <= 4 && it.all { c -> c in '0'..'9' }) {
+                    pin = it
+                    errorMessage = null
+                }
+            },
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        PinField(
+            value = confirmPin,
+            label = stringResource(R.string.pin_create_confirm),
+            onValueChange = {
+                if (it.length <= 4 && it.all { c -> c in '0'..'9' }) {
+                    confirmPin = it
+                    errorMessage = null
+                }
+            },
+        )
+        if (errorMessage != null) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = errorMessage.orEmpty(),
+                style = MaterialTheme.typography.bodySmall,
+                color = Coral,
+                textAlign = TextAlign.Center,
+            )
+        }
+        Spacer(modifier = Modifier.weight(1f))
+        BottomCtaBar(
+            text = stringResource(R.string.pin_create_cta),
+            onClick = {
+                when {
+                    pin.length != 4 || confirmPin.length != 4 -> errorMessage = errLength
+                    pin != confirmPin -> errorMessage = errMismatch
+                    pin == WEAK_ONBOARDING_PIN -> errorMessage = errWeak
+                    else -> onCreated(pin)
+                }
+            },
+            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+    }
+}
+
+@Composable
+private fun PinField(
+    value: String,
+    label: String,
+    onValueChange: (String) -> Unit,
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = { Text(label) },
+        visualTransformation = PasswordVisualTransformation(),
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth(),
+    )
+}
+
+/** PIN yang terlalu mudah ditebak — ditolak saat pembuatan PIN pertama. */
+private const val WEAK_ONBOARDING_PIN = "1234"
 
 @Composable
 private fun OnboardingScaffold(

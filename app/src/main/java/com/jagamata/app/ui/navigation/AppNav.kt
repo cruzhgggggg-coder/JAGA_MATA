@@ -7,16 +7,21 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.jagamata.app.BuildConfig
+import com.jagamata.app.MainActivity
 import com.jagamata.app.R
 import com.jagamata.app.data.AppDatabase
+import com.jagamata.app.data.PinLockoutState
 import com.jagamata.app.data.SettingsRepository
 import com.jagamata.app.service.DetectionForegroundService
 import com.jagamata.app.service.NotificationHelper
@@ -89,18 +94,41 @@ fun AppNav(
     NavHost(navController = navController, startDestination = startDestination) {
         composable(Routes.SPLASH) {
             val context = LocalContext.current
+            val settingsRepo = remember { SettingsRepository(context) }
+            val scope = rememberCoroutineScope()
             val hasCamera =
                 ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
                     PackageManager.PERMISSION_GRANTED
+            // Capture desain (--es screen) tidak boleh terjebak onboarding —
+            // koordinasi dengan MainActivity yang men-set ParentSession.unlocked (T2).
+            val debugCapture =
+                ParentSession.unlocked ||
+                    (
+                        BuildConfig.DEBUG &&
+                            (context as? android.app.Activity)
+                                ?.intent
+                                ?.getStringExtra(MainActivity.EXTRA_SCREEN) != null
+                    )
             SplashScreen(
                 onFinished = {
-                    if (!hasCamera) {
-                        navController.navigate(Routes.ONBOARDING) {
+                    if (debugCapture) {
+                        navController.navigate(Routes.BERANDA) {
                             popUpTo(Routes.SPLASH) { inclusive = true }
                         }
                     } else {
-                        navController.navigate(Routes.BERANDA) {
-                            popUpTo(Routes.SPLASH) { inclusive = true }
+                        scope.launch {
+                            // T2: routing berdasarkan status setup nyata —
+                            // onboarding selesai + PIN dibuat + kalibrasi menghasilkan focalPx.
+                            val setupComplete =
+                                hasCamera &&
+                                    settingsRepo.isOnboardingDone() &&
+                                    settingsRepo.hasParentPin() &&
+                                    settingsRepo.currentFocalPx() > 0f
+                            navController.navigate(
+                                if (setupComplete) Routes.BERANDA else Routes.ONBOARDING,
+                            ) {
+                                popUpTo(Routes.SPLASH) { inclusive = true }
+                            }
                         }
                     }
                 },
@@ -302,11 +330,22 @@ fun AppNav(
                 onCancel = {
                     navController.popBackStack()
                 },
+                // T3: counter & lockout persisten — sama dengan dialog Ubah PIN (A11).
+                loadLockout = { settingsRepo.pinLockoutState() },
+                recordAttempt = { ok ->
+                    if (ok) {
+                        settingsRepo.resetPinAttempts()
+                        PinLockoutState(0, 0L)
+                    } else {
+                        settingsRepo.registerFailedPinAttempt()
+                    }
+                },
             )
         }
         composable(Routes.DELETE_DATA) {
             val context = LocalContext.current
             val settingsRepo = remember { SettingsRepository(context) }
+            var wiped by remember { mutableStateOf(false) }
             DeleteDataScreen(
                 onDeleteAll = {
                     val db = AppDatabase.getInstance(context)
@@ -315,8 +354,19 @@ fun AppNav(
                     db.dailyDao().deleteAll()
                     db.dailyDao().deleteAppSettings()
                     settingsRepo.clearAll()
+                    wiped = true
                 },
-                onDone = { navController.popBackStack() },
+                onDone = {
+                    if (wiped) {
+                        // T1: setelah "Hapus Semua Data" PIN ikut terhapus —
+                        // wajib menjalankan onboarding lagi (buat PIN baru).
+                        navController.navigate(Routes.ONBOARDING) {
+                            popUpTo(navController.graph.id) { inclusive = true }
+                        }
+                    } else {
+                        navController.popBackStack()
+                    }
+                },
             )
         }
         composable(Routes.OVERLAY_DITOLAK) { OverlayDenied() }
