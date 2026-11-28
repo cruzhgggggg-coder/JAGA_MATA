@@ -32,20 +32,25 @@ class DistanceEstimator(
         faceWidthPx: Float? = null,
     ): Float? {
         if (faceHeightPx == null || faceHeightPx <= 0f || focalPx <= 0f) return null
+        if (!faceHeightPx.isFinite() || !focalPx.isFinite()) return null
 
         // Kompensasi kemiringan kepala (head pitch):
         // Ketika menunduk atau ponsel dipegang agak di bawah, proyeksi tinggi wajah 2D
-        // menyusut sebesar cos(pitch).
+        // menyusut sebesar cos(pitch). Pitch non-finite (NaN dari backend) dianggap tidak ada.
         val effectiveFaceHeightPx =
-            if (pitchDeg != null) {
+            if (pitchDeg != null && pitchDeg.isFinite()) {
                 val pitchRad = Math.toRadians(pitchDeg.toDouble().coerceIn(-50.0, 50.0))
                 val cosFactor = cos(pitchRad).toFloat().coerceIn(0.65f, 1.0f)
                 faceHeightPx / cosFactor
             } else {
                 faceHeightPx
             }
+        if (!effectiveFaceHeightPx.isFinite() || effectiveFaceHeightPx <= 0f) return null
 
-        return (faceHeightCm * focalPx) / effectiveFaceHeightPx
+        val raw = (faceHeightCm * focalPx) / effectiveFaceHeightPx
+        // Guard NaN + rentang wajar (5..200 cm) agar satu sampel liar tidak
+        // meracuni EMA atau memicu pelanggaran palsu.
+        return if (raw.isFinite()) raw.coerceIn(5f, 200f) else null
     }
 
     /** Hitung + haluskan (EMA). */
@@ -66,8 +71,8 @@ class DistanceEstimator(
                 val dynamicAlpha = if (delta > 8f) 0.85f else emaAlpha
                 dynamicAlpha * raw + (1f - dynamicAlpha) * previous
             }
-        emaCm = smoothed
-        return smoothed
+        emaCm = if (smoothed.isFinite()) smoothed else null
+        return emaCm
     }
 
     /** Nilai terakhir yang sudah dihaluskan (untuk tampilan debug). */

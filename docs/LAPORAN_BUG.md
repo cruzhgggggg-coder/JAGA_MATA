@@ -6,6 +6,8 @@
 **Hasil audit:** **40 temuan unik** — 1 kritis, 13 tinggi, 19 sedang, 7 rendah. Terperinci di bawah.
 
 > **UPDATE STATUS (27 Nov 2026):** Bug **B1–B15 (kritis + tinggi) sudah DIPERBAIKI** — 3 agent fix paralel + verifikasi (`compileDebugKotlin` hijau, `testDebugUnitTest` lulus, smoke test 5 layar di emulator tanpa crash). Catatan: fix B5 sempat membuat 16 unit test gagal (WorkManager belum ter-init di Robolectric saat `JagaMataApp.onCreate`) — sudah diperbaiki dengan guard `WorkManager.isInitialized()`. Bug **B16–B41 (sedang + rendah) belum diperbaiki** — daftar backlog di bawah.
+>
+> **UPDATE STATUS 2 (laporan bug runtime kalibrasi):** Dilaporkan bug "setelah kalibrasi, jarak tidak sesuai + notifikasi looping". Akar masalah & perbaikan: (a) **tidak ada guard NaN** di pipeline jarak (pitch NaN dari backend TFLite meracuni EMA → jarak ngawur permanen) → guard finite + clamp 5–200 cm (bug **B32** ikut beres); (b) **ketidaksesuaian tinggi wajah acuan** — kalibrasi selalu pakai 15 cm tapi runtime pakai 13.5/14/15 sesuai usia → semua jarak meleset sistematis setelah kalibrasi → kini satu sumber sama; (c) **alert tiap siklus 60 detik** saat pelanggaran berkelanjutan (akibat jarak salah = pelanggaran terus) → kini alert hanya saat **onset** (jenis pelanggaran berubah) + re-alert maksimal tiap 5 menit; (d) throttle notifikasi krusial/biasa dipisah (**B29**), notifikasi "butuh izin kamera" di-throttle 5 menit, dedupe `requestLevel` (**B30**), face-lost → OK (**B27**). Verifikasi: compile hijau + seluruh unit test lulus (rerun penuh).
 
 ---
 

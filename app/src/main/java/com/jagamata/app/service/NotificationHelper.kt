@@ -27,7 +27,10 @@ object NotificationHelper {
     private const val THROTTLE_WINDOW_NORMAL_MS = 180_000L // 3 menit untuk peringatan rutin
 
     @Volatile
-    private var lastAlertAtMs: Long = 0L
+    private var lastCrucialAtMs: Long = 0L
+
+    @Volatile
+    private var lastNormalAtMs: Long = 0L
 
     fun ensureChannel(context: Context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
@@ -94,8 +97,14 @@ object NotificationHelper {
         isCrucial: Boolean = false,
     ): Boolean {
         val window = if (isCrucial) THROTTLE_WINDOW_CRUCIAL_MS else THROTTLE_WINDOW_NORMAL_MS
-        if (nowMs - lastAlertAtMs < window) return false
-        lastAlertAtMs = nowMs
+        // Timestamp terpisah: alert biasa tidak boleh menelan alarm krusial (dan sebaliknya).
+        if (isCrucial) {
+            if (nowMs - lastCrucialAtMs < window) return false
+            lastCrucialAtMs = nowMs
+        } else {
+            if (nowMs - lastNormalAtMs < window) return false
+            lastNormalAtMs = nowMs
+        }
 
         val intent =
             Intent(context, MainActivity::class.java).apply {
@@ -127,6 +136,7 @@ object NotificationHelper {
 
     /** Dipakai test — reset throttle. */
     fun resetThrottleForTest() {
-        lastAlertAtMs = 0L
+        lastCrucialAtMs = 0L
+        lastNormalAtMs = 0L
     }
 }

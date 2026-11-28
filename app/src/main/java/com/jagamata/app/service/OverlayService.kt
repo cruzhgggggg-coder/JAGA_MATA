@@ -239,8 +239,9 @@ class OverlayService : android.app.Service() {
             level: RiskLevel,
         ) {
             val prev = lastLevel.getAndSet(level)
-            // Hanya kirim intent jika level berubah atau jika sebelumnya bukan OK
-            if (prev == level && level == RiskLevel.OK) return
+            // Dedupe penuh: hanya kirim intent saat level BERUBAH
+            // (sebelumnya spam startService ~5x/detik selama WARNING).
+            if (prev == level) return
 
             val intent =
                 Intent(context, OverlayService::class.java).apply {

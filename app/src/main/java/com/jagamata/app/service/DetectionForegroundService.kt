@@ -57,6 +57,11 @@ class DetectionForegroundService : LifecycleService() {
     private val isAnalyzing = java.util.concurrent.atomic.AtomicBoolean(false)
     private var initialized = false
 
+    /** Kunci jenis pelanggaran terakhir yang sudah di-alert (logika onset). */
+    private var lastAlertedViolationKey: String? = null
+
+    private var lastViolationAlertAtMs: Long = 0L
+
     override fun onCreate() {
         super.onCreate()
         if (!hasCameraPermission()) {
@@ -147,6 +152,10 @@ class DetectionForegroundService : LifecycleService() {
             android.content.pm.PackageManager.PERMISSION_GRANTED
 
     private fun notifyCameraPermissionNeeded() {
+        // Throttle: jangan post berulang kali (service start spam / restart loop).
+        val now = System.currentTimeMillis()
+        if (now - lastPermNotifAtMs < PERM_NOTIF_INTERVAL_MS) return
+        lastPermNotifAtMs = now
         NotificationHelper.ensureChannel(this)
         val pending =
             PendingIntent.getActivity(
@@ -308,20 +317,34 @@ class DetectionForegroundService : LifecycleService() {
                         ),
                     )
                 }
-                val title = getString(R.string.notif_title, summary.violationsCsv())
-                val body =
-                    when (summary.violations.first()) {
-                        com.jagamata.app.detection.ViolationType.TOO_CLOSE ->
-                            getString(R.string.notif_body, summary.minDistanceCm ?: 0f)
-                        com.jagamata.app.detection.ViolationType.TOO_DARK ->
-                            getString(R.string.notif_body_dark, summary.avgLux ?: 0f)
-                        com.jagamata.app.detection.ViolationType.BAD_POSTURE ->
-                            getString(R.string.notif_body_posture, summary.maxPitchDeg ?: 0f)
+                // Alert hanya saat ONSET (jenis pelanggaran berubah) atau re-alert
+                // berkala — BUKAN tiap siklus. Ini menghentikan "notif looping"
+                // saat kondisi salah (mis. jarak meleset) berlangsung terus.
+                val key = summary.violationsCsv()
+                val now = System.currentTimeMillis()
+                val onset = key != lastAlertedViolationKey
+                val reAlertDue = now - lastViolationAlertAtMs >= ONGOING_VIOLATION_REALERT_MS
+                if (onset || reAlertDue) {
+                    val title = getString(R.string.notif_title, summary.violationsCsv())
+                    val body =
+                        when (summary.violations.first()) {
+                            com.jagamata.app.detection.ViolationType.TOO_CLOSE ->
+                                getString(R.string.notif_body, summary.minDistanceCm ?: 0f)
+                            com.jagamata.app.detection.ViolationType.TOO_DARK ->
+                                getString(R.string.notif_body_dark, summary.avgLux ?: 0f)
+                            com.jagamata.app.detection.ViolationType.BAD_POSTURE ->
+                                getString(R.string.notif_body_posture, summary.maxPitchDeg ?: 0f)
+                        }
+                    val isCrucial =
+                        summary.violations.contains(com.jagamata.app.detection.ViolationType.TOO_CLOSE) &&
+                            (summary.minDistanceCm ?: 30f) < 25f
+                    if (NotificationHelper.throttledAlert(this, title, body, isCrucial = isCrucial)) {
+                        lastAlertedViolationKey = key
+                        lastViolationAlertAtMs = now
                     }
-                val isCrucial =
-                    summary.violations.contains(com.jagamata.app.detection.ViolationType.TOO_CLOSE) &&
-                        (summary.minDistanceCm ?: 30f) < 25f
-                NotificationHelper.throttledAlert(this, title, body, isCrucial = isCrucial)
+                }
+            } else {
+                lastAlertedViolationKey = null
             }
             _lastCycle.value = summary
         } catch (t: Throwable) {
@@ -352,6 +375,15 @@ class DetectionForegroundService : LifecycleService() {
         private const val DAY_MS = 86_400_000L
         private const val FRAME_INTERVAL_MS = 200L // 5 FPS (Blueprint §3.1 & §5.2)
         private const val NOTIF_ID_PERMISSION = 1003
+
+        /** Re-alert pelanggaran berkelanjutan maksimal tiap 5 menit (bukan tiap siklus). */
+        private const val ONGOING_VIOLATION_REALERT_MS = 300_000L
+
+        /** Notifikasi "butuh izin kamera" maksimal tiap 5 menit. */
+        private const val PERM_NOTIF_INTERVAL_MS = 300_000L
+
+        @Volatile
+        private var lastPermNotifAtMs: Long = 0L
 
         private val _isRunning = MutableStateFlow(false)
         val isRunning: StateFlow<Boolean> = _isRunning

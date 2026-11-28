@@ -126,6 +126,10 @@ class DetectionStateMachine(
             f.inWarnZone -> RiskLevel.WARNING
             state == RiskLevel.BLOCKED && !f.safeSustained -> RiskLevel.WARNING
             f.safeSustained && !f.poseSustained && !f.darkSustained -> RiskLevel.OK
+            // Wajah hilang bertahan = bukan pelanggaran (banner jangan lengket) —
+            // kecuali gelap/postur masih aktif.
+            sustained(faceLostSinceMs, config.okDebounceMs, now) &&
+                !f.poseSustained && !f.darkSustained -> RiskLevel.OK
             else -> state
         }
     }

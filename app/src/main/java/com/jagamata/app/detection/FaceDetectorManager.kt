@@ -202,7 +202,7 @@ class FaceDetectorManager(
             val crop = frame?.let { ModelPitchBackend.cropFace(it, box) }
             val pitch =
                 try {
-                    pitchBackend.pitchDeg(points, crop)
+                    pitchBackend.pitchDeg(points, crop)?.takeIf { it.isFinite() }
                 } finally {
                     crop?.recycle()
                 }
@@ -246,7 +246,7 @@ class FaceDetectorManager(
                 val crop = bitmap.let { ModelPitchBackend.cropFace(it, box) }
                 val pitch =
                     try {
-                        pitchBackend.pitchDeg(emptyList(), crop)
+                        pitchBackend.pitchDeg(emptyList(), crop)?.takeIf { it.isFinite() }
                     } finally {
                         crop?.recycle()
                     }

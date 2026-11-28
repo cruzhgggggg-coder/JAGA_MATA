@@ -35,7 +35,15 @@ class CalibrationViewModel(application: Application) : AndroidViewModel(applicat
 
     private var sampleStartTimeMs: Long = 0L
 
+    /** Tinggi wajah acuan sesuai usia — harus sama dengan yang dipakai runtime. */
+    private var childFaceHeightCm: Float = com.jagamata.app.detection.DistanceEstimator.DEFAULT_FACE_HEIGHT_CM
+
     init {
+        viewModelScope.launch {
+            settings.childAge.collect { age ->
+                childFaceHeightCm = com.jagamata.app.detection.DistanceEstimator.getChildFaceHeightCm(age)
+            }
+        }
         viewModelScope.launch {
             DetectionForegroundService.latest.collect { result ->
                 onDetectionResult(result)
@@ -89,7 +97,7 @@ class CalibrationViewModel(application: Application) : AndroidViewModel(applicat
         }
 
         val now = System.currentTimeMillis()
-        val focalPx = calibrationManager.addSample(height, now)
+        val focalPx = calibrationManager.addSample(height, now, childFaceHeightCm)
         val elapsed = (now - sampleStartTimeMs).toFloat()
         val prog = (elapsed / CalibrationManager.STABILITY_MS.toFloat()).coerceIn(0f, 1f)
 
