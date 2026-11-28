@@ -50,6 +50,7 @@ outputs/
 mcp/
 .mimocode/*
 !.mimocode/design_refs/
+.mimo_patches/
 
 # Datasets & Large Raw Data
 dataset/
