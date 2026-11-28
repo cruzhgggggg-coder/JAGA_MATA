@@ -103,8 +103,8 @@ fun LockScreen(
                         lockoutCount += 1
                         lockoutUntilMs =
                             System.currentTimeMillis() +
-                                (LOCKOUT_BASE_MS * lockoutCount)
-                                    .coerceAtMost(LOCKOUT_BASE_MS * LOCKOUT_MAX_MULTIPLIER)
+                            (LOCKOUT_BASE_MS * lockoutCount)
+                                .coerceAtMost(LOCKOUT_BASE_MS * LOCKOUT_MAX_MULTIPLIER)
                         failedAttempts = 0
                     }
                     scope.launch {

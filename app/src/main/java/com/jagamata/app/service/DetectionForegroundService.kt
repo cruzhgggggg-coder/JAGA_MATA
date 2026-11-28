@@ -324,25 +324,7 @@ class DetectionForegroundService : LifecycleService() {
                 val now = System.currentTimeMillis()
                 val onset = key != lastAlertedViolationKey
                 val reAlertDue = now - lastViolationAlertAtMs >= ONGOING_VIOLATION_REALERT_MS
-                if (onset || reAlertDue) {
-                    val title = getString(R.string.notif_title, summary.violationsCsv())
-                    val body =
-                        when (summary.violations.first()) {
-                            com.jagamata.app.detection.ViolationType.TOO_CLOSE ->
-                                getString(R.string.notif_body, summary.minDistanceCm ?: 0f)
-                            com.jagamata.app.detection.ViolationType.TOO_DARK ->
-                                getString(R.string.notif_body_dark, summary.avgLux ?: 0f)
-                            com.jagamata.app.detection.ViolationType.BAD_POSTURE ->
-                                getString(R.string.notif_body_posture, summary.maxPitchDeg ?: 0f)
-                        }
-                    val isCrucial =
-                        summary.violations.contains(com.jagamata.app.detection.ViolationType.TOO_CLOSE) &&
-                            (summary.minDistanceCm ?: 30f) < 25f
-                    if (NotificationHelper.throttledAlert(this, title, body, isCrucial = isCrucial)) {
-                        lastAlertedViolationKey = key
-                        lastViolationAlertAtMs = now
-                    }
-                }
+                if (onset || reAlertDue) maybeNotifyViolation(summary, key, now)
             } else {
                 lastAlertedViolationKey = null
             }
@@ -350,6 +332,31 @@ class DetectionForegroundService : LifecycleService() {
         } catch (t: Throwable) {
             // Satu kegagalan DB (mis. SQLiteFullException) tidak boleh membunuh ticker siklus.
             Log.e(TAG, "persistCycle gagal: ${t.message}", t)
+        }
+    }
+
+    /** Kirim alert pelanggaran (dipanggil hanya saat onset / re-alert berkala). */
+    private fun maybeNotifyViolation(
+        summary: com.jagamata.app.detection.CycleSummary,
+        key: String,
+        now: Long,
+    ) {
+        val title = getString(R.string.notif_title, key)
+        val body =
+            when (summary.violations.first()) {
+                com.jagamata.app.detection.ViolationType.TOO_CLOSE ->
+                    getString(R.string.notif_body, summary.minDistanceCm ?: 0f)
+                com.jagamata.app.detection.ViolationType.TOO_DARK ->
+                    getString(R.string.notif_body_dark, summary.avgLux ?: 0f)
+                com.jagamata.app.detection.ViolationType.BAD_POSTURE ->
+                    getString(R.string.notif_body_posture, summary.maxPitchDeg ?: 0f)
+            }
+        val isCrucial =
+            summary.violations.contains(com.jagamata.app.detection.ViolationType.TOO_CLOSE) &&
+                (summary.minDistanceCm ?: 30f) < 25f
+        if (NotificationHelper.throttledAlert(this, title, body, isCrucial = isCrucial)) {
+            lastAlertedViolationKey = key
+            lastViolationAlertAtMs = now
         }
     }
 
