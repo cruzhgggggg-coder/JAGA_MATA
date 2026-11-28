@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -31,7 +32,6 @@ import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.Face
 import androidx.compose.material.icons.outlined.LightMode
-import androidx.compose.material.icons.outlined.Pause
 import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.SentimentSatisfiedAlt
@@ -47,6 +47,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -72,6 +73,8 @@ import com.jagamata.app.service.DetectionForegroundService
 import com.jagamata.app.ui.child.DesignSparkle
 import com.jagamata.app.ui.child.jagaBottomNavItems
 import com.jagamata.app.ui.components.BottomNavBar
+import com.jagamata.app.ui.components.HoldDetector
+import com.jagamata.app.ui.components.HoldToPauseButton
 import com.jagamata.app.ui.components.JagaCard
 import com.jagamata.app.ui.components.KikoExpression
 import com.jagamata.app.ui.components.KikoImage
@@ -609,14 +612,19 @@ private fun DottedConnector(modifier: Modifier = Modifier) {
     }
 }
 
-/** Kartu waktu bermain 03 (353×82) + tombol jeda. */
+/** Kartu waktu bermain 03 (353×82) + tombol jeda (hold 3 detik) / mulai instan. */
 @Composable
 private fun TimeCard(
     isRunning: Boolean,
     elapsedSeconds: Long = 0L,
     onPauseToggle: () -> Unit,
 ) {
-    val icon = if (isRunning) Icons.Outlined.Pause else Icons.Filled.PlayArrow
+    val holdScope = rememberCoroutineScope()
+    val holdDetector =
+        remember(holdScope) {
+            HoldDetector(holdScope) { onPauseToggle() }
+        }
+    val holdProgress by holdDetector.progress.collectAsState()
     val subtitle = if (isRunning) stringResource(R.string.s03_time_label) else "Status pemantauan"
     val mainText =
         if (isRunning) {
@@ -628,7 +636,7 @@ private fun TimeCard(
         }
 
     JagaCard(
-        modifier = Modifier.fillMaxWidth().height(82.dp),
+        modifier = Modifier.fillMaxWidth().heightIn(min = 82.dp),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -660,20 +668,29 @@ private fun TimeCard(
                 )
             }
             Spacer(modifier = Modifier.weight(1f))
-            Box(
-                modifier =
-                    Modifier
-                        .size(52.dp)
-                        .background(Ink, CircleShape)
-                        .clickable(onClick = onPauseToggle),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp),
-                    tint = Surface,
+            if (isRunning) {
+                HoldToPauseButton(
+                    progress = holdProgress,
+                    onPressStart = { holdDetector.press() },
+                    onPressEnd = { holdDetector.release() },
+                    hint = stringResource(R.string.pause_hold_hint),
                 )
+            } else {
+                Box(
+                    modifier =
+                        Modifier
+                            .size(52.dp)
+                            .background(Ink, CircleShape)
+                            .clickable(onClick = onPauseToggle),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.PlayArrow,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp),
+                        tint = Surface,
+                    )
+                }
             }
         }
     }

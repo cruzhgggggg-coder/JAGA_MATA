@@ -58,6 +58,8 @@
     <string name="dashboard_live_title">Siklus terakhir</string>
     <string name="dashboard_chart_title">7 hari terakhir</string>
     <string name="dashboard_no_data">Belum ada data. Mulai pemantauan untuk melihat ringkasan.</string>
+    <string name="dashboard_paused_count">Sesi dijeda: %1$d kali hari ini</string>
+    <string name="dashboard_paused_none">Tidak ada jeda hari ini ✓</string>
     <string name="nav_dashboard">Dasbor</string>
     <string name="nav_report">Laporan</string>
     <string name="nav_settings">Pengaturan</string>
@@ -131,6 +133,11 @@
     <string name="detection_unknown_distance">Jarak: —</string>
     <string name="detection_lux">Cahaya: %1$.0f lux</string>
     <string name="detection_pitch">Postur: %1$.0f°</string>
+
+    <!-- Pause session -->
+    <string name="pause_hold_hint">Tahan 3 detik untuk jeda</string>
+    <string name="pause_notify_title">Pemantauan Dijeda</string>
+    <string name="pause_notify_body">Anak menjeda pemantauan. Akan hidup otomatis dalam 5 menit.</string>
 
     <!-- Notification -->
     <string name="notif_channel_name">Peringatan JagaMata</string>
