@@ -17,6 +17,11 @@ import kotlinx.coroutines.launch
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // B37: cegah screenshot/preview Recents memperlihatkan layar anak/PIN.
+        window.setFlags(
+            android.view.WindowManager.LayoutParams.FLAG_SECURE,
+            android.view.WindowManager.LayoutParams.FLAG_SECURE,
+        )
         // Capture desain: adb shell am start ... --es screen "<slug>"
         val screenSlug = intent.getStringExtra(EXTRA_SCREEN)
         // Hanya debug: bypass gerbang PIN agar pipeline screenshot (--es screen) tetap

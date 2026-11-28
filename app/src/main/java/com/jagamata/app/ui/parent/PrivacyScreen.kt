@@ -16,6 +16,8 @@ import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -26,8 +28,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.jagamata.app.R
 import com.jagamata.app.ui.components.JagaCard
-import com.jagamata.app.ui.components.JagaSwitch
 import com.jagamata.app.ui.theme.Background
+import com.jagamata.app.ui.theme.Mint
 
 /**
  * Privasi & Data (desain 3229): status data, hapus semua data,
@@ -38,8 +40,7 @@ fun PrivacyScreen(
     onBack: () -> Unit,
     onDeleteData: () -> Unit = {},
 ) {
-    var photosOn by remember { mutableStateOf(true) }
-    var policyOn by remember { mutableStateOf(false) }
+    var policyExpanded by remember { mutableStateOf(false) }
 
     Column(
         modifier =
@@ -59,13 +60,15 @@ fun PrivacyScreen(
         MascotHeroCard(text = stringResource(R.string.s14_hero))
         Spacer(modifier = Modifier.height(16.dp))
         JagaCard(contentPadding = PaddingValues(16.dp)) {
+            // A14: toggle mati diganti info faktual (tanpa aksi yang menyesatkan).
             SettingsRow(
                 icon = { RowIcon(Icons.Outlined.PhotoCamera) },
                 title = stringResource(R.string.s14_row_photos),
                 trailing = {
-                    JagaSwitch(
-                        checked = photosOn,
-                        onCheckedChange = { photosOn = it },
+                    Text(
+                        text = "✓",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = Mint,
                     )
                 },
             )
@@ -73,7 +76,6 @@ fun PrivacyScreen(
             SettingsRow(
                 icon = { RowIcon(Icons.Outlined.Language) },
                 title = stringResource(R.string.s14_row_offline),
-                trailing = { ChevronTrailing() },
             )
             Spacer(modifier = Modifier.height(24.dp))
             SettingsRow(
@@ -87,13 +89,17 @@ fun PrivacyScreen(
             SettingsRow(
                 icon = { RowIcon(Icons.Outlined.Lock) },
                 title = stringResource(R.string.s14_row_policy),
-                trailing = {
-                    JagaSwitch(
-                        checked = policyOn,
-                        onCheckedChange = { policyOn = it },
-                    )
-                },
+                onClick = { policyExpanded = !policyExpanded },
+                trailing = { ChevronTrailing() },
             )
+            if (policyExpanded) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = stringResource(R.string.s14_footer),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
         FooterCaption(text = stringResource(R.string.s14_footer))
         Spacer(modifier = Modifier.height(116.dp))

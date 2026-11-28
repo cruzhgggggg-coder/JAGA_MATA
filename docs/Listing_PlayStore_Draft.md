@@ -1,6 +1,7 @@
 # Draft Listing Google Play Store — JagaMata v1.0.0
 
-Status: **FINAL DRAFT** (Siap Rilis / Publikasi)
+Status: **DRAFT JUJUR** — seluruh klaim diselaraskan dengan implementasi nyata (audit 28 Nov 2026, T15).
+Sebelum publikasi: jalankan checklist §Verifikasi Pra-Rilis di bawah.
 
 ---
 
@@ -8,44 +9,45 @@ Status: **FINAL DRAFT** (Siap Rilis / Publikasi)
 **JagaMata: Jaga Jarak & Postur Layar Anak**
 
 ## Subjudul (Maks. 80 Karakter)
-Jaga mata anak dari layar dekat, ruangan gelap, dan postur menunduk.
+Pengingat kebiasaan layar sehat untuk anak — jarak, cahaya, postur.
 
 ## Deskripsi Singkat (Maks. 80 Karakter)
-Pantau kesehatan mata anak secara offline real-time bersama Maskot Kiko.
+Pantau kebiasaan layar anak secara offline, bersama maskot Kiko.
 
 ## Deskripsi Lengkap
 
-**JagaMata** adalah asisten cerdas bagi orang tua untuk melindungi kesehatan mata anak saat menggunakan smartphone atau tablet. Didukung oleh teknologi kecerdasan buatan (*On-Device AI*), JagaMata mendeteksi kebiasaan layar yang berisiko memicu miopia (rabun jauh), mata lelah, dan leher kaku secara otomatis tanpa mengganggu kenyamanan belajar anak.
+**JagaMata** adalah pengingat kebiasaan layar untuk anak. Aplikasi mendeteksi kebiasaan berisiko — terlalu dekat ke layar, ruangan gelap, dan postur menunduk — lalu mengingatkan lewat maskot Kiko. Semua pemrosesan berjalan **di perangkat (on-device)**; tidak ada foto/video yang disimpan atau dikirim.
 
-### 🌟 Fitur Unggulan JagaMata:
+### Fitur
 
-1. **📏 Pengingat Jarak Layar Real-Time**
-   Mendeteksi jarak mata ke layar ponsel secara otomatis. Jika anak menatap layar lebih dekat dari batas aman (misal < 35 cm), Maskot Kiko yang ramah akan muncul memperingatkan anak untuk memundurkan layar.
+1. **Pengingat Jarak Layar Real-Time**
+   Estimasi jarak mata ke layar dari kamera (tanpa LiDAR/ToF). Saat jarak melewati batas yang diatur orang tua (default 30 cm), Kiko muncul mengingatkan anak untuk mundur.
 
-2. **💡 Deteksi Pencahayaan Ruangan**
-   Sensor cahaya pintar mengingatkan anak untuk menyalakan lampu saat ruangan terlalu gelap (< 150 lux), mencegah kelelahan akomodasi mata.
+2. **Deteksi Pencahayaan Ruangan**
+   Mengingatkan saat ruangan terlalu gelap (default < 150 lux) agar anak menyalakan lampu.
 
-3. **🧘 Pemantau Postur Leher & Kepala**
-   Model machine learning canggih mendeteksi sudut kemiringan kepala agar anak terbiasa duduk tegak dan tidak bungkuk saat menatap layar.
+3. **Pemantau Postur Kepala**
+   Model di perangkat memperkirakan sudut kepala; postur menunduk berulang memicu peringatan.
 
-4. **🦉 Karakter Sahabat Anak: Maskot Kiko**
-   Peringatan disampaikan secara edukatif dan menyenangkan melalui animasi burung hantu Kiko, tanpa membuat anak merasa dimarahi atau takut.
+4. **Maskot Kiko**
+   Peringatan disampaikan dengan ramah lewat karakter burung hantu Kiko — bukan nada menyalahkan.
 
-5. **⏱️ Aturan Istirahat 20-20-20**
-   Mengajak anak istirahat sejenak setiap 20 menit untuk memandang objek jauh sejauh 6 meter selama 20 detik, menjaga kesegaran otot mata.
+5. **Mode Orang Tua (terproteksi PIN)**
+   Ambang batas jarak/lux/postur, kalibrasi jarak, statistik, dan laporan dilindungi PIN 4 digit yang dibuat saat onboarding (bukan PIN default).
 
-6. **🔒 Area Khusus Orang Tua Terproteksi PIN**
-   Pengaturan ambang batas jarak, target waktu bermain harian, serta data statistik dilindungi oleh PIN 4-digit yang aman.
+6. **Statistik & Laporan Mingguan**
+   Ringkasan kebiasaan layar 7 hari, grafik, dan ekspor laporan (PDF/PNG) untuk dibagikan ke WhatsApp keluarga.
 
-7. **📊 Laporan & Analisis Mingguan**
-   Pantau grafik kebiasaan menatap layar anak selama 7 hari terakhir dan bagikan ringkasan laporan kesehatan mata langsung ke WhatsApp keluarga atau dokter.
+### Batas yang Perlu Diketahui (jujur)
+- Estimasi jarak berbasis ukuran wajah — presisi tergantung kalibrasi & pencahayaan; **bukan alat ukur medis**.
+- Fitur istirahat 20-20-20, batas waktu bermain harian, dan target usia 3+ **belum** berfungsi penuh pada versi ini.
+- Aplikasi ini **bukan** alat diagnosis/pencegah miopia — murni pengingat kebiasaan layar sehat.
 
----
-
-### 🛡️ Jaminan Privasi 100% On-Device (Zero Data Collection)
-- **Tanpa Internet:** JagaMata berfungsi sepenuhnya secara offline.
-- **Tanpa Simpan Foto:** Kamera depan hanya memproses titik antropometri secara instan di memori RAM sementara. Tidak ada foto atau video yang pernah disimpan di memori HP, apalagi dikirim ke internet.
-- **Bebas Iklan & Pelacak:** Dirancang murni untuk kesehatan anak dan ketenangan pikiran orang tua.
+### Privasi
+- **Pemrosesan on-device:** frame kamera diproses di memori perangkat; tidak ada foto/video yang disimpan atau dikirim.
+- **Izin INTERNET tidak dipakai** untuk fungsi inti (deteksi berjalan offline).
+- Data statistik disimpan lokal (Room/DataStore) di HP anak.
+- Anda dapat menghapus seluruh data kapan saja dari menu Privasi.
 
 ---
 
@@ -53,16 +55,17 @@ Pantau kesehatan mata anak secara offline real-time bersama Maskot Kiko.
 Parenting / Kesehatan & Kebugaran
 
 ## Target Usia (Age Rating)
-3+ (Cocok untuk Semua Umur / Keluarga)
+Teen (13+) atau sesuai kebijakan Play — aplikasi memantau perangkat anak; wajib menyiapkan kebijakan privasi yang akurat sebelum publikasi.
 
 ## Kata Kunci Penelusuran (Keywords)
-kesehatan mata anak, jaga jarak layar, screen time anak, parental control, cegah miopia, rabun jauh anak, postur leher, screen distance monitor, waktu main gadget, maskot kiko
+pengingat jarak layar, screen time anak, postur anak, kebiasaan layar, offline, maskot kiko
 
-## Rencana Screenshot untuk Listing Toko:
-1. Layar Beranda Fresh & Sapaan Ramah Sahabat
-2. Layar Pantau Jarak Live dengan Indikator Gauge Aman
-3. Layar Peringatan Maskot Kiko ("Terlalu dekat! Ayo mundur sedikit")
-4. Layar Istirahat 20-20-20
-5. Dashboard Orang Tua & Grafik Riwayat Kebiasaan 7 Hari
-6. Pengaturan Ambang Jarak & Kunci PIN Aman
-7. Komitmen Privasi 100% On-Device\n
+---
+
+## Verifikasi Pra-Rilis (wajib sebelum submit)
+- [ ] `aapt dump permissions` merged manifest → **tanpa INTERNET** (sudah `tools:node="remove"`)
+- [ ] Data Safety form: deklarasikan "tidak ada data dikumpulkan/di-share"; kamera diproses on-device
+- [ ] URL kebijakan privasi akurat (pemrosesan on-device + SDK pihak ketiga bila ada)
+- [ ] Klaim medis dihapus (sudah: "pengingat kebiasaan, bukan alat medis")
+- [ ] Tidak ada fitur yang diklaim belum berfungsi (sudah ditandai di "Batas yang Perlu Diketahui")
+- [ ] Uji offline penuh (mode pesawat) seluruh sesi (KPI K8)

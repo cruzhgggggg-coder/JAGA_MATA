@@ -34,9 +34,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.core.app.NotificationManagerCompat
 import com.jagamata.app.R
+import com.jagamata.app.report.ReportGenerator
 import com.jagamata.app.ui.components.BottomCtaBar
 import com.jagamata.app.ui.components.JagaCard
 import com.jagamata.app.ui.components.SecondaryButton
@@ -60,6 +63,7 @@ fun DeleteDataScreen(
     var showConfirm by remember { mutableStateOf(false) }
     var deleted by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     Column(
         modifier =
@@ -159,7 +163,11 @@ fun DeleteDataScreen(
                     onClick = {
                         showConfirm = false
                         scope.launch {
+                            // M12: urutan hapus menyeluruh — DB+DataStore (dari caller),
+                            // lalu file laporan di cache, lalu notifikasi yang masih tampil.
                             onDeleteAll()
+                            ReportGenerator.clearReportCache(context)
+                            NotificationManagerCompat.from(context).cancelAll()
                             deleted = true
                         }
                     },

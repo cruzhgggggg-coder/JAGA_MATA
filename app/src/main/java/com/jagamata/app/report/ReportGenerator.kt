@@ -15,6 +15,11 @@ import java.io.FileOutputStream
  * untuk dibagikan lewat share sheet (ACTION_SEND / WhatsApp).
  *
  * [summarize] murni (diuji unit test); [renderPng] bergantung Android.
+ *
+ * M13: isi laporan tidak boleh mengklaim status klinis / validasi medis —
+ * semua teks statis diekspor sebagai konstanta/fungsi murni agar diuji unit test.
+ * M12: file laporan di `cacheDir/reports` harus ikut terhapus saat
+ * "Hapus Semua Data" — lihat [clearReportCache].
  */
 object ReportGenerator {
     data class ReportSummary(
@@ -53,7 +58,73 @@ object ReportGenerator {
             appendLine("Menit gelap: ${summary.totalDarkMinutes} menit")
             appendLine("Pelanggaran postur: ${summary.totalPostureViolations} kali")
             appendLine("Total siklus pemantauan: ${summary.totalCycles}")
+            appendLine()
+            appendLine(DISCLAIMER)
         }
+
+    /**
+     * Disclaimer wajib di setiap laporan (M13): menegaskan laporan ini informatif,
+     * bukan alat diagnosis atau pencegah miopia.
+     */
+    const val DISCLAIMER =
+        "Bukan alat diagnosis/pencegah miopia — pengingat kebiasaan layar sehat. " +
+            "Data pengukuran informatif, bukan medis."
+
+    /**
+     * Disclaimer dipecah jadi baris agar muat di lebar PNG tanpa clipping.
+     * Invariant (diuji unit test): [joinToString] " " harus sama dengan [DISCLAIMER].
+     */
+    fun disclaimerLines(): List<String> =
+        listOf(
+            "Bukan alat diagnosis/pencegah miopia —",
+            "pengingat kebiasaan layar sehat.",
+            "Data pengukuran informatif, bukan medis.",
+        )
+
+    /** Nama folder di `cacheDir` tempat PDF/PNG laporan ditulis (M12). */
+    const val REPORT_DIR_NAME = "reports"
+
+    /**
+     * Path folder laporan — fungsi murni (diuji unit test tanpa Context).
+     * `clearReportCache` memakai ini lalu menghapus rekursif.
+     */
+    fun reportCacheDir(cacheDir: File): File = File(cacheDir, REPORT_DIR_NAME)
+
+    /**
+     * Hapus seluruh folder laporan di cache (M12). Murni terhadap [cacheRoot]
+     * agar bisa diuji unit test; versi Context ada di [clearReportCache].
+     *
+     * @return true bila folder sudah tidak ada setelah dipanggil.
+     */
+    fun deleteReportCache(cacheRoot: File): Boolean {
+        val dir = reportCacheDir(cacheRoot)
+        return !dir.exists() || dir.deleteRecursively()
+    }
+
+    /**
+     * Hapus berkas laporan anak (PDF/PNG berisi nama, usia, statistik) dari cache.
+     * Dipanggil pada urutan "Hapus Semua Data" agar tidak ada file tertinggal.
+     */
+    fun clearReportCache(context: Context) {
+        deleteReportCache(context.cacheDir)
+    }
+
+    /**
+     * Format angka ambang untuk tampilan laporan (M13): nilai bulat tanpa desimal,
+     * nilai desimal dipertahankan. Contoh: 30f -> "30", 30.5f -> "30.5".
+     */
+    fun formatThreshold(value: Float): String = if (value % 1f == 0f) value.toInt().toString() else value.toString()
+
+    /**
+     * Baris ambang pada PDF — diformat dari nilai AKTIF yang diteruskan caller
+     * (bukan hardcoded). Tipe Thresholds milik wave lain belum tersedia, jadi
+     * renderPdf menerima param Float biasa; default mengikuti SettingsRepository
+     * (DEFAULT_CLOSE_CM = 30f, DEFAULT_LUX = 150f).
+     */
+    fun thresholdLine(
+        closeThresholdCm: Float,
+        luxThreshold: Float,
+    ): String = "Jarak >= ${formatThreshold(closeThresholdCm)} cm | Cahaya >= ${formatThreshold(luxThreshold)} lux"
 
     const val PNG_WIDTH = 1080
     const val PNG_HEIGHT = 1920
@@ -80,7 +151,7 @@ object ReportGenerator {
         canvas.drawText("Laporan Mingguan JagaMata", 60f, y, inkPaint)
         y += 120f
         for (line in summaryText(summary).lines().drop(1)) {
-            if (line.isBlank()) continue
+            if (line.isBlank() || line == DISCLAIMER) continue
             canvas.drawText(line, 60f, y, bodyPaint)
             y += 80f
         }
@@ -109,20 +180,40 @@ object ReportGenerator {
                 posturePaint,
             )
         }
+
+        // Disclaimer wajib (M13): laporan informatif, bukan alat medis.
+        val disclaimerPaint =
+            Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.parseColor("#64748B")
+                textSize = 30f
+                textAlign = Paint.Align.CENTER
+            }
+        var dy = PNG_HEIGHT - 140f
+        for (line in disclaimerLines()) {
+            canvas.drawText(line, PNG_WIDTH / 2f, dy, disclaimerPaint)
+            dy += 40f
+        }
         return bitmap
     }
 
     /**
-     * Render dokumen PDF format standar A4 (595 x 842 pt) untuk konsultasi dokter mata / arsip ortu.
+     * Render dokumen PDF format standar A4 (595 x 842 pt) sebagai arsip ortu /
+     * bahan diskusi dengan tenaga kesehatan (bukan dokumen medis).
      * Menggunakan native Android android.graphics.pdf.PdfDocument tanpa pustaka pihak ketiga.
+     *
+     * M13: [closeThresholdCm] & [luxThreshold] adalah nilai AKTIF dari
+     * SettingsRepository yang diteruskan caller (WeeklyReportScreen) — jangan
+     * hardcode ambang di sini. Tipe Thresholds milik wave lain belum tersedia.
      */
     fun renderPdf(
         context: Context,
         summary: ReportSummary,
         childName: String = "Sahabat",
         childAge: Int = 8,
+        closeThresholdCm: Float = 30f,
+        luxThreshold: Float = 150f,
     ): File {
-        val dir = File(context.cacheDir, "reports").apply { mkdirs() }
+        val dir = reportCacheDir(context.cacheDir).apply { mkdirs() }
         val pdfFile = File(dir, "Laporan_JagaMata_Mingguan.pdf")
 
         val document = PdfDocument()
@@ -147,16 +238,16 @@ object ReportGenerator {
                 textSize = 20f
                 isFakeBoldText = true
             }
-        canvas.drawText("JagaMata — Laporan Kesehatan Mata & Skrining Layar", 30f, 45f, titlePaint)
+        canvas.drawText("JagaMata — Laporan Kebiasaan Layar Anak", 30f, 45f, titlePaint)
 
         val subtitlePaint =
             Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 color = Color.parseColor("#E1EFFF")
                 textSize = 11f
             }
-        canvas.drawText("Protokol Pemantauan Jarak On-Device (Rule 20-20-20 & Distance Compliance)", 30f, 68f, subtitlePaint)
+        canvas.drawText("Ringkasan pemantauan jarak & pencahayaan layar (on-device)", 30f, 68f, subtitlePaint)
 
-        // Info Pasien / Anak Card
+        // Info Anak Card
         val cardPaint =
             Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 color = Color.parseColor("#F2F7FF")
@@ -189,15 +280,15 @@ object ReportGenerator {
         canvas.drawText("Periode:", 45f, 155f, textBold)
         canvas.drawText(summary.periodLabel.ifEmpty { "7 Hari Terakhir" }, 130f, 155f, textBody)
 
-        canvas.drawText("Metode Evaluasi:", 320f, 135f, textBold)
-        canvas.drawText("Kamera Depan 5 FPS (On-Device)", 430f, 135f, textBody)
+        canvas.drawText("Metode:", 320f, 135f, textBold)
+        canvas.drawText("Kamera Depan 5 FPS (On-Device)", 400f, 135f, textBody)
 
-        canvas.drawText("Ambang Aman:", 320f, 155f, textBold)
-        canvas.drawText("Jarak >= 30 cm | Cahaya >= 150 lux", 430f, 155f, textBody)
+        canvas.drawText("Ambang:", 320f, 155f, textBold)
+        canvas.drawText(thresholdLine(closeThresholdCm, luxThreshold), 400f, 155f, textBody)
 
         // Ringkasan Metrik
         var y = 220f
-        canvas.drawText("RINGKASAN KEPATUHAN & STATUS KLINIS", 30f, y, textBold)
+        canvas.drawText("RINGKASAN PEMANTAUAN", 30f, y, textBold)
         y += 15f
         val dividerPaint =
             Paint().apply {
@@ -207,7 +298,8 @@ object ReportGenerator {
         canvas.drawLine(30f, y, 565f, y, dividerPaint)
         y += 25f
 
-        // 4 Kotak Metrik (KPI)
+        // 4 Kotak Metrik (KPI) — M13: label harus sesuai isi; "Pelanggaran Postur"
+        // menampilkan JUMLAH pelanggaran (bukan "Kepatuhan" yang maknanya terbalik).
         val kpiWidth = 125f
         val kpis =
             listOf(
@@ -218,7 +310,7 @@ object ReportGenerator {
                     if (summary.totalCloseViolations > 10) "#FF7B6B" else "#50C878",
                 ),
                 Triple("Menit Ruang Gelap", "${summary.totalDarkMinutes} mnt", if (summary.totalDarkMinutes > 30) "#FFD166" else "#50C878"),
-                Triple("Kepatuhan Postur", "${summary.totalPostureViolations}x", "#4A86E8"),
+                Triple("Pelanggaran Postur", "${summary.totalPostureViolations}x", "#4A86E8"),
             )
         for (i in kpis.indices) {
             val kpiLeft = 30f + i * (kpiWidth + 8f)
@@ -275,9 +367,9 @@ object ReportGenerator {
             }
         canvas.drawText("Hari / Tanggal", 40f, y + 15f, thText)
         canvas.drawText("Total Sesi", 170f, y + 15f, thText)
-        canvas.drawText("Jarak < 30 cm", 270f, y + 15f, thText)
+        canvas.drawText("Jarak < ${formatThreshold(closeThresholdCm)} cm", 270f, y + 15f, thText)
         canvas.drawText("Ruang Gelap", 380f, y + 15f, thText)
-        canvas.drawText("Status Risiko", 480f, y + 15f, thText)
+        canvas.drawText("Status Hari", 480f, y + 15f, thText)
 
         y += 25f
         val days = summary.perDay.take(7)
@@ -310,9 +402,10 @@ object ReportGenerator {
             y += 20f
         }
 
-        // Rekomendasi Medis & Validasi Model Miopia
+        // Tips kebiasaan layar sehat — M13: tanpa klaim klinis, tanpa "p < 0.001",
+        // tanpa tanda tangan dokter (laporan bukan dokumen medis).
         y += 30f
-        canvas.drawText("CATATAN DOKTER & REKOMENDASI PREVENTIF MIOPIA", 30f, y, textBold)
+        canvas.drawText("TIPS KEBIASAAN LAYAR SEHAT", 30f, y, textBold)
         y += 15f
         canvas.drawLine(30f, y, 565f, y, dividerPaint)
         y += 20f
@@ -339,36 +432,27 @@ object ReportGenerator {
         var ry = y + 18f
         val recoLines =
             listOf(
-                "1. Aturan 20-20-20: Setiap 20 menit menatap layar, pandang objek berjarak 6 meter selama minimal 20 detik.",
-                "2. Validasi Klinis Miopia (SPORTHR, p < 0.001): Tingkatkan aktivitas luar ruangan minimal 1.5 - 2 jam per hari.",
-                "   Penelitian membuktikan sinar matahari alami merangsang pelepasan dopamin retina penghambat pemanjangan aksial bola mata.",
-                "3. Pertahankan pencahayaan ruangan di atas 150 lux dan hindari penggunaan gawai di ruangan gelap total sebelum tidur.",
-                "4. Jika anak sering mengucek mata atau memicingkan mata saat melihat jauh, segera konsultasikan ke Dokter Spesialis Mata (Sp.M).",
+                "1. Aturan 20-20-20: setiap 20 menit menatap layar, pandang objek berjarak 6 meter selama 20 detik.",
+                "2. Sediakan waktu bermain/aktivitas di luar ruangan yang cukup — paparan cahaya alami mendukung",
+                "   kesehatan mata anak.",
+                "3. Pertahankan pencahayaan ruangan di atas ${formatThreshold(luxThreshold)} lux dan hindari penggunaan",
+                "   gawai di ruangan gelap total sebelum tidur.",
+                "4. Bila anak sering mengucek mata atau memicingkan mata saat melihat jauh, periksakan ke dokter.",
             )
         for (line in recoLines) {
             canvas.drawText(line, 42f, ry, recoText)
-            ry += 18f
+            ry += 16f
         }
 
-        // Tanda Tangan
+        // Tanda tangan ortu saja — laporan bukan dokumen medis, tidak ada
+        // kolom "Dokter Spesialis Mata / Pemeriksa" (M13).
         y += 135f
         canvas.drawText("Orang Tua / Wali Murid,", 60f, y, textBody)
-        canvas.drawText("Dokter Spesialis Mata / Pemeriksa,", 360f, y, textBody)
         y += 45f
         canvas.drawLine(
             60f,
             y,
-            200f,
-            y,
-            Paint().apply {
-                color = Color.parseColor("#94A3B8")
-                strokeWidth = 1f
-            },
-        )
-        canvas.drawLine(
-            360f,
-            y,
-            520f,
+            240f,
             y,
             Paint().apply {
                 color = Color.parseColor("#94A3B8")
@@ -385,27 +469,23 @@ object ReportGenerator {
                 textSize = 9f
             },
         )
-        canvas.drawText(
-            "(..........................................)",
-            360f,
-            y,
-            Paint().apply {
-                color = Color.parseColor("#94A3B8")
-                textSize = 9f
-            },
-        )
 
-        // Footer
+        // Footer — M13: disclaimer medis wajib tampil di setiap halaman laporan.
         val footerPaint =
             Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = Color.parseColor("#94A3B8")
+                color = Color.parseColor("#64748B")
                 textSize = 8.5f
                 textAlign = Paint.Align.CENTER
             }
+        var fy = 792f
+        for (line in disclaimerLines()) {
+            canvas.drawText(line, 595f / 2f, fy, footerPaint)
+            fy += 13f
+        }
         canvas.drawText(
-            "Dokumen ini dihasilkan secara otomatis oleh Aplikasi JagaMata — On-Device Eye Protection Platform",
+            "Dihasilkan otomatis oleh Aplikasi JagaMata.",
             595f / 2f,
-            825f,
+            fy + 2f,
             footerPaint,
         )
 

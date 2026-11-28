@@ -346,7 +346,16 @@ Verifikasi putaran 2 tidak menolak satu pun temuan utama. Tiga sub-klaim dikorek
 | **M18** | ✅ FIXED (28 Nov) | Pipeline berhenti saat `SCREEN_OFF` (flag gate); siklus tanpa wajah/sampel tidak ditulis ke snapshot |
 | **M20** | ✅ FIXED (28 Nov) | Observasi `cameraState` → `cameraHealthy` StateFlow + rebind backoff 3×2 dtk (siap dikonsumsi UI) |
 | **D17, D21** | ✅ FIXED (28 Nov) | Bbox tak di-clamp untuk estimasi tinggi; pairing frame async + recycle alias-check |
-| T9, T13, T14, T15, M1, M5, M8–M11, M13–M16, M19, M21–M27 sisa, rendah | ⏳ antrean | Sinkronisasi ambang (T9/M25), dayEpoch lokal (M8), hapus data dummy (T13/T14/M22), item pra-rilis (T15/M13/M14) |
+| **T9, M25** | ✅ FIXED (28 Nov) | `Thresholds` satu sumber (exit=close+5, safe=close+20); `CycleAggregator` pakai Thresholds + aturan ≥30% sampel |
+| **M8** | ✅ FIXED (28 Nov) | `DayKeys` kunci hari lokal (Calendar, minSdk 24); persistCycle + rollup pakai kunci lokal |
+| **M9, M11** | ✅ FIXED (28 Nov) | Rollup lewati 0-siklus; backfill ≤30 hari; laporan 7 hari kalender |
+| **M10** | ✅ FIXED (28 Nov) | `StatsRepository` jendela eksplisit (Dashboard/Beranda/Statistik satu rumus) |
+| **T13, T14, M22, M23** | ✅ FIXED (28 Nov) | Statistik & grafik Dashboard data nyata (tanpa dummy); chip/teks Beranda dari status & ambang aktif |
+| **M13, M12** | ✅ FIXED (28 Nov) | PDF tanpa klaim klinis + disclaimer; Hapus Data ikut bersihkan `cacheDir/reports` + cancel notif |
+| **T15** | ✅ FIXED (28 Nov) | Draft listing Play Store ditulis ulang jujur + checklist pra-rilis |
+| **M14** | ✅ FIXED (28 Nov) | `INTERNET` `tools:node="remove"` (ML Kit bundled, inferensi offline) — klaim offline kini benar |
+| **A14, B37** | ✅ FIXED (28 Nov) | Baris privasi fungsional (info + ringkasan expand); `FLAG_SECURE` di MainActivity |
+| Sisa M/rendah (M1, M5, M15, M16, M19, M21, M24, M26, M27, A7–A13, V-A*, D12–D21 sisa, R*, U*, S*) | ⏳ antrean | Termasuk item yang butuh validasi runtime di HP (PLAUSIBLE) |
 
 ---
 *Detail bukti per temuan (file:baris, trace, skrip replika) tersedia di berkas kerja audit: `A_keamanan.md`, `B_deteksi.md`, `C_service.md`, `D_data.md`, `E_ui.md` (putaran 1) dan `V1_keamanan_ui.md`, `V2_deteksi_service.md`, `V3_data_sinkron.md` (putaran 2).*
