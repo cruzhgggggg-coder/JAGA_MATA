@@ -106,13 +106,16 @@ class DetectionStateMachineTest {
     }
 
     @Test
-    fun `09 null face 2 dtk mengeluarkan dari BLOCKED (analog exit)`() {
+    fun `09 null face saat BLOCKED ditahan grace 10 dtk lalu OK (T7)`() {
         val h = Harness()
         h.feed(distanceCm = 25f)
         h.feed(distanceCm = 25f, advanceMs = 600)
         assertEquals(RiskLevel.BLOCKED, h.machine.current())
-        h.feed(distanceCm = null, advanceMs = 100)
-        assertEquals(RiskLevel.WARNING, h.feed(distanceCm = null, advanceMs = 2000))
+        // Wajah hilang 2 dtk TIDAK mematikan alarm (T7) — state ditahan selama grace.
+        assertEquals(RiskLevel.BLOCKED, h.feed(distanceCm = null, advanceMs = 100))
+        assertEquals(RiskLevel.BLOCKED, h.feed(distanceCm = null, advanceMs = 2000))
+        // Lewat grace 10 dtk sejak wajah hilang → alarm boleh turun ke OK.
+        assertEquals(RiskLevel.OK, h.feed(distanceCm = null, advanceMs = 9_000))
     }
 
     @Test
@@ -157,5 +160,56 @@ class DetectionStateMachineTest {
         // Naik ke 70 cm; timer aman mulai dari sini, butuh 2 dtk
         assertEquals(RiskLevel.WARNING, h.feed(distanceCm = 70f, advanceMs = 100))
         assertEquals(RiskLevel.OK, h.feed(distanceCm = 70f, advanceMs = 2100))
+    }
+
+    @Test
+    fun `15 M3 - debounce close tidak terreset oleh 1-2 frame null`() {
+        // Probe tajam M3: sebelum BLOCKED terkunci, 1-2 frame tanpa wajah tidak
+        // boleh mematikan timer debounce close 500 ms (missingFrameTolerance = 2).
+        val h1 = Harness()
+        h1.feed(distanceCm = 25f)
+        assertEquals(RiskLevel.OK, h1.feed(distanceCm = 25f, advanceMs = 300))
+        assertEquals(RiskLevel.OK, h1.feed(distanceCm = null, advanceMs = 100))
+        // Total 500 ms sejak kontak dekat pertama -> BLOCKED (timer dipertahankan).
+        assertEquals(RiskLevel.BLOCKED, h1.feed(distanceCm = 25f, advanceMs = 100))
+
+        // Varian 2 frame null berturut-turut (batas toleransi).
+        val h2 = Harness()
+        h2.feed(distanceCm = 25f)
+        assertEquals(RiskLevel.OK, h2.feed(distanceCm = 25f, advanceMs = 300))
+        assertEquals(RiskLevel.OK, h2.feed(distanceCm = null, advanceMs = 50))
+        assertEquals(RiskLevel.OK, h2.feed(distanceCm = null, advanceMs = 50))
+        assertEquals(RiskLevel.BLOCKED, h2.feed(distanceCm = 25f, advanceMs = 150))
+    }
+
+    @Test
+    fun `16 M3 - BLOCKED bertahan melewati 1 frame null lalu dekat lagi`() {
+        val h = Harness()
+        h.feed(distanceCm = 25f)
+        h.feed(distanceCm = 25f, advanceMs = 600)
+        assertEquals(RiskLevel.BLOCKED, h.machine.current())
+        // 1 frame tanpa wajah: state ditahan, debounce close tidak terreset.
+        assertEquals(RiskLevel.BLOCKED, h.feed(distanceCm = null, advanceMs = 100))
+        // Kembali 25 cm: langsung BLOCKED tanpa jeda debounce ulang.
+        assertEquals(RiskLevel.BLOCKED, h.feed(distanceCm = 25f, advanceMs = 100))
+    }
+
+    @Test
+    fun `17 M3 - 4 frame null berturut-turut mereset debounce close`() {
+        // Perilaku aktual: toleransi frame hilang hanya 2 (missingFrameTolerance),
+        // jadi frame kosong ke-3 dan seterusnya mematikan closeSinceMs — debounce
+        // 500 ms harus dihitung ulang dari nol. T7 grace (skenario 09) hanya
+        // menahan state yang SUDAH terkunci, bukan debounce yang belum sempat
+        // tercapai.
+        val h = Harness()
+        h.feed(distanceCm = 25f)
+        assertEquals(RiskLevel.OK, h.feed(distanceCm = null, advanceMs = 100))
+        assertEquals(RiskLevel.OK, h.feed(distanceCm = null, advanceMs = 100))
+        assertEquals(RiskLevel.OK, h.feed(distanceCm = null, advanceMs = 100))
+        assertEquals(RiskLevel.OK, h.feed(distanceCm = null, advanceMs = 100))
+        // Tanpa reset, closeSince = 0 -> 500 ms sudah lewat dan ini akan BLOCKED.
+        // Dengan reset, kontak dekat dihitung ulang dari titik ini.
+        assertEquals(RiskLevel.OK, h.feed(distanceCm = 25f, advanceMs = 100))
+        assertEquals(RiskLevel.BLOCKED, h.feed(distanceCm = 25f, advanceMs = 500))
     }
 }

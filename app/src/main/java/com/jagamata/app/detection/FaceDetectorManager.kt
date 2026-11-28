@@ -282,6 +282,11 @@ class FaceDetectorManager(
         } catch (_: Throwable) {
         }
         mlkitDetector = null
+        // M6: lepaskan resource backend pitch (interpreter TFLite) saat detector ditutup.
+        try {
+            pitchBackend.close()
+        } catch (_: Throwable) {
+        }
         activeBackend = DetectorBackend.NONE
     }
 

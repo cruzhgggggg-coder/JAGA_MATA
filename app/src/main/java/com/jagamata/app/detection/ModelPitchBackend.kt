@@ -28,6 +28,7 @@ import java.nio.channels.FileChannel
 class ModelPitchBackend(
     private val context: Context,
     private val modelAsset: String = MODEL_ASSET,
+    private val fallback: PitchBackend = LandmarkPitchBackend(),
 ) : PitchBackend {
     private val lock = Any()
     private var interpreter: Interpreter? = null
@@ -39,8 +40,15 @@ class ModelPitchBackend(
         landmarks: List<LandmarkPoint>,
         faceCrop: Bitmap?,
     ): Float? {
-        if (faceCrop == null) return null
-        val interp = ensureInterpreter() ?: return null
+        if (faceCrop == null) {
+            // Tanpa crop model tidak bisa jalan - geometri landmark tetap bisa (M6).
+            return fallback.pitchDeg(landmarks, faceCrop)
+        }
+        val interp = ensureInterpreter()
+        if (interp == null) {
+            // M6: model gagal dimuat -> fallback LandmarkPitchBackend, bukan null permanen.
+            return fallback.pitchDeg(landmarks, faceCrop)
+        }
         return try {
             synchronized(lock) {
                 val input = preprocess(faceCrop) ?: return null
@@ -49,7 +57,7 @@ class ModelPitchBackend(
                 val pitch = output[0][0]
                 val yaw = output[0][1]
                 if (abs(yaw) >= YAW_GUARDRAIL_DEG) {
-                    // Kepala menoleh jauh dari layar — pitch tidak dipercaya.
+                    // Kepala menoleh jauh dari layar - pitch tidak dipercaya.
                     null
                 } else {
                     // Konversi tanda ke konvensi JagaMata (positif = menunduk).
@@ -58,7 +66,8 @@ class ModelPitchBackend(
             }
         } catch (t: Throwable) {
             Log.w(TAG, "Inferensi pitch gagal: ${t.message}")
-            null
+            // M6: kegagalan inferensi -> fallback landmark, jangan null permanen.
+            fallback.pitchDeg(landmarks, faceCrop)
         }
     }
 
@@ -121,7 +130,8 @@ class ModelPitchBackend(
         return buffer
     }
 
-    fun close() {
+    /** Lepaskan interpreter TFLite (M6: cegah kebocoran native per sesi). Idempoten. */
+    override fun close() {
         synchronized(lock) {
             interpreter?.close()
             interpreter = null

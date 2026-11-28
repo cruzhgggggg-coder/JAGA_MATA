@@ -35,6 +35,9 @@ class CalibrationViewModel(application: Application) : AndroidViewModel(applicat
 
     private var sampleStartTimeMs: Long = 0L
 
+    /** True bila anchor waktu progress sudah diambil dari sampel pertama. */
+    private var progressAnchored: Boolean = false
+
     /** Tinggi wajah acuan sesuai usia — harus sama dengan yang dipakai runtime. */
     private var childFaceHeightCm: Float = com.jagamata.app.detection.DistanceEstimator.DEFAULT_FACE_HEIGHT_CM
 
@@ -53,7 +56,8 @@ class CalibrationViewModel(application: Application) : AndroidViewModel(applicat
 
     fun startCalibration() {
         calibrationManager.reset()
-        sampleStartTimeMs = System.currentTimeMillis()
+        sampleStartTimeMs = 0L
+        progressAnchored = false
         _uiState.value =
             _uiState.value.copy(
                 isCalibrating = true,
@@ -96,8 +100,18 @@ class CalibrationViewModel(application: Application) : AndroidViewModel(applicat
             return
         }
 
-        val now = System.currentTimeMillis()
-        val focalPx = calibrationManager.addSample(height, now, childFaceHeightCm)
+        // height != null menyiratkan result != null (height berasal dari result).
+        val detection = result ?: return
+        // Waktu monoton dari pipeline deteksi (elapsedRealtime, M4) —
+        // bukan System.currentTimeMillis yang bisa mundur dan memecahkan window stabil.
+        val now = detection.timestampMs
+        if (!progressAnchored) {
+            sampleStartTimeMs = now
+            progressAnchored = true
+        }
+        // T10: teruskan pitch saat ini supaya kalibrasi memakai tinggi efektif
+        // yang sama dengan rumus jarak runtime.
+        val focalPx = calibrationManager.addSample(height, now, childFaceHeightCm, detection.pitchDeg)
         val elapsed = (now - sampleStartTimeMs).toFloat()
         val prog = (elapsed / CalibrationManager.STABILITY_MS.toFloat()).coerceIn(0f, 1f)
 

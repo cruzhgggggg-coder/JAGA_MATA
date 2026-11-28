@@ -16,16 +16,27 @@ class CalibrationManager(
 
     /**
      * Tambahkan sampel tinggi wajah (px) pada [timestampMs].
+     *
+     * [pitchDeg] (opsional) adalah head pitch saat sampel diambil; tinggi wajah
+     * dikompensasi memakai fungsi yang sama dengan runtime ([DistanceEstimator.effectiveFaceHeightPx])
+     * supaya f_px yang dihasilkan konsisten dengan rumus jarak runtime (T10).
+     *
      * @return f_px jika seri sudah stabil ≥ [stabilityMs], selain itu null.
      */
     fun addSample(
         faceHeightPx: Float,
         timestampMs: Long,
         faceHeightCm: Float = REFERENCE_FACE_HEIGHT_CM,
+        pitchDeg: Float? = null,
     ): Float? {
         if (faceHeightPx <= 0f) return null
-        recentSamples.addLast(timestampMs to faceHeightPx)
-        while (recentSamples.isNotEmpty() && timestampMs - recentSamples.first().first > stabilityMs) {
+        val effectiveHeightPx = DistanceEstimator.effectiveFaceHeightPx(faceHeightPx, pitchDeg)
+        if (!effectiveHeightPx.isFinite() || effectiveHeightPx <= 0f) return null
+        recentSamples.addLast(timestampMs to effectiveHeightPx)
+        // T11: pangkas hanya bila sampel KEDUA sudah menutup window stabilityMs —
+        // dengan begitu span (terakhir - pertama) selalu bisa mencapai >= stabilityMs
+        // pada fps berapa pun (15/24/30), bukan hanya saat span tepat == stabilityMs.
+        while (recentSamples.size >= 2 && timestampMs - recentSamples[1].first >= stabilityMs) {
             recentSamples.removeFirst()
         }
         if (!isStable()) return null
@@ -55,7 +66,12 @@ class CalibrationManager(
         const val STABILITY_MS = 1500L
         const val DEFAULT_TOLERANCE_PX = 18f
 
-        /** Rumus PRD: f_px = h_px_kalib × 30 / 15. */
+        /**
+         * Rumus PRD: f_px = h_px_kalib × 30 / 15.
+         * [calibrationFaceHeightPx] harus tinggi efektif (sudah dikompensasi pitch
+         * lewat [DistanceEstimator.effectiveFaceHeightPx]) supaya sama dengan
+         * tinggi yang dipakai rumus jarak runtime (T10).
+         */
         fun focalPxFromCalibration(
             calibrationFaceHeightPx: Float,
             faceHeightCm: Float = REFERENCE_FACE_HEIGHT_CM,

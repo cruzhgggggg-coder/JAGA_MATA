@@ -8,6 +8,7 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
+import android.os.SystemClock
 import android.util.Log
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
@@ -54,6 +55,9 @@ class DetectionForegroundService : LifecycleService() {
     private var cameraProvider: ProcessCameraProvider? = null
     private val analysisExecutor = Executors.newSingleThreadExecutor()
     private var lastFrameTimeMs: Long = 0L
+
+    /** Referensi backend model pitch agar interpreter bisa di-close (M6). */
+    private var modelPitchBackend: ModelPitchBackend? = null
     private val isAnalyzing = java.util.concurrent.atomic.AtomicBoolean(false)
     private var initialized = false
 
@@ -75,11 +79,13 @@ class DetectionForegroundService : LifecycleService() {
         settings = SettingsRepository(this)
         aggregator = CycleAggregator()
         stateMachine = DetectionStateMachine()
+        val modelPitch = ModelPitchBackend(this)
+        modelPitchBackend = modelPitch
         val pitchBackend =
             PitchBackendFactory.resolve(
                 useTfliteFlag = BuildConfig.USE_TFLITE_PITCH,
                 tfliteModelAvailable = ModelPitchBackend.modelExists(this),
-                tflite = ModelPitchBackend(this),
+                tflite = modelPitch,
             )
         detector = FaceDetectorManager(this, pitchBackend) { result -> onDetection(result) }
         lightMonitor = com.jagamata.app.detection.LightMonitor(this)
@@ -222,7 +228,9 @@ class DetectionForegroundService : LifecycleService() {
                         .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_YUV_420_888)
                         .build()
                 analysis.setAnalyzer(analysisExecutor) { proxy ->
-                    val ts = System.currentTimeMillis()
+                    // M4: waktu monoton (elapsedRealtime) untuk timeline deteksi/throttle -
+                    // System.currentTimeMillis bisa mundur dan membekukan debounce.
+                    val ts = SystemClock.elapsedRealtime()
                     // Optimasi ringan & hemat baterai (Blueprint §3.1 & §5.2): Batasi ke 5 FPS (200 ms)
                     // dan buang frame lama jika proses sebelumnya belum tuntas (Cegah antrean/lag)
                     if (ts - lastFrameTimeMs < FRAME_INTERVAL_MS || !isAnalyzing.compareAndSet(false, true)) {
@@ -363,6 +371,9 @@ class DetectionForegroundService : LifecycleService() {
     override fun onDestroy() {
         ticker?.stop()
         if (this::detector.isInitialized) detector.close()
+        // M6: tutup interpreter TFLite pitch (idempoten) agar tidak bocor per sesi.
+        modelPitchBackend?.close()
+        modelPitchBackend = null
         if (this::lightMonitor.isInitialized) lightMonitor.stop()
         cameraProvider?.unbindAll()
         analysisExecutor.shutdown()

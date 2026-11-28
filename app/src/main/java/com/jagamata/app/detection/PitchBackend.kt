@@ -16,6 +16,9 @@ interface PitchBackend {
 
     /** True bila backend membutuhkan crop wajah sebagai masukan. */
     fun requiresFaceCrop(): Boolean = false
+
+    /** Lepaskan resource (mis. interpreter TFLite). Default no-op. */
+    fun close() {}
 }
 
 /**

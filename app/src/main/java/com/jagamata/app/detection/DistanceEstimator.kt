@@ -34,20 +34,12 @@ class DistanceEstimator(
         if (faceHeightPx == null || faceHeightPx <= 0f || focalPx <= 0f) return null
         if (!faceHeightPx.isFinite() || !focalPx.isFinite()) return null
 
-        // Kompensasi kemiringan kepala (head pitch):
-        // Ketika menunduk atau ponsel dipegang agak di bawah, proyeksi tinggi wajah 2D
-        // menyusut sebesar cos(pitch). Pitch non-finite (NaN dari backend) dianggap tidak ada.
-        val effectiveFaceHeightPx =
-            if (pitchDeg != null && pitchDeg.isFinite()) {
-                val pitchRad = Math.toRadians(pitchDeg.toDouble().coerceIn(-50.0, 50.0))
-                val cosFactor = cos(pitchRad).toFloat().coerceIn(0.65f, 1.0f)
-                faceHeightPx / cosFactor
-            } else {
-                faceHeightPx
-            }
-        if (!effectiveFaceHeightPx.isFinite() || effectiveFaceHeightPx <= 0f) return null
+        // Kompensasi kemiringan kepala (head pitch) memakai fungsi bersama yang
+        // juga dipakai jalur kalibrasi (T10) supaya rumus keduanya identik.
+        val hEff = effectiveFaceHeightPx(faceHeightPx, pitchDeg)
+        if (!hEff.isFinite() || hEff <= 0f) return null
 
-        val raw = (faceHeightCm * focalPx) / effectiveFaceHeightPx
+        val raw = (faceHeightCm * focalPx) / hEff
         // Guard NaN + rentang wajar (5..200 cm) agar satu sampel liar tidak
         // meracuni EMA atau memicu pelanggaran palsu.
         return if (raw.isFinite()) raw.coerceIn(5f, 200f) else null
@@ -85,6 +77,26 @@ class DistanceEstimator(
     companion object {
         const val DEFAULT_FACE_HEIGHT_CM = 15f
         const val DEFAULT_EMA_ALPHA = 0.4f
+
+        /**
+         * Tinggi wajah efektif setelah kompensasi head pitch — SATU fungsi bersama
+         * untuk runtime dan kalibrasi (T10).
+         *
+         * Ketika menunduk / ponsel dipegang agak di bawah, proyeksi tinggi wajah 2D
+         * menyusut sebesar cos(pitch); nilai mentah dibagi cos untuk mengembalikan
+         * tinggi efektif yang dipakai rumus d = (H × f) / h_efektif.
+         * Pitch non-finite (NaN dari backend) dianggap tidak ada. Rentang pitch
+         * dibatasi ±50° dan faktor cos dibatasi 0.65 agar tidak ada pembagian liar.
+         */
+        fun effectiveFaceHeightPx(
+            faceHeightPx: Float,
+            pitchDeg: Float?,
+        ): Float {
+            if (pitchDeg == null || !pitchDeg.isFinite()) return faceHeightPx
+            val pitchRad = Math.toRadians(pitchDeg.toDouble().coerceIn(-50.0, 50.0))
+            val cosFactor = cos(pitchRad).toFloat().coerceIn(0.65f, 1.0f)
+            return faceHeightPx / cosFactor
+        }
 
         /** Tinggi wajah acuan anak berdasarkan kelompok usia antropometri. */
         fun getChildFaceHeightCm(ageYears: Int): Float =

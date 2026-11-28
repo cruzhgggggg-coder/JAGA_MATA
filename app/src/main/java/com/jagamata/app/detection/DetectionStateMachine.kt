@@ -46,6 +46,10 @@ class DetectionStateMachine(
         val poseDebounceMs: Long = 3_000L,
         val darkDebounceMs: Long = 10_000L,
         val okDebounceMs: Long = 2_000L,
+        /** Masa tenggang wajah hilang sebelum alarm dekat boleh jatuh ke OK (T7). */
+        val faceLostGraceMs: Long = 10_000L,
+        /** Toleransi frame berturut-turut tanpa wajah sebelum debounce close direset (M3). */
+        val missingFrameTolerance: Int = 2,
     )
 
     private var state: RiskLevel = RiskLevel.OK
@@ -56,6 +60,15 @@ class DetectionStateMachine(
     private var poseSinceMs: Long? = null
     private var darkSinceMs: Long? = null
     private var safeSinceMs: Long? = null
+
+    /** Jumlah frame berturut-turut tanpa wajah sejak close terakhir (M3). */
+    private var closeMissingFrames: Int = 0
+
+    /** True bila state saat ini/terakhir didorong kondisi terlalu dekat (T7). */
+    private var closeAlarmActive: Boolean = false
+
+    /** Apakah frame terakhir memuat wajah terdeteksi (dipakai gerbang gelap M7). */
+    private var lastFacePresent: Boolean = false
 
     fun current(): RiskLevel = state
 
@@ -75,12 +88,30 @@ class DetectionStateMachine(
         val pitch = result.pitchDeg
         val lux = result.lux
         lastDistanceCm = distance
+        lastFacePresent = distance != null || result.faceHeightPx != null
 
-        closeSinceMs = tick(closeSinceMs, distance != null && distance < config.closeEnterCm, now)
+        // M3: satu-dua frame hilang tidak boleh mereset debounce close 500 ms.
+        val closeCond = distance != null && distance < config.closeEnterCm
+        when {
+            closeCond -> {
+                closeMissingFrames = 0
+                closeSinceMs = closeSinceMs ?: now
+            }
+            !lastFacePresent && closeSinceMs != null && closeMissingFrames < config.missingFrameTolerance -> {
+                closeMissingFrames++
+                // closeSinceMs dipertahankan lintas frame hilang
+            }
+            else -> {
+                closeMissingFrames = 0
+                closeSinceMs = null
+            }
+        }
         exitSinceMs = tick(exitSinceMs, distance != null && distance > config.closeExitCm, now)
-        faceLostSinceMs = tick(faceLostSinceMs, distance == null, now)
+        faceLostSinceMs = tick(faceLostSinceMs, !lastFacePresent, now)
         poseSinceMs = tick(poseSinceMs, pitch != null && pitch > config.pitchThresholdDeg, now)
-        darkSinceMs = tick(darkSinceMs, lux != null && lux < config.luxThreshold, now)
+        // M7: kondisi gelap hanya dihitung bila ada wajah terdeteksi —
+        // ponsel telungkup / kamera tertutup di malam hari bukan pelanggaran.
+        darkSinceMs = tick(darkSinceMs, lastFacePresent && lux != null && lux < config.luxThreshold, now)
         val pitchSafe = pitch == null || pitch <= config.pitchThresholdDeg
         safeSinceMs =
             tick(
@@ -97,6 +128,7 @@ class DetectionStateMachine(
         val darkSustained: Boolean,
         val safeSustained: Boolean,
         val inWarnZone: Boolean,
+        val faceLostSustained: Boolean,
     )
 
     private fun evaluateFlags(now: Long): Flags {
@@ -107,31 +139,54 @@ class DetectionStateMachine(
                 distance < config.safeZoneCm
         return Flags(
             closeSustained = sustained(closeSinceMs, config.closeDebounceMs, now),
+            // "Keluar zona dekat" analog: jarak melewati ambang ATAU wajah hilang
+            // melewati masa tenggang (T7) - bukan sekadar wajah hilang 2 dtk.
             exitedClose =
                 sustained(exitSinceMs, config.okDebounceMs, now) ||
-                    sustained(faceLostSinceMs, config.okDebounceMs, now),
+                    sustained(faceLostSinceMs, config.faceLostGraceMs, now),
             poseSustained = sustained(poseSinceMs, config.poseDebounceMs, now),
             darkSustained = sustained(darkSinceMs, config.darkDebounceMs, now),
             safeSustained = sustained(safeSinceMs, config.okDebounceMs, now),
             inWarnZone = inWarnZone,
+            faceLostSustained = sustained(faceLostSinceMs, config.okDebounceMs, now),
         )
     }
 
     private fun resolveState(now: Long): RiskLevel {
         val f = evaluateFlags(now)
-        return when {
-            f.closeSustained -> RiskLevel.BLOCKED
-            state == RiskLevel.BLOCKED && !f.exitedClose -> RiskLevel.BLOCKED
-            f.poseSustained || f.darkSustained -> RiskLevel.WARNING
-            f.inWarnZone -> RiskLevel.WARNING
-            state == RiskLevel.BLOCKED && !f.safeSustained -> RiskLevel.WARNING
-            f.safeSustained && !f.poseSustained && !f.darkSustained -> RiskLevel.OK
-            // Wajah hilang bertahan = bukan pelanggaran (banner jangan lengket) —
-            // kecuali gelap/postur masih aktif.
-            sustained(faceLostSinceMs, config.okDebounceMs, now) &&
-                !f.poseSustained && !f.darkSustained -> RiskLevel.OK
-            else -> state
-        }
+        val faceLost = faceLostSinceMs != null
+        val faceLostGraceOver = sustained(faceLostSinceMs, config.faceLostGraceMs, now)
+
+        val next =
+            when {
+                f.closeSustained -> RiskLevel.BLOCKED
+                // T7: wajah hilang saat alarm dekat aktif (BLOCKED / WARNING zona
+                // dekat) - tahan state selama grace. Menutup kamera dengan jari
+                // tidak boleh mematikan alarm.
+                faceLost && closeAlarmActive && !faceLostGraceOver &&
+                    (state == RiskLevel.BLOCKED || state == RiskLevel.WARNING) -> state
+                // T7: OK via wajah hilang hanya setelah grace (saat alarm dekat
+                // aktif) atau okDebounce (peringatan gelap/postur saja - aturan lama).
+                faceLost &&
+                    (if (closeAlarmActive) faceLostGraceOver else f.faceLostSustained) &&
+                    !f.poseSustained && !f.darkSustained -> RiskLevel.OK
+                state == RiskLevel.BLOCKED && !f.exitedClose -> RiskLevel.BLOCKED
+                f.poseSustained || f.darkSustained -> RiskLevel.WARNING
+                f.inWarnZone -> RiskLevel.WARNING
+                state == RiskLevel.BLOCKED && !f.safeSustained -> RiskLevel.WARNING
+                f.safeSustained && !f.poseSustained && !f.darkSustained -> RiskLevel.OK
+                else -> state
+            }
+        closeAlarmActive =
+            when (next) {
+                RiskLevel.OK -> false
+                RiskLevel.BLOCKED -> true
+                RiskLevel.WARNING ->
+                    // Sekali dipicu konteks dekat, bertahan sampai OK (T7: WARNING
+                    // zona dekat juga ditahan saat wajah hilang - bukan hanya BLOCKED).
+                    closeAlarmActive || f.inWarnZone || f.closeSustained || state == RiskLevel.BLOCKED
+            }
+        return next
     }
 
     private var lastDistanceCm: Float? = null
@@ -144,6 +199,10 @@ class DetectionStateMachine(
         poseSinceMs = null
         darkSinceMs = null
         safeSinceMs = null
+        closeMissingFrames = 0
+        closeAlarmActive = false
+        lastFacePresent = false
+        lastDistanceCm = null
     }
 
     private fun tick(
