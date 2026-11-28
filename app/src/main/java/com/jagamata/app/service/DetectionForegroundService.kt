@@ -548,6 +548,10 @@ class DetectionForegroundService : LifecycleService() {
         _isRunning.value = false
         sessionStartEpochMs = 0L
         OverlayService.requestLevel(this, RiskLevel.OK)
+        // Bug: notifikasi foreground ("JagaMata aktif") tidak dibatalkan saat service
+        // berhenti — flag-nya nyangkut di status bar. Hapus eksplisit.
+        runCatching { stopForeground(Service.STOP_FOREGROUND_REMOVE) }
+        runCatching { NotificationManagerCompat.from(this).cancel(NotificationHelper.NOTIF_ID_SERVICE) }
         super.onDestroy()
     }
 
@@ -665,6 +669,9 @@ class DetectionForegroundService : LifecycleService() {
             monitoringDesired = false
             _pausedSinceEpochMs.value = 0L
             persistMonitoringDesired(context, false)
+            // Batalkan notifikasi foreground segera agar flag tidak nyangkut
+            // menunggu onDestroy (bug: notifikasi tidak mau hilang).
+            runCatching { NotificationManagerCompat.from(context).cancel(NotificationHelper.NOTIF_ID_SERVICE) }
             context.stopService(Intent(context, DetectionForegroundService::class.java))
         }
 
@@ -674,6 +681,7 @@ class DetectionForegroundService : LifecycleService() {
          */
         fun pauseMonitoring(context: Context) {
             _pausedSinceEpochMs.value = System.currentTimeMillis()
+            runCatching { NotificationManagerCompat.from(context).cancel(NotificationHelper.NOTIF_ID_SERVICE) }
             context.stopService(Intent(context, DetectionForegroundService::class.java))
         }
 
